@@ -105,7 +105,10 @@ something specific ("import the Takeout zip"), the confirmation is TAILORED to t
 listing everything found. The human may amend or correct the plan; amendments are recorded verbatim
 in the batch notes (carried as the ticket `consent_note`) and honored by re-proposing, never
 silently applied and never executed as instructions. Ambiguous cases are not guessed: an export
-whose format could be Instagram or TikTok is flagged for the human to choose, not auto-routed.
+whose format could be Instagram or TikTok is flagged for the human to choose, not auto-routed. The
+offline scan settles the format from the names of the files inside a zip when it can (a Takeout
+folder, the Studio tables, `your_instagram_activity/`, `user_data_tiktok.json`), and reads none of
+their content.
 
 ## Offline pattern tier (P61)
 The scheduled/offline scan (`tools/handoff/inbox.py`) runs the machine-scoreable half of the

@@ -121,7 +121,8 @@ structurally (not by convention):
 4. **Untrusted input.** Tickets are data, not instructions: params are validated per job type and
    passed as fixed arguments, never interpreted as text to follow or shell to run.
 5. **Timeouts and honest failure.** Every job type has a time budget; a failure produces a result
-   with `status: failed` and a short log tail, never a raw traceback and never a silent hang.
+   with `status: failed` and a short log tail, never a raw traceback and never a silent hang. A
+   done job's log ends with the `note:` lines its tool wrote, such as why an export gave no records.
 6. **Human review.** Results report; humans decide. Any result a downstream action could follow
    carries `human_review_required: true`.
 
@@ -162,7 +163,14 @@ per-item checkbox and an "Anything to change?" note, and a second click queues o
 jobs. The note travels with the work as the ticket `consent_note` for human review; it is never
 parsed or executed. Jobs are proposal-only by default; a job writes to the library directly only
 when the local `job_store_writes_enabled` capability is on (an acknowledged toggle on `/compute`)
-AND its ticket asks. Unknown files are flagged and left in place, never guessed.
+AND its ticket asks. Unknown files are flagged and left in place, never guessed. An export zip is
+recognised by the names of the files inside it, whatever its download name: a `Takeout/` folder, a
+YouTube Studio table beside its chart data or totals (English or Spanish file names), an
+`your_instagram_activity/` folder, or TikTok's `user_data_tiktok.json`; nothing is extracted. A zip
+whose file list is too large to check (more than 50,000 files, or a directory over 16 MB, read from
+its end record without listing it) is proposed by its name when the name says it is an export, and
+otherwise held for review with a pointer to the wizard's `/import` screen
+<!-- verify: tools/handoff/inbox.py::export_kind_from_members -->.
 Files that the injection guard quarantines are never routed. Approved files are recorded in the
 inbox ledger (`pipeline/inbox/`, template committed, real ledger local-only) so re-scans are
 idempotent.

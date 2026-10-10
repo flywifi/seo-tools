@@ -28,6 +28,8 @@ import hashlib
 import json
 import os
 import sys
+import unicodedata
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -48,6 +50,15 @@ _FORMAT_CATEGORY = {
     "audio": "audio_media",
 }
 _EXPORT_HINTS = ("takeout", "studio", "dyi", "export")
+# The kinds a zip's member names identify (export_kind_from_members); each is a format the
+# import_parse_preview job accepts.
+_CONTENT_KINDS = ("youtube-takeout", "youtube-studio-zip", "instagram-dyi", "tiktok-dyi")
+# YouTube Studio names the CSVs of a content export in the account's language: the table, plus the
+# chart data or the totals beside it. English and Spanish, from public reports, not vendor docs.
+_STUDIO_TABLES = {
+    "table data.csv": ("chart data.csv", "totals.csv"),
+    "datos de la tabla.csv": ("datos del gr\u00e1fico.csv", "totales.csv"),
+}
 
 
 def load_rules(path=RULES_PATH) -> dict:
@@ -104,13 +115,47 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _format_category(info: dict, name: str) -> str | None:
+def _format_category(info: dict, name: str, export_kind: str | None = None) -> str | None:
     fam = info.get("family")
     if fam in _FORMAT_CATEGORY:
         return _FORMAT_CATEGORY[fam]
-    if fam == "archive" and any(h in name.lower() for h in _EXPORT_HINTS):
+    if fam == "archive" and (export_kind or any(h in name.lower() for h in _EXPORT_HINTS)):
         return "platform_export"
     return None
+
+
+def export_kind_from_members(path) -> dict:
+    """{"kind", "refused"} for a zip, from its member names alone; nothing is extracted. The end
+    record is read first (classify.zip_directory, ZIP64 included), and a zip whose directory is over
+    classify's limits is not listed: "refused" says why. A Takeout/ folder is youtube-takeout; a
+    Studio table beside its chart data or totals (in English or Spanish) is youtube-studio-zip;
+    your_instagram_activity/, posts_*.json or reels.json is instagram-dyi; user_data_tiktok.json or
+    user_data.json is tiktok-dyi. Anything else, or a file that is not a readable zip, is
+    {"kind": None, "refused": None}. Never raises."""
+    directory = _classify.zip_directory(path)
+    if directory is None:
+        return {"kind": None, "refused": None}
+    refused = _classify.zip_refusal(directory)
+    if refused:
+        return {"kind": None, "refused": refused}
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+    except (zipfile.BadZipFile, OSError, RuntimeError, ValueError, EOFError, NotImplementedError):
+        return {"kind": None, "refused": None}
+    names = [unicodedata.normalize("NFC", n.replace("\\", "/")).lower() for n in names]
+    base = {n.rsplit("/", 1)[-1] for n in names}
+    kind = None
+    if any(n.startswith("takeout/") for n in names):
+        kind = "youtube-takeout"
+    elif any(t in base and set(beside) & base for t, beside in _STUDIO_TABLES.items()):
+        kind = "youtube-studio-zip"
+    elif (any(n.startswith("your_instagram_activity/") or "/your_instagram_activity/" in n for n in names)
+          or any(b.startswith("posts_") and b.endswith(".json") for b in base) or "reels.json" in base):
+        kind = "instagram-dyi"
+    elif base & {"user_data_tiktok.json", "user_data.json"}:
+        kind = "tiktok-dyi"
+    return {"kind": kind, "refused": None}
 
 
 def _screener():
@@ -277,8 +322,23 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
                     out["quarantined"].append(entry)
                     continue
 
-        cat = _format_category(info, p.name)
+        contents = (export_kind_from_members(p) if info.get("family") == "archive"
+                    else {"kind": None, "refused": None})
+        cat = _format_category(info, p.name, contents["kind"])
         rule = rules.get(cat) if cat else None
+        if contents["kind"]:
+            entry["export_kind"] = contents["kind"]
+        if contents["refused"]:
+            if cat is None:  # no name hint either: the person picks the format on the import screen
+                entry.update({"classified_as": None, "category_source": "archive_too_large",
+                              "note": f"this zip's file list is too large to check here "
+                                      f"({contents['refused']}); if it is a platform export, unzip "
+                                      "it and open the folder on the setup wizard's /import screen; "
+                                      "left in place"})
+                out["needs_review"].append(entry)
+                continue
+            entry["note"] = (f"too many files to check its contents here ({contents['refused']}); "
+                             "its name says it is an export")
         if ((entry.get("offline_pattern_scan") or {}).get("truncated")
                 and p.suffix.lower().lstrip(".") in _SCREEN_REQUIRED_EXTS):
             # a text format read only up to max_bytes: approve refuses it, so it is not proposed
@@ -394,8 +454,10 @@ def _export_kind(name: str) -> str | None:
 def plan_followups(moved_entries) -> list:
     """P61 A-CONFIRM2: map each approved+moved file to the follow-up job the work-order screen
     proposes (or an honest 'none'). Pure: data in, data out, no I/O. The input is the list of
-    approved proposal entries (each carries file, classified_as, and the Processed path). A file
-    whose export format is ambiguous ("dyi" = instagram or tiktok) gets NO job, never a guess."""
+    approved proposal entries (each carries file, classified_as, the Processed path, and for an
+    export the kind its member names showed, export_kind). A file whose export format is still
+    ambiguous ("dyi" = instagram or tiktok, with no kind from its contents) gets NO job, never a
+    guess."""
     plan = []
     for e in moved_entries:
         cat = e.get("classified_as")
@@ -408,7 +470,8 @@ def plan_followups(moved_entries) -> list:
             plan.append({"file": ref, "job_type": "transcript_normalize", "input_ref": ref,
                          "note": "break into segments, silences, and suggested chapters"})
         elif cat == "platform_export":
-            kind = _export_kind(name)
+            kind = e.get("export_kind") if e.get("export_kind") in _CONTENT_KINDS else None
+            kind = kind or _export_kind(name)
             if kind:
                 plan.append({"file": ref, "job_type": "import_parse_preview", "input_ref": ref,
                              "params": {"kind": kind}, "note": f"preview the {kind} export"})
@@ -576,6 +639,7 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
             results["moved"].append(item["file"])
             results["moved_details"].append({
                 "file": item["file"], "classified_as": item.get("classified_as"),
+                "export_kind": item.get("export_kind"),
                 "processed_ref": f"Inbox/Processed/{stamp}/{target.name}"})
         data["entries"] = entries
         _write_ledger(ledger_path, data)
@@ -1455,6 +1519,63 @@ def _selftest_checks() -> int:
        a9["moved"] == ["Inbox/talk.srt"] and "ledger_note" not in a9
        and [e.get("file_name") for e in json.loads(l9.read_text(encoding="utf-8"))["entries"]]
        == ["old.txt", "talk.srt"])
+
+    # P102: an export is recognised by its member names, whatever its download name, and the kind
+    # travels from scan through approve to the follow-up job. Zips are built in memory (the repo
+    # commits none); the member names follow public reports of each platform's export.
+    zb = _classify._zip_bytes
+    ex = Path(tempfile.mkdtemp()); (ex / "Inbox").mkdir()
+    exports = {
+        "Content 2026-09-07_2026-10-05 Fictional Channel.zip":
+            (zb(["Table data.csv", "Chart data.csv", "Totals.csv"]), "youtube-studio-zip"),
+        "Contenido 2026-09-07_2026-10-05 Canal Ficticio.zip":
+            (zb(["Datos de la tabla.csv", "Datos del gr\u00e1fico.csv", "Totales.csv"]), "youtube-studio-zip"),
+        "Contenido decomposed.zip":  # a zip made on a Mac can spell the accent as two code points
+            (zb(["Datos de la tabla.csv", "Datos del gra\u0301fico.csv"]), "youtube-studio-zip"),
+        "Content zip64.zip": (zb(["Table data.csv", "Totals.csv"], zip64=True), "youtube-studio-zip"),
+        "instagram-fictionaluser-2026-10-05-AbCdEfGh.zip":
+            (zb(["your_instagram_activity/content/reels.json"]), "instagram-dyi"),
+        "instagram-dyi-export.zip": (zb(["your_instagram_activity/content/posts_1.json"]), "instagram-dyi"),
+        "TikTok_Data_1759600000.zip": (zb(["user_data_tiktok.json"]), "tiktok-dyi"),
+        "takeout-20261005T120000Z-001.zip":
+            (zb(["Takeout/YouTube and YouTube Music/videos/porch.mp4", "Takeout/archive_browser.html"]),
+             "youtube-takeout"),
+        "holiday-photos.zip": (zb(["beach.jpg", "notes.txt"]), None),
+        "report-tables.zip": (zb(["Table data.csv"]), None),
+        "broken.zip": (b"PK\x03\x04 this is not a zip", None),
+    }
+    for name, (raw, _kind) in exports.items():
+        (ex / "Inbox" / name).write_bytes(raw)
+    many = [f"m{i}.txt" for i in range(_classify.ZIP_MAX_ENTRIES + 1)]
+    (ex / "Inbox" / "archive-of-everything.zip").write_bytes(zb(many))
+    (ex / "Inbox" / "takeout-huge.zip").write_bytes(zb(["Takeout/x.csv"] + many))
+    sx = scan(ex, ledger={})
+    got = {e["file"].split("/", 1)[1]: e.get("export_kind") for e in sx["proposals"]}
+    want = {n: k for n, (_r, k) in exports.items() if k}
+    ok("each export is proposed with the kind its member names show, whatever its download name",
+       {n: got.get(n) for n in want} == want)
+    unknown_x = {e["file"].split("/", 1)[1] for e in sx["unknown"]}
+    ok("a zip of photos, a lone table and a file that is not a zip stay unknown",
+       {"holiday-photos.zip", "report-tables.zip", "broken.zip"} <= unknown_x)
+    held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}
+    ok("a zip with too many files to list, and no name hint, is held with a note naming the import screen",
+       "archive-of-everything.zip" in held_x
+       and held_x["archive-of-everything.zip"]["category_source"] == "archive_too_large"
+       and "/import" in held_x["archive-of-everything.zip"]["note"]
+       and str(_classify.ZIP_MAX_ENTRIES + 1) in held_x["archive-of-everything.zip"]["note"])
+    huge = next((e for e in sx["proposals"] if e["file"] == "Inbox/takeout-huge.zip"), {})
+    ok("a zip too large to list whose name says Takeout is proposed by its name, with a note",
+       huge.get("classified_as") == "platform_export" and "export_kind" not in huge
+       and "too many files" in huge.get("note", ""))
+    ax = approve(ex, sx, ledger_path=Path(tempfile.mkdtemp()) / "ex-ledger.json")
+    jobs = {f["file"].rsplit("/", 1)[1]: (f["job_type"], (f.get("params") or {}).get("kind"))
+            for f in plan_followups(ax["moved_details"])}
+    ok("approve carries the kind, and each export gets its preview job",
+       all(jobs.get(n) == ("import_parse_preview", k) for n, k in want.items())
+       and jobs.get("takeout-huge.zip") == ("import_parse_preview", "youtube-takeout"))
+    ok("plan_followups ignores a kind outside the import formats",
+       plan_followups([{"classified_as": "platform_export", "export_kind": "bogus",
+                        "processed_ref": "Inbox/Processed/d/thing.zip"}])[0]["job_type"] is None)
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

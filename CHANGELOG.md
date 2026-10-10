@@ -13,6 +13,21 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (exports recognised by their contents): the inbox scan reads a zip's member names
+  (`inbox.export_kind_from_members`; nothing is extracted) and proposes a YouTube Studio export
+  (its table beside the chart data or totals, in English or Spanish file names), a Takeout, an
+  Instagram (`your_instagram_activity/`, `posts_*.json`, `reels.json`) or a TikTok
+  (`user_data_tiktok.json`, `user_data.json`) export whatever its download name; it used to read
+  only the name. The kind travels through approve to the follow-up job, so a hint-named Instagram
+  zip gets its preview job. The member names come from public reports, not vendor documentation.
+  `classify.zip_directory` reads a zip's entry count and directory size from its end record, ZIP64
+  included, and a zip over 50,000 entries or a 16 MB directory is not listed: the classifier treats
+  it as a plain archive, and the scan proposes it by a name hint or holds it with a pointer to the
+  `/import` screen. `classify.py` and `wer.py` gain selftests and leave the selftest exemptions.
+- P102 (import notes): `import_parse` reads a TikTok data zip through its JSON member instead of
+  stopping with a JSONDecodeError, and prints a `note:` line on stderr for a `.tgz` Takeout and for
+  a Studio CSV none of whose column names it recognises (another language); the wizard's import
+  screen and a done job's log show those lines.
 - P102 (UTF-16 text in the injection screen): `injection_scan.scan_file` decodes through
   `textdecode`, and a file that starts with a UTF-16 or UTF-32 byte-order mark is decoded before
   the binary sniff, so a subtitle saved by Windows PowerShell's `Out-File` is screened and can be

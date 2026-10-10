@@ -19,7 +19,6 @@
     "tools/publishing/_http.py": "Covered by the same package entry; its callers are the four platform clients, each of which has a selftest.",
     "tools/videoedit/__init__.py": "Package marker and re-export shim; no independent logic.",
     "tools/handoff/__init__.py": "Package marker; 13 lines, no logic.",
-    "tools/importers/__init__.py": "Package marker; 9 lines, no logic.",
-    "shared/docintel/classify.py": "Exercised by handoff/inbox.py, whose own selftest drives classification end to end."
+    "tools/importers/__init__.py": "Package marker; 9 lines, no logic."
   }
 }

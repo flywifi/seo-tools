@@ -71,6 +71,12 @@ def _read_text(path_or_text):
     return s
 
 
+def _note(message):
+    """Tell the person something on stderr, as one line starting 'note: '; stdout stays the JSON
+    record list. The wizard's import screen and a runner job's log show these lines (P102)."""
+    print(f"note: {message}", file=sys.stderr)
+
+
 def _safe_zip(path):
     """Open a zip, or return None if it is missing/unreadable/corrupt. Note: zipfile.BadZipFile is
     NOT an OSError subclass (it derives directly from Exception), so both must be caught. This lets a
@@ -129,6 +135,9 @@ def parse_youtube_studio_csv(path_or_text):
         return []
     header = rows[0]
     mapping = {i: _yt_map_header(col) for i, col in enumerate(header)}
+    if not any(mapping.values()) and any(r and any(c.strip() for c in r) for r in rows[1:]):
+        _note("none of this CSV's column names were recognised (is YouTube Studio set to another "
+              "language? set it to English, export again, and import that file)")
     out = []
     for row in rows[1:]:
         if not row or not any(c.strip() for c in row):
@@ -195,6 +204,10 @@ def parse_youtube_takeout(path):
     description; stats stay null (Takeout carries no analytics). Defensive CSV column matching."""
     p = Path(str(path))
     _probe_exists(p)  # unprobeable (e.g. ENAMETOOLONG) raises to the CLI envelope; absent falls through
+    if p.is_file() and p.name.lower().endswith((".tgz", ".tar.gz")):
+        _note("this Takeout is a .tgz archive, which this tool does not read; in Google Takeout "
+              "choose .zip, or extract the archive and import the folder")
+        return []
 
     def _from_csv_text(text):
         recs = []
@@ -228,6 +241,9 @@ def parse_youtube_takeout(path):
         for f in p.rglob("*.csv"):
             if "video metadata" in str(f).lower() or "video" in f.name.lower():
                 texts.append(_td.read_text_file(f)[0])
+        if not texts and (any(p.glob("*.tgz")) or any(p.glob("*.tar.gz"))):
+            _note("this folder holds a .tgz Takeout archive, which this tool does not read; extract it "
+                  "here and import again, or choose .zip in Google Takeout")
     elif p.is_file() and p.suffix.lower() == ".csv":
         texts.append(_td.read_text_file(p)[0])
     out = []
@@ -312,11 +328,43 @@ def parse_instagram_dyi(path):
 
 # ── TikTok "Download your data" (JSON/TXT; retention UI-only) ─────────────────
 
+# The JSON file a TikTok "Download your data" zip holds, by the names public tools report.
+_TIKTOK_MEMBERS = ("user_data_tiktok.json", "user_data.json")
+
+
+def _is_path_text(value) -> bool:
+    """True for a value that names a path rather than holding raw JSON or CSV text."""
+    if isinstance(value, Path):
+        return True
+    return isinstance(value, str) and "\n" not in value and len(value) < 4096
+
+
+def _tiktok_zip_text(zip_path):
+    """The text of the export JSON inside a TikTok data zip (user_data_tiktok.json first), or None."""
+    z = _safe_zip(zip_path)
+    if z is None:
+        return None
+    with z:
+        names = z.namelist()
+        for want in _TIKTOK_MEMBERS:
+            for n in names:
+                if n.replace("\\", "/").rsplit("/", 1)[-1].lower() == want:
+                    return _td.decode_text(z.read(n))[0]
+    return None
+
+
 def parse_tiktok_dyi(path_or_obj):
     """Parse a TikTok data-export JSON. Key casing varies (Video>Videos>VideoList[] PascalCase, or a
     flat list, or snake_case), so navigation is defensive."""
     if isinstance(path_or_obj, (dict, list)):
         obj = path_or_obj
+    elif _is_path_text(path_or_obj) and str(path_or_obj).lower().endswith(".zip"):
+        text = _tiktok_zip_text(path_or_obj)
+        if text is None:
+            _note("no user_data_tiktok.json or user_data.json in this zip (choose JSON as the file "
+                  "format when you request your TikTok data)")
+            return []
+        obj = json.loads(text)
     else:
         obj = json.loads(_read_text(path_or_obj))
 
@@ -501,6 +549,49 @@ def selftest():
     ok("tiktok dyi: id from link", tt[0]["platform_video_id"] == "7300000000000000000")
     ok("tiktok dyi: likes parsed", tt[0]["stats"]["likes"] == 1234)
     ok("tiktok dyi: retention null (UI-only)", tt[0]["retention"] is None)
+    # P102: a TikTok data zip is read through its JSON member, and .tgz Takeouts and Studio CSVs
+    # in another language say why they give nothing (a note: line on stderr).
+    import contextlib as _cl_n
+    import io as _io_n
+    import tempfile as _tf_tt
+    tt_obj = {"Video": {"Videos": {"VideoList": [
+        {"Date": "2026-05-01 12:00:00", "Link": "https://www.tiktokv.com/share/video/7300000000000000000/",
+         "Likes": "1,234", "Title": "diy hack"}]}}}
+    with _tf_tt.TemporaryDirectory() as _td_tt:
+        _ttz = Path(_td_tt) / "TikTok_Data_1759600000.zip"
+        _bare = Path(_td_tt) / "TikTok_Data_empty.zip"
+        _tgz = Path(_td_tt) / "takeout-20261005T120000Z-001.tgz"
+        _es = Path(_td_tt) / "Datos de la tabla.csv"
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_ttz, "w") as _z:
+                _z.writestr("TikTok_Data/user_data_tiktok.json", json.dumps(tt_obj))
+            with zipfile.ZipFile(_bare, "w") as _z:
+                _z.writestr("readme.txt", "no export here")
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+        _tgz.write_bytes(b"\x1f\x8b\x08\x00 not read")
+        _es.write_text("Contenido,T\u00edtulo del v\u00eddeo,Visualizaciones\nabc123,Pintar,12\n", encoding="utf-8")
+        _err = _io_n.StringIO()
+        with _cl_n.redirect_stderr(_err):
+            from_zip = parse_tiktok_dyi(str(_ttz))
+            bare = parse_tiktok_dyi(str(_bare))
+            tgz = parse_youtube_takeout(str(_tgz))
+            es = parse_youtube_studio_csv(str(_es))
+            quiet = parse_youtube_studio_csv(yt_csv)
+        _lines = [ln for ln in _err.getvalue().splitlines() if ln.startswith("note: ")]
+        ok("tiktok dyi: a data zip is read through user_data_tiktok.json, the same record as the JSON",
+           from_zip == parse_tiktok_dyi(tt_obj) and len(from_zip) == 1)
+        ok("tiktok dyi: a zip without the export JSON gives [] and a note, not a traceback",
+           bare == [] and any("user_data_tiktok.json" in ln for ln in _lines))
+        ok("takeout: a .tgz gives [] and a note naming the .zip choice",
+           tgz == [] and any(".tgz" in ln and ".zip" in ln for ln in _lines))
+        _err2 = _io_n.StringIO()
+        with _cl_n.redirect_stderr(_err2):
+            in_dir = parse_youtube_takeout(_td_tt)
+        ok("takeout: a folder holding only a .tgz gives [] and a note",
+           in_dir == [] and "folder holds a .tgz" in _err2.getvalue())
+        ok("yt studio: a CSV whose column names are all unrecognised gives [] and a note; a known one "
+           "gives none", es == [] and quiet == yt and sum("column names" in ln for ln in _lines) == 1)
 
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})

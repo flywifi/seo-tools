@@ -3508,15 +3508,19 @@ def _import_targets(folder, kind):
     return out[:200]
 
 
-def _run_import_parse(fmt, path, crashes=None):
+def _run_import_parse(fmt, path, crashes=None, notes=None):
     """Shell tools/import_parse.py for one (format, path). Returns a record list, or None if that
     attempt did not parse (wrong format for this folder, unreadable file). A run that stopped with
     a Python error (a Traceback on stderr) also returns None, and its last stderr line is appended
     to `crashes` when given, so the screen can say the tool failed rather than that the folder
-    holds no export. Never raises."""
+    holds no export. The tool's 'note: ' lines (why an export gave nothing, P102) are appended to
+    `notes` when given. Never raises."""
     try:
         r = subprocess.run([env_paths.app_python(), str(ROOT / "tools" / "import_parse.py"), fmt, path],
                            capture_output=True, timeout=900, **env_paths.tool_io())
+        if notes is not None:
+            notes.extend(ln[len("note: "):].strip() for ln in (r.stderr or "").splitlines()
+                         if ln.startswith("note: "))
         if r.returncode != 0:
             err = (r.stderr or "").strip()
             if crashes is not None and "Traceback (most recent call last)" in err:
@@ -3555,11 +3559,11 @@ def _scan_import_folder(folder, platforms):
     by video_key so a folder matched by two formats does not double-count. Nothing is saved here."""
     records, seen, notes = [], set(), []
     for plat in platforms:
-        got, crashes = 0, []
+        got, crashes, said = 0, [], []
         for fmt, kind in _IMPORT_ATTEMPTS.get(plat, []):
             targets = _import_targets(folder, kind)
             for tgt in targets:
-                recs = _run_import_parse(fmt, tgt, crashes)
+                recs = _run_import_parse(fmt, tgt, crashes, said)
                 if not recs:
                     continue
                 for rec in recs:
@@ -3574,6 +3578,8 @@ def _scan_import_folder(folder, platforms):
             notes.append(f"{plat}: {got} record(s)")
         elif crashes:
             notes.append(f"{plat}: import_parse stopped with an error: {crashes[0]}")
+        elif said:
+            notes.append(f"{plat}: {said[0]}")
         else:
             notes.append(f"{plat}: no readable export found in this folder")
     return records, notes
@@ -5858,7 +5864,10 @@ def _selftest_p101() -> int:
     def _fake_run_u(argv, **kw):
         name = pathlib.Path(str(argv[1])).name if len(argv) > 1 else ""
         _seen_u.append((name, kw))
-        return _sp_u.CompletedProcess(argv, 1, "", _stderr_u.get(name, ""))
+        _err = _stderr_u.get(name, "")
+        if _err.startswith("note: "):  # the tool ran and found nothing, and said why
+            return _sp_u.CompletedProcess(argv, 0, "[]\n", _err)
+        return _sp_u.CompletedProcess(argv, 1, "", _err)
     _real_run_u, _real_targets_u = _sp_u.run, globals()["_import_targets"]
     _sp_u.run = _fake_run_u
     globals()["_import_targets"] = lambda folder, kind: ["Table data.csv"] if kind == "csv" else []
@@ -5868,6 +5877,9 @@ def _selftest_p101() -> int:
         _notes_crash = _scan_import_folder("folder", ["youtube"])[1]
         _stderr_u["import_parse.py"] = "not a YouTube Studio export"
         _notes_plain = _scan_import_folder("folder", ["youtube"])[1]
+        _stderr_u["import_parse.py"] = "note: none of this CSV's column names were recognised\n"
+        _notes_said = _scan_import_folder("folder", ["youtube"])[1]
+        _stderr_u.pop("import_parse.py")
         _run_transcribe(["doctor"])
         _run_setup(["--check"])
         _pick_folder()
@@ -5879,6 +5891,9 @@ def _selftest_p101() -> int:
           and _notes_plain == ["youtube: no readable export found in this folder"],
           f"the import screen does not tell a tool error from a folder with no export "
           f"({_notes_crash}, {_notes_plain})")
+    check(_notes_said == ["youtube: none of this CSV's column names were recognised"],
+          f"the import screen does not show import_parse's note for an export that gave nothing "
+          f"({_notes_said})")
     _names_u = sorted({n for n, _kw in _seen_u})
     check(_names_u == ["count_truth.py", "import_parse.py", "pick_folder.py", "setup.py", "transcribe.py"]
           and all(kw.get("encoding") == "utf-8" and "text" not in kw

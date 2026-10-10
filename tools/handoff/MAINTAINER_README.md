@@ -35,6 +35,8 @@ and write rules are `docs/DRIVE-HUB.md`.
    are new files; only the local machine moves tickets to the archive.
 7. **Honest failure.** Every bad path (invalid ticket, unwired type, timeout, tool error) lands as
    a `refused`/`failed` result with a short log tail, never a raw traceback, never a silent skip.
+   A done job's log tail is its stdout followed by the tool's `note: ` stderr lines
+   (`runner._with_notes`, P102); other stderr stays out.
 8. **Read-only reports only where money or accounts are involved.** The finance builder accepts
    only the read-only reports (`ar-scan`, `cashflow`); the competitor builder runs the offline
    `--parse`, never the network fetch.
@@ -69,7 +71,12 @@ The offline half of the `inbox-routing` atom. `scan` is READ-ONLY: it sha256-dif
 against the local ledger, classifies each new file by FORMAT (`shared/docintel/classify.py`), and
 proposes a route only for categories the rules table
 (`shared/docintel/inbox_rules.json`) marks `category_source: "format"` (transcripts, media,
-export archives). Content-gated categories (contracts, pitches, invoices) are listed as
+export archives). An archive is a `platform_export` when its name carries a hint (`takeout`,
+`studio`, `dyi`, `export`) or `export_kind_from_members` finds an export's member names in it
+(P102); that kind rides on the proposal as `export_kind`, through approve's `moved_details`, to
+`plan_followups`, which accepts only the kinds in `_CONTENT_KINDS`. The zip's directory size comes
+from `classify.zip_directory` (the end record, ZIP64 included) before anything is listed; over
+`classify.ZIP_MAX_ENTRIES` or `ZIP_MAX_DIRECTORY_BYTES` it is not listed. Content-gated categories (contracts, pitches, invoices) are listed as
 `needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
 FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
 (`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned
