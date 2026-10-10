@@ -3378,8 +3378,23 @@ def _network_path(folder) -> bool:
     return f.startswith("\\\\")
 
 
+_DRIVE_REMOTE = 4  # GetDriveTypeW's DRIVE_REMOTE: a drive letter mapped to a network share
+_DRIVE_LETTER_RE = re.compile(r"^(?:\\\\\?\\)?([A-Za-z]):")
+
+
+def _drive_type(letter) -> int:
+    """GetDriveTypeW for <letter>:\\ on Windows; 0 (unknown) elsewhere or when the call fails. It
+    reads the system's drive table without opening the drive, so it answers at once for a mapped
+    drive whose server is slow or offline (P102)."""
+    try:
+        import ctypes
+        return int(ctypes.windll.kernel32.GetDriveTypeW(f"{letter}:\\"))
+    except Exception:  # noqa: BLE001 -- not Windows, or no kernel32
+        return 0
+
+
 def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None, realpath=None,
-                     isdir=None, home=None):
+                     isdir=None, home=None, drive_type=None):
     """P57: resolve a user-typed folder and confine it to the user's home tree.
 
     Returns (ok, realpath, reason). A browser text field (or a CSRF POST) must not be
@@ -3393,8 +3408,11 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
     (on_google_drive); that root folder itself is refused as 'drive_root', the way the home
     folder is. On Windows a network path is refused as 'network_path' from its text, before any
     filesystem call, unless the home folder is itself one (_network_path): resolving a path on a
-    slow or offline server blocks, and the wizard answers one request at a time. osname, realpath,
-    isdir and home stand in for the system's in the selftest.
+    slow or offline server blocks, and the wizard answers one request at a time. A drive letter
+    mapped to a network share (_drive_type reports DRIVE_REMOTE) is refused the same way, unless the
+    home folder is on that drive, and a path whose resolving raises OSError is refused as
+    'unreachable'. osname, realpath, isdir, home and drive_type stand in for the system's in the
+    selftest.
     """
     folder = folder.strip().strip('"').strip() if isinstance(folder, str) else folder
     if not folder:
@@ -3402,10 +3420,19 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
     if ((os.name if osname is None else osname) == "nt" and _network_path(folder)
             and not _network_path(os.path.expanduser("~") if home is None else home)):
         return False, folder, "network_path"
+    if (os.name if osname is None else osname) == "nt":
+        letter = _DRIVE_LETTER_RE.match(folder)
+        home_letter = _DRIVE_LETTER_RE.match(str(os.path.expanduser("~") if home is None else home))
+        if (letter and (_drive_type if drive_type is None else drive_type)(letter.group(1).upper()) == _DRIVE_REMOTE
+                and not (home_letter and home_letter.group(1).upper() == letter.group(1).upper())):
+            return False, folder, "network_path"
     realpath = os.path.realpath if realpath is None else realpath
     isdir = os.path.isdir if isdir is None else isdir
-    real = realpath(os.path.expanduser(folder))
-    home = realpath(os.path.expanduser("~")) if home is None else home
+    try:
+        real = realpath(os.path.expanduser(folder))
+        home = realpath(os.path.expanduser("~")) if home is None else home
+    except OSError:  # an offline share or a disconnected drive (WinError 64, 53, 67 and the like)
+        return False, folder, "unreachable"
     if not isdir(real):
         return False, real, "not_dir"
     if real == home and not allow_home:
@@ -3434,12 +3461,22 @@ _DRIVE_HUB_WHY = {
                   "and use that)",
     "network_path": " (a network share cannot be the Drive hub; use the folder Google Drive for "
                     "desktop shows, such as G:\\My Drive\\Creator OS)",
+    "unreachable": " (Windows could not reach that folder; reconnect its drive, or use the folder "
+                   "Google Drive for desktop shows, such as G:\\My Drive\\Creator OS)",
     "system_drive": " (that is a folder named My Drive on this computer's system drive, not Google "
                     "Drive; use the drive letter Google Drive for desktop shows, often G:)",
     "outside_home": " (use a folder in your user folder, or on Windows a folder inside the My Drive "
                     "folder of the drive letter Google Drive for desktop shows)",
 }
 
+
+# What the import and storage screens say for a folder refused before it was read (P102).
+_FOLDER_REACH_WHY = {
+    "network_path": "That folder is on a network share or a mapped network drive. Copy it to a folder "
+                    "inside your user folder on this computer, then enter that path.",
+    "unreachable": "Windows could not reach that folder (its drive may be disconnected or its server "
+                   "offline). Reconnect it, or copy the folder into your user folder, then try again.",
+}
 
 def _import_targets(folder, kind):
     """Resolve the file(s) to feed a parser for this target kind, within the export folder."""
@@ -4030,6 +4067,9 @@ anything, and closing this window does not stop the work.</p>
             # field or CSRF POST must not drive a recursive read of /, /etc, ~/.ssh, etc.
             ok_folder, expanded, why = _confined_folder(folder, allow_home=False)
             if not ok_folder:
+                if why in _FOLDER_REACH_WHY:
+                    self._send(_screen_import(folder=folder, error=_FOLDER_REACH_WHY[why]))
+                    return
                 if why == "outside_home" or why == "home_root":
                     self._send(_screen_import(folder=folder, error=(
                         "For your safety, Creator OS only scans a folder inside your home directory. "
@@ -4361,6 +4401,8 @@ anything, and closing this window does not stop the work.</p>
             if not ok_folder:
                 if why == "empty":
                     msg = "Please enter the full path to a folder."
+                elif why in _FOLDER_REACH_WHY:
+                    msg = _FOLDER_REACH_WHY[why]
                 elif why == "not_dir":
                     msg = (f"That folder was not found: {html.escape(folder)}. Create it first (in Finder "
                            "or File Explorer), then paste its full path.")
@@ -5286,7 +5328,7 @@ def _selftest_p101() -> int:
     except AssertionError as _exc_n:
         _refused_n = [str(_exc_n)]
     _unc_home_n = _confined_folder("\\\\srv\\home\\me\\hub", osname="nt", realpath=lambda p: p,
-                                   isdir=lambda p: True, home="\\\\srv\\home\\me")
+                                   isdir=lambda p: True, home="\\\\srv\\home\\me", drive_type=lambda _l: 3)
     _posix_n = _confined_folder("//nas/share", osname="posix", realpath=lambda p: p, isdir=lambda p: False,
                                 home="/home/me")
     check(_refused_n == ["network_path"] * len(_net_n) and not any(_network_path(f) for f in _local_n)
@@ -5294,6 +5336,62 @@ def _selftest_p101() -> int:
           and "network share" in _DRIVE_HUB_WHY.get("network_path", ""),
           f"a network path is resolved or accepted on Windows, a local path reads as one, or the rule "
           f"applies off Windows or to a network home folder ({_refused_n}, {_unc_home_n}, {_posix_n})")
+    # P102 push 4a: on Windows a drive letter mapped to a network share is refused by its drive type
+    # before any path call, unless the home folder is on it; a path that cannot be resolved is refused
+    # as unreachable; and the import and storage screens explain both.
+    import ntpath as _nt_m
+    _calls_m = []
+
+    def _rp_m(_p):
+        _calls_m.append(_p)
+        return _nt_m.normpath(_p)
+
+    def _dt_m(letter):
+        return {"Z": 4, "Q": 1}.get(letter, 3)  # Z: mapped, Q: no such drive, the rest local
+
+    def _offline_m(_p):
+        raise OSError(64, "The specified network name is no longer available", _p)
+    _m = dict(osname="nt", isdir=lambda _p: True, home="C:\\Users\\me", drive_type=_dt_m)
+    _mapped_m = [_confined_folder(f, allow_drive=True, realpath=_rp_m, **_m)[2]
+                 for f in ("Z:\\share\\hub", "z:/share", "\\\\?\\Z:\\share")]
+    _mapped_calls_m = list(_calls_m)
+    _local_m = [_confined_folder(f, allow_drive=True, realpath=_rp_m, **_m)[2]
+                for f in ("C:\\Users\\me\\hub", "Q:\\x")]
+    _home_z_m = _confined_folder("Z:\\home\\me\\hub", realpath=_rp_m,
+                                 **dict(_m, home="Z:\\home\\me"))[2]
+    _posix_m = _confined_folder("Z:\\share", realpath=lambda _p: _p, isdir=lambda _p: False,
+                                home="/home/me", osname="posix", drive_type=lambda _l: 4)[2]
+    _offline_res_m = _confined_folder("Y:\\gone", realpath=_offline_m, **_m)
+    _sent_m = []
+
+    def _route_m(route, form, why):
+        _h = _Handler.__new__(_Handler)
+        _h.path, _h.headers = route, {}
+        _h._read_form = lambda: dict(form)
+        _h._read_body = lambda: urllib.parse.urlencode(form)
+        _h._send = lambda body, status=200, content_type="text/html": _sent_m.append((route, why, body))
+        _h._redirect = lambda location: _sent_m.append((route, why, location))
+        _saved_cf = globals()["_confined_folder"]
+        globals()["_confined_folder"] = lambda folder, **kw: (False, folder, why)
+        try:
+            _h.do_POST()
+        finally:
+            globals()["_confined_folder"] = _saved_cf
+    for _why_m in ("network_path", "unreachable"):
+        _route_m("/api/run-import", {"action": "scan", "folder": "Z:\\x", "platforms": "youtube"}, _why_m)
+        _route_m("/api/write-storage-folder", {"folder": "Z:\\x"}, _why_m)
+    _screens_m = {(r, w): b for r, w, b in _sent_m}
+    check(_mapped_m == ["network_path"] * 3 and _mapped_calls_m == []
+          and "network_path" not in _local_m and _home_z_m != "network_path" and _posix_m != "network_path"
+          and _offline_res_m == (False, "Y:\\gone", "unreachable") and _drive_type("C") == 0
+          and "unreachable" in _DRIVE_HUB_WHY
+          and all(_FOLDER_REACH_WHY[w] in _screens_m.get((r, w), "")
+                  for r in ("/api/run-import", "/api/write-storage-folder")
+                  for w in ("network_path", "unreachable")),
+          f"a mapped network drive is resolved or accepted, a local drive or a home folder on that drive is "
+          f"refused, the rule applies off Windows, an unreachable path is not refused as such, or a screen "
+          f"does not explain it ({_mapped_m}, {_mapped_calls_m}, {_local_m}, {_home_z_m}, {_posix_m}, "
+          f"{_offline_res_m}, {sorted(_screens_m)})")
     # P102: the Drive hub folder rule on Windows, with the system stood in for: quotes are removed, a
     # folder inside a Drive for desktop drive's My Drive or Shared drives is accepted only where that
     # folder exists, the root folder itself is refused, and other routes keep the home-only rule.
@@ -5304,7 +5402,7 @@ def _selftest_p101() -> int:
                "C:\\Users\\me"}
     _dirs_d = {d.lower() for d in _dirs_d}  # Windows compares folder names without letter case
     _sys_d = dict(osname="nt", realpath=_nt_d.normpath, isdir=lambda p: p.lower() in _dirs_d,
-                  home="C:\\Users\\me")
+                  home="C:\\Users\\me", drive_type=lambda _letter: 3)  # every letter a local drive
 
     def _hub_d(folder, **kw):
         return _confined_folder(folder, allow_home=False, **dict(_sys_d, **kw))

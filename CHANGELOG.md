@@ -359,6 +359,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   an edit package filled from `pipeline/editing/edit-package.template.json`, which ships
   `"title": null` and `"name": null`; each field that becomes an XML attribute now falls back to its
   default when it is null, as `mltxml.py` already did (the selftest builds the template).
+- P102 (mapped network drives on Windows): a folder on a drive letter mapped to a network share is
+  refused as `network_path` from the drive's type (`GetDriveTypeW`, `wizard._drive_type`) before
+  anything resolves it, unless the home folder is on that drive, so a slow or offline server no
+  longer holds the wizard; a folder whose resolving raises `OSError` (a disconnected drive) is
+  refused as `unreachable` instead of resetting the connection. The import, storage and Drive hub
+  screens say what to do for both.
 - P102 (video set on Python 3.14): `requirements-videoedit.txt` installs `opentimelineio` and its
   two adapters only on Python before 3.14, because opentimelineio 0.18.1 publishes wheels for
   CPython 3.9 to 3.13 only; on 3.14 pip built it from source, which needs CMake and a C++ compiler,
