@@ -160,11 +160,12 @@ def preflight(config: dict | None = None) -> dict:
     if flags["media_render"] and not flags["video_editing_enabled"]:
         notes.append("media_render is on but the video_editing_enabled master gate is off; no render will run.")
     if not lanes["transcribe_media"]:
-        notes.append("No whisper.cpp and no faster-whisper: content-import transcript completion degrades to "
+        notes.append(env_paths.local_commands(
+                     "No whisper.cpp and no faster-whisper: content-import transcript completion degrades to "
                      "the run_local_stt gap (never a fabricated transcript). Install the user-only default with "
                      "'python3 tools/setup.py --install-deps' (faster-whisper into the repo's private .venv, "
                      "no system ffmpeg needed). Machine-wide alternative (affects the whole computer), for "
-                     "Metal on Apple Silicon: 'brew install whisper-cpp ffmpeg'.")
+                     "Metal on Apple Silicon: 'brew install whisper-cpp ffmpeg'."))
 
     return {
         "os": plat,
@@ -212,6 +213,17 @@ def selftest() -> int:
        isinstance(p.get("python_ok_for_resolve"), bool))
     ok("python_ok_for_creator_os reflects the floor (P81)",
        p.get("python_ok_for_creator_os") == (sys.version_info[:2] >= env_paths.PYTHON_FLOOR))
+    # P102: with no transcription engine, on a computer that runs the scripts as py -3, the note says so.
+    _saved_w = (globals()["_importable"], shutil.which, env_paths.python_command)
+    globals()["_importable"] = lambda name: False if name == "faster_whisper" else _saved_w[0](name)
+    shutil.which = lambda name, *a, **k: None if name in ("whisper-cli", "whisper-cpp", "main") else _saved_w[1](name, *a, **k)
+    env_paths.python_command = lambda *a, **k: "py -3"
+    try:
+        _notes_w = " ".join(preflight({"capabilities": {}}).get("notes", []))
+    finally:
+        globals()["_importable"], shutil.which, env_paths.python_command = _saved_w
+    ok("the no-engine note is written as this computer runs the scripts",
+       "'py -3 tools/setup.py --install-deps'" in _notes_w and "'python3 tools/" not in _notes_w)
 
     print(f"preflight selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

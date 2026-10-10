@@ -23,7 +23,7 @@
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
-        "tools/source_currency.py": "fb0e2af02ba469d32e3525c9f9917697a8442d30e24ae5ab3c6e8569a79a2da6",
+        "tools/source_currency.py": "8ad8c63c2a1510af234ed835118af9ea9590e5e4ca89c435b425945224bdae13",
         "tools/sync_check.py": "69abe70ebc59498184191af17f53176403f2703235b6c042417f26c57b145dad"
       }
     },
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "89b22bdbf15b6fbc8e4a14f9ac923dbc5ed1eb7eba0648e81e559d289e3fdaf5"
+        "tools/mcp_server.py": "a2a160f955eafd2d5fed6aa07da5144b79bb6c14d16dbfed47d6c9082291e539"
       }
     },
     "docs/TRANSITIONS.md": {

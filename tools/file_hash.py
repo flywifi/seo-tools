@@ -2199,6 +2199,31 @@ _MUTANTS = (
     ('UR4 the storage screen does not explain a network folder', 'wizard.py',
      '                elif why in _FOLDER_REACH_WHY:\n                    msg = _FOLDER_REACH_WHY[why]\n',
      '                elif False:\n                    msg = _FOLDER_REACH_WHY[why]\n'),
+    # P102 push 4a: printed commands are written as this computer runs the repo's scripts.
+    ('PC1 the transcription install hint says python3 on Windows', 'transcribe.py',
+     '    return _local(_install_hint_text(os_name, arch), os_name)\n',
+     '    return _install_hint_text(os_name, arch)\n'),
+    ('PC2 the model-fetch command says python3 on Windows', 'transcribe.py',
+     '"next_command": _local(f"python3 tools/transcribe.py doctor --fetch-model {name}", os_name),',
+     '"next_command": f"python3 tools/transcribe.py doctor --fetch-model {name}",'),
+    ('PC3 a simulated system takes this computer\'s wording', 'transcribe.py',
+     '    return env_paths.local_commands(text, osname="nt" if str(os_name).startswith("win") else "posix")\n',
+     '    return env_paths.local_commands(text)\n'),
+    ('PC4 the update command says python3 on Windows', 'update_check.py',
+     '            "how": _local("python3 tools/update.py"),\n',
+     '            "how": "python3 tools/update.py",\n'),
+    ('PC5 the blocked-source retry says python3 on Windows', 'source_currency.py',
+     '            "note": _local("the automated fetch was blocked (not gone); open the URL in a browser and "\n',
+     '            "note": ("the automated fetch was blocked (not gone); open the URL in a browser and "\n'),
+    ('PC6 the refetch instruction says python3 on Windows', 'source_currency.py',
+     '        report["web_intel_instruction"] = _local(\n',
+     '        report["web_intel_instruction"] = (\n'),
+    ('PC7 the reframe next step says python3 on Windows', 'videoedit/reframe.py',
+     '        "recommended_next_step": _local("python3 tools/setup.py --install-deps (user-only: moviepy "\n',
+     '        "recommended_next_step": ("python3 tools/setup.py --install-deps (user-only: moviepy "\n'),
+    ('PC8 the preflight engine note says python3 on Windows', 'videoedit/preflight.py',
+     '        notes.append(env_paths.local_commands(\n',
+     '        notes.append((\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -2220,7 +2245,8 @@ _POSIX_ONLY = {"aio-dir-precheck-nt-only",
 # sync_check.py is exempt from the selftest sweep (running it is its test).
 _ENTRIES = {"sync_check.py": "_selfproof", "wizard.py": "_selftest_p101",
             "dashboard/server.py": "_selftest", "pick_folder.py": "_selftest",
-            "env_paths.py": "_selftest", "setup.py": "_selftest_location"}
+            "env_paths.py": "_selftest", "setup.py": "_selftest_location",
+            "source_currency.py": "selftest_detect"}
 
 
 def _fail_lines(text, most=3, width=200) -> str:

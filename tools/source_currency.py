@@ -94,6 +94,12 @@ def get_threshold_for_source(source, traversal_config):
 from registry_io import load_registry, save_registry  # single sanctioned writer (shared)
 import freshness_overlay as _fo  # P36: per-user overlay; runtime writes here, never the repo registry
 from fetch_diag import classify_block  # P49 WS9: tell a bot-block apart from a genuinely-gone page
+import env_paths  # P102: printed commands as this computer runs them
+
+
+def _local(text):
+    """text with `python3 tools/...` written as this computer runs it (`py -3` on Windows)."""
+    return env_paths.local_commands(text)
 
 
 def is_currently_blocked(source):
@@ -143,9 +149,9 @@ def blocked_sources(sources, category=None):
             "overdue": bool(days_since(s.get("first_block_detected") or s.get("last_block_detected")) is not None
                             and days_since(s.get("first_block_detected") or s.get("last_block_detected"))
                             > (s.get("check_interval_days") or 30)),
-            "note": "the automated fetch was blocked (not gone); open the URL in a browser and paste "
-                    "the text, or run 'python3 tools/fetch_resilient.py <url>' to retry. See "
-                    "docs/PASTE-SAFETY.md.",
+            "note": _local("the automated fetch was blocked (not gone); open the URL in a browser and "
+                           "paste the text, or run 'python3 tools/fetch_resilient.py <url>' to retry. "
+                           "See docs/PASTE-SAFETY.md."),
         })
     return out
 
@@ -286,7 +292,7 @@ def build_report(sources, category=None, include_refetch=False, traversal_config
                 "action": "source-verify via web-intel-engine currency-check mode",
             })
         report["refetch_queue"] = refetch_queue
-        report["web_intel_instruction"] = (
+        report["web_intel_instruction"] = _local(
             "For each entry in refetch_queue: call web-intel-engine in currency-check mode "
             "using the url and extraction_hint. After verification, call "
             "'python3 tools/source_currency.py mark-checked <id> [--changed]'."
@@ -727,10 +733,10 @@ def cmd_detect_changes(args, registry, traversal_config, getter=_http_get_conten
                 "id": e["id"], "url": e.get("url"), "used_by": e.get("used_by", []),
                 "block_kind": blk.get("kind"), "block_vendor": blk.get("vendor"),
                 "retry_worthwhile": blk.get("retry_worthwhile"),
-                "note": "the automated fetch was BLOCKED, not gone. Open the URL in your browser and "
-                        "paste the text (or upload a screenshot), or run "
-                        "'python3 tools/fetch_resilient.py <url>' to retry with a real browser + Wayback. "
-                        "See docs/PASTE-SAFETY.md before pasting into a third-party chat.",
+                "note": _local("the automated fetch was BLOCKED, not gone. Open the URL in your browser "
+                               "and paste the text (or upload a screenshot), or run "
+                               "'python3 tools/fetch_resilient.py <url>' to retry with a real browser + "
+                               "Wayback. See docs/PASTE-SAFETY.md before pasting into a third-party chat."),
             })
             if apply:
                 bf = {"last_block_detected": today, "block_kind": blk.get("kind"),
@@ -1084,6 +1090,17 @@ def selftest_detect():
        build_recommended_actions([], [], []) == [])
     _rep82 = build_report([_blocked_fixture(40, 30), _blocked_fixture(5, 30)])
     ok("report summary counts blocked_overdue", _rep82["summary"]["blocked_overdue"] == 1)
+    # P102: on a computer that runs the repo's scripts as py -3, the retry command says so.
+    _real_pc_w = env_paths.python_command
+    env_paths.python_command = lambda *a, **k: "py -3"
+    try:
+        _note_w = blocked_sources([_blocked_fixture(40, 30)])[0]["note"]
+        _instr_w = build_report([_blocked_fixture(40, 30)], include_refetch=True).get("web_intel_instruction", "")
+    finally:
+        env_paths.python_command = _real_pc_w
+    ok("the blocked-source note and the refetch instruction are written as this computer runs the scripts",
+       "'py -3 tools/fetch_resilient.py <url>'" in _note_w and "python3 tools/" not in _note_w + _instr_w
+       and "'py -3 tools/source_currency.py mark-checked" in _instr_w)
 
     _saved_save82 = g["save_registry"]
     try:

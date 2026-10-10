@@ -365,6 +365,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   longer holds the wizard; a folder whose resolving raises `OSError` (a disconnected drive) is
   refused as `unreachable` instead of resetting the connection. The import, storage and Drive hub
   screens say what to do for both.
+- P102 (more printed commands on Windows): the transcription install hint and model-fetch command
+  (`transcribe._install_hint`, `doctor`), the update command (`update_check`), the blocked-source
+  retry and refetch instruction (`source_currency`), the reframe and video-preflight next steps and
+  `launch_setup`'s manual hint now go through `env_paths.local_commands`, so Windows shows `py -3`
+  (or `python`); the transcription doctor follows the system it reports on. `setup.py
+  --install-deps` names the interpreter's PEP 668 lock instead of Homebrew. Maintainer tools
+  (the battery, the drift guard, `dependency_currency` with its restricted import set) keep
+  `python3`.
 - P102 (video set on Python 3.14): `requirements-videoedit.txt` installs `opentimelineio` and its
   two adapters only on Python before 3.14, because opentimelineio 0.18.1 publishes wheels for
   CPython 3.9 to 3.13 only; on 3.14 pip built it from source, which needs CMake and a C++ compiler,

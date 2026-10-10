@@ -69,10 +69,25 @@ def detect_backends():
     return {"whisper_cpp": cpp_bin, "faster_whisper": fw}
 
 
+def _local(text, os_name=None):
+    """text with its `python3 tools/...` commands as the computer runs them (env_paths.local_commands:
+    `py -3` or `python` on Windows). os_name is the system the doctor reports on (sys.platform form),
+    so a simulated system keeps its own wording; None reads this computer's."""
+    sys.path.insert(0, str(HERE))
+    import env_paths
+    if os_name is None:
+        return env_paths.local_commands(text)
+    return env_paths.local_commands(text, osname="nt" if str(os_name).startswith("win") else "posix")
+
+
 def _install_hint(os_name, arch):
     """The OS-correct one-liner a non-technical user runs to get a backend. P93: the default
     is always user-only (faster-whisper via the repo's .venv, docs/INSTALL-SCOPE.md); brew and
     apt routes are named as the machine-wide alternative."""
+    return _local(_install_hint_text(os_name, arch), os_name)
+
+
+def _install_hint_text(os_name, arch):
     if os_name == "darwin":
         return ("python3 tools/setup.py --install-deps   (user-only: faster-whisper in the "
                 "repo .venv; machine-wide alternative: brew install whisper-cpp ffmpeg)")
@@ -457,7 +472,7 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
                     "why": ("the model matches its committed integrity pin" if ok_m else
                             "a model that fails its integrity pin must not be transcribed with; re-fetch it")}
             if not ok_m:
-                step["next_command"] = f"python3 tools/transcribe.py doctor --fetch-model {name}"
+                step["next_command"] = _local(f"python3 tools/transcribe.py doctor --fetch-model {name}", os_name)
             steps.append(step)
         elif mp:
             steps.append({"step": "model", "ok": True,
@@ -466,7 +481,7 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
         else:
             steps.append({"step": "model", "ok": False,
                           "what_it_is": "a one-time speech model download (a few hundred MB)",
-                          "next_command": f"python3 tools/transcribe.py doctor --fetch-model {name}",
+                          "next_command": _local(f"python3 tools/transcribe.py doctor --fetch-model {name}", os_name),
                           "why": "whisper.cpp needs a model file; this downloads and verifies it for you"})
     elif sel.get("backend") == "faster-whisper":
         steps.append({"step": "model", "ok": True,
@@ -554,6 +569,22 @@ def selftest():
                                model_dir_override=str(tmp / "empty-models"))
         ok("doctor amber when whisper.cpp present but no model", d_cpp_nomodel["verdict"] == "amber"
            and "--fetch-model" in (d_cpp_nomodel["next_action"] or ""))
+        # P102: on a computer that runs the repo's scripts as py -3, the printed commands say so.
+        import env_paths as _ep_w
+        _real_pc_w = _ep_w.python_command
+        _ep_w.python_command = lambda osname=None, which=None: (  # Windows runs the scripts as py -3
+            "python3" if osname not in (None, "nt") else "py -3")
+        try:
+            _hint_w = _install_hint("win32", "amd64")
+            _fetch_w = doctor(os_name="win32", arch="amd64", have={"whisper_cpp": True, "faster_whisper": False},
+                              model_dir_override=str(tmp / "empty-models"))["next_action"] or ""
+            _mac_w = _install_hint("darwin", "arm64")
+        finally:
+            _ep_w.python_command = _real_pc_w
+        ok("the install hint and the model command are written as this computer runs the scripts",
+           _hint_w.startswith("py -3 tools/setup.py --install-deps")
+           and _fetch_w.startswith("py -3 tools/transcribe.py doctor --fetch-model")
+           and "python3 tools/" not in _hint_w + _fetch_w and _mac_w.startswith("python3 tools/setup.py"))
         mdir = tmp / "models"
         mdir.mkdir()
         (mdir / "ggml-base.en.bin").write_bytes(b"x")

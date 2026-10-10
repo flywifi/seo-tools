@@ -207,7 +207,8 @@ distinct from `unreachable`:
 a handoff that works everywhere: open the URL in a browser and paste the text (or upload a screenshot) —
 the always-available `manual_paste` / `uploaded_file` connectors carry this on claude.ai web, ChatGPT
 web, and Gemini as well as desktop — gated by `docs/PASTE-SAFETY.md`. Local-runtime users can instead run
-`python3 tools/fetch_resilient.py <url>` (browser render + archive.org), or pass `--resilient` to
+`python3 tools/fetch_resilient.py <url>` (`py -3` on Windows, as the note itself writes it; browser
+render + archive.org), or pass `--resilient` to
 `--detect-changes` to attempt that retry automatically before recording a block (opt-in; may use network;
 degrades silently if the optional deps are absent). See `shared/web-intel-engine.md` Levels 3 to 6.
 

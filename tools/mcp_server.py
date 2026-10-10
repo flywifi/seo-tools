@@ -1077,6 +1077,10 @@ def _selftest_static() -> tuple:
        and src.count(_lb + "launch_note(url, confirmed)") == 1
        and src.count('"dashboard_url": ' + _lb + "dashboard_url(),") == 1
        and ('"dashboard_url": ' + '"http://localhost:') not in src)
+    # P102: launch_setup's manual hint is written as this computer runs the repo's scripts (read from
+    # the file, for the reason above; the searched text is assembled for the same reason).
+    ok("launch_setup's manual hint goes through env_paths.local_commands",
+       src.count('"manual": env_paths.' + 'local_commands("Run: python3 tools/wizard.py")') == 1)
 
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
@@ -2620,7 +2624,7 @@ def launch_setup() -> str:
         proc = subprocess.Popen([sys.executable, str(wizard)], **kwargs)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": f"could not start the wizard: {exc}",
-                           "manual": "Run: python3 tools/wizard.py"})
+                           "manual": env_paths.local_commands("Run: python3 tools/wizard.py")})
     url, confirmed = loopback_server.launched_wizard_url(proc, launch_id)
     return json.dumps({
         "result": "launching",

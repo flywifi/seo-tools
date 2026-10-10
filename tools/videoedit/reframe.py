@@ -28,6 +28,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import videoedit_validate as _gate  # noqa: E402
+import env_paths  # noqa: E402  (printed commands as this computer runs them, P102)
+
+
+def _local(text):
+    """text with `python3 tools/...` written as this computer runs it (`py -3` on Windows)."""
+    return env_paths.local_commands(text)
 
 SUBPROCESS_TIMEOUT = 1800
 
@@ -135,8 +141,9 @@ def render(media_path, out_path, start_seconds, end_seconds, crop, config=None, 
         "gap_type": "no_backend",
         "description": "no render backend could run (see backend_chain)",
         "impact": "no local render; crop parameters still valid",
-        "recommended_next_step": "python3 tools/setup.py --install-deps (user-only: moviepy into "
-                                 "the repo .venv), or put ffmpeg on PATH, or apply the crop in the editor"})
+        "recommended_next_step": _local("python3 tools/setup.py --install-deps (user-only: moviepy "
+                                        "into the repo .venv), or put ffmpeg on PATH, or apply the crop "
+                                        "in the editor")})
     return result
 
 
@@ -194,6 +201,16 @@ def selftest():
                backend="pyav")
     _check("unknown render backend refused honestly",
            not r["rendered"] and r["gaps"][0]["gap_type"] == "no_backend", failures)
+    _real_pc_w = env_paths.python_command
+    env_paths.python_command = lambda *a, **k: "py -3"  # P102: a computer that runs the scripts as py -3
+    try:
+        _next_w = render("in.mp4", "out.mp4", 0, 5, crop_geometry(1280, 720)["crop"],
+                         config={"capabilities": {"shorts_reframe": {"enabled": True}}},
+                         backend="pyav")["gaps"][0]["recommended_next_step"]
+    finally:
+        env_paths.python_command = _real_pc_w
+    _check("the no-backend next step is written as this computer runs the scripts",
+           _next_w.startswith("py -3 tools/setup.py --install-deps"), failures)
 
     n = _check.ran
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")

@@ -40,6 +40,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import registry_io  # noqa: E402  (the single shared registry writer)
 import version as version_mod  # noqa: E402
 from dependency_currency import _cmp, _http_get_json, fetch_latest, parse_version  # noqa: E402
+import env_paths  # noqa: E402  (printed commands as this computer runs them, P102)
+
+
+def _local(text):
+    """text with `python3 tools/...` written as this computer runs it (`py -3` on Windows)."""
+    return env_paths.local_commands(text)
 
 TOOL = "tools/update_check.py"
 # The upstream the installed copy tracks. Overridable so a fork / self-host can point elsewhere and
@@ -284,7 +290,7 @@ def build_report(local, offline=False, getter=_http_get_json, repo=None, branch=
         "update_available": update_available,
         "note": note,
         "apply": {
-            "how": "python3 tools/update.py",
+            "how": _local("python3 tools/update.py"),
             "note": ("Applying is your explicit choice. It pulls new code and rebuilds the cache. "
                      "It never touches your .local data files (rate card, deals, contracts, templates)."),
         },
@@ -352,7 +358,14 @@ def selftest():
     r = build_report("0.1.0", getter=getter_behind, repo="o/r")
     ok("behind -> update_available", r["status"] == "behind" and r["update_available"] is True)
     ok("behind carries latest", r["latest_seen"] == "v0.2.0" and r["latest_seen_date"] == "2026-07-10")
-    ok("report always proposes apply", r["apply"]["how"] == "python3 tools/update.py")
+    ok("report always proposes apply", r["apply"]["how"] == env_paths.local_commands("python3 tools/update.py"))
+    _real_pc_w = env_paths.python_command
+    env_paths.python_command = lambda *a, **k: "py -3"  # P102: a computer that runs the scripts as py -3
+    try:
+        _how_w = build_report("0.1.0", getter=getter_behind, repo="o/r")["apply"]["how"]
+    finally:
+        env_paths.python_command = _real_pc_w
+    ok("the apply command is written as this computer runs the scripts", _how_w == "py -3 tools/update.py")
     ok("report never auto-applies (human_review_required)", r["human_review_required"] is True)
 
     r2 = build_report("0.1.0", getter=getter_current, repo="o/r")
@@ -502,7 +515,7 @@ def main(argv):
 
     if args.command == "check":
         report["apply_hint"] = (
-            "python3 tools/update.py" if report["update_available"]
+            _local("python3 tools/update.py") if report["update_available"]
             else "up to date; nothing to apply" if report["status"] == "current"
             else "no action")
         if args.apply:

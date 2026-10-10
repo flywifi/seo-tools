@@ -195,8 +195,9 @@ def run_install_deps(as_json: bool = False) -> int:
     In --json mode stdout carries ONLY the JSON object (the wizard parses it), no preamble."""
     if not as_json:
         _say("Installing Creator OS dependencies (free, cross-platform, no keys)...")
-        _say("These install into a private .venv toolbox inside the repo (never committed), so a")
-        _say("Homebrew Python's install lock cannot block them. Base function never depends on it.\n")
+        _say("These install into a private .venv toolbox inside the repo (never committed), so an")
+        _say("install lock on this computer's Python (PEP 668) cannot block them. Base function never")
+        _say("depends on it.\n")
     results = install_dependencies()
     if as_json:
         print(json.dumps({"results": results}, indent=2))
