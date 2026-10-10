@@ -355,6 +355,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (zip member names zipfile cannot decode): a zip whose member name carries the UTF-8 flag
+  but is not valid UTF-8 made zipfile raise UnicodeDecodeError, which `classify.zip_kind` did not
+  catch, so one such zip in the Inbox stopped the whole scan, and `import_parse`'s zip parsers
+  stopped with a traceback. `classify.ZIP_OPEN_ERRORS` names what zipfile can raise while it lists a
+  zip; the classifier treats such a zip as a plain archive, `import_parse` gives its one note, and
+  the inbox scan holds a file the classifier raises on for review with the error and goes on.
 - P102 (import screen notes escaped): the wizard's import scan page escapes the notes it lists, an
   importer's `note:` line or the last line of its error, which can carry a file or zip member name
   from the export; they were joined into the page as HTML.

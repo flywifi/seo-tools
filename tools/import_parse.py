@@ -102,7 +102,7 @@ def _safe_zip(path):
             return None
     try:
         return zipfile.ZipFile(path)
-    except (OSError, zipfile.BadZipFile):
+    except _classify.ZIP_OPEN_ERRORS:  # a damaged directory, or a member name zipfile cannot decode
         if Path(path).is_file():  # its end record reads, its directory does not: a damaged download
             _note(_ZIP_UNREAD_NOTE)
         return None
@@ -681,6 +681,35 @@ def selftest():
         ok("a zip whose directory classify does not read is not opened, with one note, even when "
            "zipfile could open it",
            _unread[0] == [] and len(_unread[1]) == 1 and "incomplete download" in _unread[1][0])
+        # A member name zipfile cannot decode (the UTF-8 flag on bytes that are not UTF-8) gives []
+        # and the one note from each zip parser; a zip path that does not exist gives no note.
+        _badname = Path(_td_tt) / "badname.zip"
+        _badname.write_bytes(_classify._bad_name_zip_bytes())
+        _bad_runs = [_notes_of(fn, str(_badname))
+                     for fn in (parse_tiktok_dyi, parse_youtube_studio_zip, parse_youtube_takeout)]
+        ok("a zip whose member name zipfile cannot decode gives [] and one note from the TikTok, Studio "
+           "and Takeout parsers alike",
+           all(got == [] and len(lines) == 1 and "incomplete download" in lines[0] for got, lines in _bad_runs))
+        ok("a zip path that does not exist gives [] and no note",
+           _notes_of(parse_tiktok_dyi, str(Path(_td_tt) / "missing.zip")) == ([], []))
+        # The Studio zip's table is the CSV named Table data, in any letter case, even after another
+        # CSV with a Content column; without one, the first CSV with a Content column is read.
+        _pick = Path(_td_tt) / "studio-pick.zip"
+        _fall = Path(_td_tt) / "studio-fallback.zip"
+        _other_rows = "Content,Video title,Views\nzzz999,Not the table,1\n"
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_pick, "w") as _z:
+                _z.writestr("Chart data.csv", _other_rows)
+                _z.writestr("TABLE DATA.csv", yt_csv)
+            with zipfile.ZipFile(_fall, "w") as _z:
+                _z.writestr("Totals.csv", "Date,Views\n2026-10-01,5\n")
+                _z.writestr("Export.csv", yt_csv)
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+        ok("a Studio zip's table is the CSV named Table data, in any letter case, even after another "
+           "CSV with a Content column", parse_youtube_studio_zip(str(_pick)) == yt)
+        ok("without a Table data CSV, the first CSV whose first line names a Content column is read",
+           parse_youtube_studio_zip(str(_fall)) == yt)
 
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})

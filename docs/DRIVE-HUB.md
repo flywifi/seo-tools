@@ -204,8 +204,9 @@ screened as UTF-8 (with NUL bytes dropped, and as spaces) and in each fixed UTF-
 too, behind a UTF-32 mark), keeping the most cautious verdict (ADR 0080). A text-format file over the tier's 2 MB limit (a transcript, or a JSON or CSV export)
 stays in the Inbox, since approve does not move a text file read only in part: split it into files
 under 2 MB and drop those in; one that cannot be split stays where it is for a Claude session to read. A file that cannot
-be read (on Windows, one another program holds open) is listed for review with the error, and the
-scan and approve go on with the rest. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
+be read (on Windows, one another program holds open), or one the classifier stops on while it reads
+the file's type, is listed for review with the error, and the scan and approve go on with the rest;
+a zip whose member names zipfile cannot decode is read as a plain archive. There are two sanctioned Inbox writers: approve (handled files to `Inbox/Processed/`)
 and the quarantine sweep (sealed files to `Inbox/Quarantine/`); both move by realpath containment,
 never overwrite a same-name file, and read, update and write the ledger under its lock
 (`<ledger>.lock`), so the wizard and the sweep verb no longer lose each other's entries. A ledger

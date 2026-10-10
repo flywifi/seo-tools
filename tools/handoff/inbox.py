@@ -302,6 +302,12 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
                 "note": "could not be read (close the file if it is open in another program, then "
                         f"scan again): {exc}; left in place"})
             continue
+        except Exception as exc:  # noqa: BLE001 - one file the classifier cannot read never stops the scan
+            out["needs_review"].append({
+                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,
+                "category_source": "unreadable", "pass2_pending": True,
+                "note": f"could not be read as its file type ({type(exc).__name__}: {exc}); left in place"})
+            continue
         if digest in ledger and ledger[digest].get("status") == "quarantined":
             # a copy of content already sealed: flagged again so the sweep seals it too, rather
             # than counted as handled and left in the drop folder
@@ -1586,6 +1592,9 @@ def _selftest_checks() -> int:
         "my-data-2026.zip": (zb(["instagram-me-20261001/your_instagram_activity/media/posts_1.json"]),
                              "instagram-dyi"),
         "drive-backup.zip": (zb(["Takeout/Drive/My YouTube scripts/notes.txt"]), None),
+        "notes-backup.zip": (zb(["Takeout/My YouTube notes/x.txt"]), None),
+        "lookalike.zip": (zb(["not_your_instagram_activity/x.json"]), None),
+        "photos.zip": (_classify._bad_name_zip_bytes(), None),
     }
     for name, (raw, _kind) in exports.items():
         (ex / "Inbox" / name).write_bytes(raw)
@@ -1605,6 +1614,11 @@ def _selftest_checks() -> int:
        "Instagram folder, and a user_data.json stay unknown",
        {"photos-backup.zip", "mail-backup.zip", "nested-backup.zip", "folder-copy.zip", "blog-backup.zip",
         "app-backup.zip", "drive-backup.zip"} <= unknown_x)
+    ok("a Takeout folder whose name holds YouTube but does not start with it, and a folder whose name "
+       "ends in your_instagram_activity, stay unknown",
+       {"notes-backup.zip", "lookalike.zip"} <= unknown_x)
+    ok("a zip whose member name zipfile cannot decode stays unknown, and the scan goes on to the others",
+       "photos.zip" in unknown_x and {n: got.get(n) for n in want} == want)
     held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}
     ok("a zip with too many files to list, and no name hint, is held with a note naming the import screen",
        "archive-of-everything.zip" in held_x
@@ -1624,6 +1638,31 @@ def _selftest_checks() -> int:
     ok("plan_followups ignores a kind outside the import formats",
        plan_followups([{"classified_as": "platform_export", "export_kind": "bogus",
                         "processed_ref": "Inbox/Processed/d/thing.zip"}])[0]["job_type"] is None)
+
+    # P102: a file the classifier raises on (any error, not only an unreadable file) is held for
+    # review with the error, and the scan goes on.
+    cr = Path(tempfile.mkdtemp()); (cr / "Inbox").mkdir()
+    (cr / "Inbox" / "odd.bin").write_bytes(b"\x00\x01 not a format the classifier knows")
+    (cr / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    real_classify = _classify.classify
+
+    def _raising_classify(path):
+        if path.endswith("odd.bin"):
+            raise ValueError("a stand-in for an error the classifier hits")
+        return real_classify(path)
+    _classify.classify = _raising_classify
+    try:
+        scr_odd = scan(cr, ledger={})
+        odd_raised = None
+    except Exception as exc:  # noqa: BLE001 - the check below names what escaped
+        scr_odd, odd_raised = None, type(exc).__name__
+    finally:
+        _classify.classify = real_classify
+    odd_held = [e for e in (scr_odd or {}).get("needs_review", []) if e["file"] == "Inbox/odd.bin"]
+    ok("a file the classifier raises on is held for review with the error, and the scan goes on",
+       odd_raised is None and len(odd_held) == 1 and odd_held[0]["category_source"] == "unreadable"
+       and "ValueError: a stand-in" in odd_held[0]["note"]
+       and [e["file"] for e in scr_odd["proposals"]] == ["Inbox/talk.srt"])
 
     # P102: a Google Docs shortcut is held by its extension with a note, and never opened: on
     # Windows, Drive for desktop serves it as a file whose read fails with EINVAL.

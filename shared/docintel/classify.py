@@ -54,6 +54,10 @@ OFFLINE_PARSEABLE = {
 
 ZIP_MAX_ENTRIES = 50_000
 ZIP_MAX_DIRECTORY_BYTES = 16 * 1024 * 1024
+# What zipfile can raise while it opens a zip and lists its names: BadZipFile for a damaged
+# directory, and ValueError among others, as UnicodeDecodeError for a member name that carries the
+# UTF-8 flag but is not valid UTF-8 (P102).
+ZIP_OPEN_ERRORS = (zipfile.BadZipFile, OSError, RuntimeError, ValueError, EOFError, NotImplementedError)
 _EOCD = b"PK\x05\x06"
 _ZIP64_LOCATOR = b"PK\x06\x07"
 _ZIP64_EOCD = b"PK\x06\x06"
@@ -149,7 +153,7 @@ def zip_kind(path):
                 return "xlsx", "spreadsheet"
             if any(n.startswith("ppt/") for n in names):
                 return "pptx", "presentation"
-    except (zipfile.BadZipFile, OSError):
+    except ZIP_OPEN_ERRORS:  # a zip zipfile cannot list is a plain archive here
         pass
     return "zip", "archive"
 
@@ -221,6 +225,18 @@ def _zip_bytes(names, zip64=False):
         end = raw[i:i + 8] + struct.pack("<HHII", 0xFFFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF) + raw[i + 20:]
         raw = raw[:i] + rec + loc + end
     return raw
+
+
+def _bad_name_zip_bytes(name="Takeout/YouTube and YouTube Music/ab.csv"):
+    """A zip built in memory whose one member name carries the UTF-8 flag (bit 11) in the central
+    directory but is not valid UTF-8 there, so zipfile raises UnicodeDecodeError as it lists it."""
+    raw = bytearray(_zip_bytes([name]))
+    cd = raw.find(_CENTRAL_HEADER)
+    (flags,) = struct.unpack("<H", raw[cd + 8:cd + 10])
+    raw[cd + 8:cd + 10] = struct.pack("<H", flags | 0x800)
+    at = raw.index(name[-6:].encode("ascii"), cd)
+    raw[at:at + 2] = b"\xff\xfe"
+    return bytes(raw)
 
 
 def selftest() -> int:
@@ -342,6 +358,19 @@ def selftest() -> int:
            "last signature in the window is, here inside its own fields, so it has no directory (zipfile "
            "3.11 to 3.14 refuses this file)",
            zip_directory(put("selfsig-comment.zip", bytes(commented_sig))) is None)
+        dangling = bytearray(plain)
+        dangling[ep + 20:ep + 22] = struct.pack("<H", 1)  # a comment length, with no comment after
+        got_d = zip_directory(put("dangling.zip", bytes(dangling)))
+        ok("an end record at the very end with a comment length that is not 0 and no other signature "
+           "after it is found by the search and read, as zipfile 3.11 to 3.14 lists that file",
+           got_d is not None and got_d["entries"] == 2)
+        badname = put("badname.zip", _bad_name_zip_bytes())
+        try:
+            got_bad = (zip_kind(badname), classify(badname)["ext"], zip_directory(badname) is not None)
+        except Exception as exc:  # noqa: BLE001 - the check below names what escaped
+            got_bad = type(exc).__name__
+        ok("a zip whose member name zipfile cannot decode (UTF-8 flag, not UTF-8) is a plain archive, and "
+           "classify does not raise on it", got_bad == (("zip", "archive"), "zip", True))
         got_t = zip_directory(put("trailer.zip", plain + b"\x00" * (1 << 16)))
         ok("an end record at the first byte of zipfile's search window is found",
            got_t is not None and got_t["entries"] == 2)
