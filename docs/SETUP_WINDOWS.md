@@ -81,7 +81,11 @@ OpenTimelineIO publishes no 3.14 wheels yet; the video tools report them as abse
 
 Local transcription runs on the computer's CPU: `py -3 tools/transcribe.py doctor` checks it, and
 the first `py -3 tools/transcribe.py run` downloads the speech model into the Hugging Face cache
-(or `HF_HOME` when set). *(tested on Windows)*
+(or `HF_HOME` when set). *(tested on Windows)* faster-whisper also needs the Microsoft Visual C++
+Redistributable, a system library most Windows computers already have and pip cannot install; on a
+computer without it, `--install-deps` and the doctor say so and name the fix instead of asking you to
+install the packages again <!-- verify: tools/transcribe.py::vc_runtime_missing -->. *(tested on
+Windows in a clean Windows Sandbox)*
 
 ### Step 5: The setup wizard
 

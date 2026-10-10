@@ -54,6 +54,53 @@ _NICHE_SEED = ("armoire", "patina", "wainscoting", "decoupage", "sconcing", "vig
 
 # ── backend detection + selection (pure where it matters; the selftest pins select_backend) ──
 
+# On Windows, faster-whisper's ctranslate2 loads these Microsoft Visual C++ runtime libraries, which a
+# fresh Windows lacks and pip cannot install (P102). Microsoft's x64 package also carries the ARM64
+# libraries ("The X64 Redistributable package contains both ARM64 and X64 binaries", Microsoft Learn,
+# "Microsoft Visual C++ Redistributable latest supported downloads"), so it serves both machines.
+VC_RUNTIME_DLLS = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+VC_RUNTIME_URL = "https://aka.ms/vc14/vc_redist.x64.exe"
+
+
+def probe_faster_whisper(find_spec=None, importer=None):
+    """{"installed", "loads", "error"} for faster-whisper in this interpreter: installed when importlib
+    finds the package without importing it, loads when importing it succeeds, and error the first line
+    of the exception when it does not (on Windows a missing Visual C++ runtime raises FileNotFoundError
+    from ctranslate2's DLL). Never raises."""
+    import importlib
+    import importlib.util
+    find_spec = importlib.util.find_spec if find_spec is None else find_spec
+    importer = importlib.import_module if importer is None else importer
+    try:
+        installed = find_spec("faster_whisper") is not None
+    except (ImportError, ValueError):
+        installed = False
+    if not installed:
+        return {"installed": False, "loads": False, "error": ""}
+    try:
+        importer("faster_whisper")
+    except Exception as exc:  # noqa: BLE001 -- any failure to load is reported, never raised
+        return {"installed": True, "loads": False,
+                "error": (f"{type(exc).__name__}: {exc}".splitlines() or [""])[0][:300]}
+    return {"installed": True, "loads": True, "error": ""}
+
+
+def vc_runtime_missing(system_root=None, exists=None):
+    """The VC_RUNTIME_DLLS absent from %SystemRoot%\\System32. Callers ask on Windows only;
+    system_root and exists stand in for the system's in the selftest."""
+    import ntpath
+    root = system_root or os.environ.get("SystemRoot") or "C:\\Windows"
+    exists = os.path.exists if exists is None else exists
+    return [d for d in VC_RUNTIME_DLLS if not exists(ntpath.join(root, "System32", d))]
+
+
+def vc_runtime_remedy():
+    """What to do on Windows when faster-whisper is installed but the Visual C++ runtime is missing."""
+    return ("Install the Microsoft Visual C++ Redistributable (machine-wide: affects the whole computer). "
+            "Use the Install button on the setup wizard's transcription screen, or install it yourself "
+            f"from Microsoft ({VC_RUNTIME_URL}) or with: winget install --exact --id Microsoft.VCRedist.2015+.x64")
+
+
 def detect_backends():
     """What STT backends are actually installed on THIS machine. Detection only; runs nothing."""
     cpp_bin = None
@@ -426,7 +473,7 @@ def _verify_found_model(mp, allow):
 
 
 def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_present=None, ram_gb=None,
-           verify_model=False, allowlist_path=None):
+           verify_model=False, allowlist_path=None, fw_probe=None, system_root=None, dll_exists=None):
     """A plain-language readiness check for on-device transcription. Each step reports {ok,
     what_it_is, next_command, why}; the result carries a green/amber/red verdict and the single next
     action. Pure and injectable so the wizard and the selftest can simulate any machine. With
@@ -434,7 +481,16 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
     pins; library callers keep the fast existence-only default."""
     os_name = (os_name if os_name is not None else sys.platform).lower()
     arch = (arch if arch is not None else platform.machine()).lower()
+    real_machine = have is None
     have = have if have is not None else {k: bool(v) for k, v in detect_backends().items()}
+    # P102: faster-whisper installed but not loading (a missing Visual C++ runtime on Windows) is told
+    # apart from not installed, so the doctor never sends the person back to --install-deps for it.
+    if fw_probe is None:
+        fw_probe = (probe_faster_whisper() if real_machine else
+                    {"installed": bool(have.get("faster_whisper")), "loads": bool(have.get("faster_whisper")),
+                     "error": ""})
+    fw_broken = fw_probe.get("installed") and not fw_probe.get("loads")
+    vc_missing = vc_runtime_missing(system_root, dll_exists) if fw_broken and os_name.startswith("win") else []
     is_mac = os_name == "darwin"
     sel = select_backend(os_name=os_name, arch=arch, have=have)
     steps = []
@@ -447,6 +503,18 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
     if sel["ok"]:
         steps.append({"step": "engine", "ok": True, "what_it_is": sel["backend"],
                       "why": "found a speech-to-text engine that runs on your computer"})
+    elif vc_missing:
+        steps.append({"step": "engine", "ok": False,
+                      "what_it_is": ("faster-whisper is installed, but Windows is missing the Microsoft Visual "
+                                     f"C++ runtime it loads ({', '.join(vc_missing)})"),
+                      "next_command": vc_runtime_remedy(),
+                      "why": "pip cannot install this system library, so installing the Creator OS packages "
+                             "again would not fix it"})
+    elif fw_broken:
+        steps.append({"step": "engine", "ok": False,
+                      "what_it_is": f"faster-whisper is installed but could not load ({fw_probe.get('error') or 'unknown error'})",
+                      "next_command": _install_hint(os_name, arch),
+                      "why": "reinstalling the Creator OS packages replaces a broken faster-whisper install"})
     else:
         steps.append({"step": "engine", "ok": False,
                       "what_it_is": "a local speech-to-text engine (whisper.cpp or faster-whisper)",
@@ -497,7 +565,8 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
         verdict = "amber"
     next_action = reds[0]["next_command"] if reds else None
     return {"os": os_name, "arch": arch, "verdict": verdict, "backend": sel.get("backend"),
-            "steps": steps, "next_action": next_action,
+            "steps": steps, "next_action": next_action, "faster_whisper": fw_probe,
+            "vc_runtime_missing": vc_missing,
             "summary": {"green": "You are ready to transcribe on this computer.",
                         "amber": "Almost ready: one optional step remains (see next_action).",
                         "red": "Install a speech-to-text engine first (see next_action)."}[verdict]}
@@ -569,6 +638,53 @@ def selftest():
                                model_dir_override=str(tmp / "empty-models"))
         ok("doctor amber when whisper.cpp present but no model", d_cpp_nomodel["verdict"] == "amber"
            and "--fetch-model" in (d_cpp_nomodel["next_action"] or ""))
+        # P102: faster-whisper installed but not loading is told apart from not installed; on Windows
+        # with the Visual C++ runtime absent the doctor names it, never the --install-deps loop.
+        _dll_err = FileNotFoundError("Could not find module 'ctranslate2.dll' (or one of its dependencies)")
+
+        def _raise_dll(_name):
+            raise _dll_err
+
+        def _no_spec(_name):
+            raise ValueError("faster_whisper.__spec__ is None")
+        _pr = [probe_faster_whisper(find_spec=lambda n: None),
+               probe_faster_whisper(find_spec=lambda n: object(), importer=_raise_dll),
+               probe_faster_whisper(find_spec=lambda n: object(), importer=lambda n: None),
+               probe_faster_whisper(find_spec=_no_spec)]
+        ok("probe_faster_whisper tells not installed, installed but not loading, and loading apart",
+           _pr[0] == {"installed": False, "loads": False, "error": ""}
+           and _pr[1]["installed"] is True and _pr[1]["loads"] is False
+           and _pr[1]["error"].startswith("FileNotFoundError: Could not find module")
+           and _pr[2] == {"installed": True, "loads": True, "error": ""}
+           and _pr[3]["installed"] is False)
+        _seen_dll = []
+        _missing = vc_runtime_missing("C:\\Windows", exists=lambda p: _seen_dll.append(p) or p.endswith("msvcp140.dll"))
+        ok("vc_runtime_missing lists the absent DLLs under System32",
+           _missing == ["vcruntime140.dll", "vcruntime140_1.dll"]
+           and _seen_dll[0] == "C:\\Windows\\System32\\msvcp140.dll"
+           and vc_runtime_missing("C:\\Windows", exists=lambda p: True) == [])
+        _none = {"whisper_cpp": False, "faster_whisper": False}
+        _d_vc = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[1],
+                       system_root="C:\\Windows", dll_exists=lambda p: False)
+        _d_dll_ok = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[1],
+                           system_root="C:\\Windows", dll_exists=lambda p: True)
+        _d_mac = doctor(os_name="darwin", arch="arm64", have=_none, fw_probe=_pr[1], brew_present=True)
+        _d_absent = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[0],
+                           system_root="C:\\Windows", dll_exists=lambda p: False)
+        ok("on Windows with the runtime absent the doctor names the Visual C++ runtime, labeled machine-wide",
+           _d_vc["verdict"] == "red" and _d_vc["next_action"] == vc_runtime_remedy()
+           and "machine-wide: affects the whole computer" in _d_vc["next_action"]
+           and "https://aka.ms/vc14/vc_redist.x64.exe" in _d_vc["next_action"]
+           and "--install-deps" not in _d_vc["next_action"]
+           and _d_vc["vc_runtime_missing"] == list(VC_RUNTIME_DLLS)
+           and "Visual C++" in _d_vc["steps"][1]["what_it_is"])
+        ok("installed but not loading for another reason, or off Windows, points at a reinstall",
+           "could not load (FileNotFoundError" in _d_dll_ok["steps"][1]["what_it_is"]
+           and "--install-deps" in (_d_dll_ok["next_action"] or "") and _d_dll_ok["vc_runtime_missing"] == []
+           and "could not load" in _d_mac["steps"][1]["what_it_is"] and _d_mac["vc_runtime_missing"] == [])
+        ok("not installed keeps the install hint and asks nothing about the runtime",
+           "--install-deps" in (_d_absent["next_action"] or "") and _d_absent["vc_runtime_missing"] == []
+           and _d_absent["steps"][1]["what_it_is"].startswith("a local speech-to-text engine"))
         # P102: on a computer that runs the repo's scripts as py -3, the printed commands say so.
         import env_paths as _ep_w
         _real_pc_w = _ep_w.python_command

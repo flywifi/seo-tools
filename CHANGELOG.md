@@ -373,6 +373,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   --install-deps` names the interpreter's PEP 668 lock instead of Homebrew. Maintainer tools
   (the battery, the drift guard, `dependency_currency` with its restricted import set) keep
   `python3`.
+- P102 (faster-whisper installed but not loading): `transcribe.probe_faster_whisper` tells a package
+  that is not installed from one that is installed but fails to import. On Windows, when the
+  Microsoft Visual C++ runtime DLLs faster-whisper's ctranslate2 loads are absent from System32
+  (`vc_runtime_missing`), the transcription doctor names that runtime with Microsoft's download and
+  the winget command, labeled machine-wide (`vc_runtime_remedy`), instead of sending the person back
+  to `--install-deps`, which cannot install it. `setup.py --install-deps` imports faster-whisper in
+  the `.venv` right after installing it (`_check_faster_whisper`) and reports the same.
 - P102 (video set on Python 3.14): `requirements-videoedit.txt` installs `opentimelineio` and its
   two adapters only on Python before 3.14, because opentimelineio 0.18.1 publishes wheels for
   CPython 3.9 to 3.13 only; on 3.14 pip built it from source, which needs CMake and a C++ compiler,
