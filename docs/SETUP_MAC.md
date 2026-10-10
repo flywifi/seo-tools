@@ -99,9 +99,11 @@ incomplete build shipped for Xcode's own use; never modify or remove it, just do
 ### Step 2 -- Clone the repository
 
 ```bash
-git clone https://github.com/flywifi/seo-tools.git
+git clone --branch main https://github.com/flywifi/seo-tools.git
 cd seo-tools
 ```
+
+`--branch main` checks out `main`, the release branch, whichever branch GitHub shows by default.
 
 Note the absolute path to this folder (needed for the MCP config):
 

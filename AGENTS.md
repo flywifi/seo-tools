@@ -98,7 +98,9 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
   one exists (7.1).
 - Installs are user-scoped by default: everything lands under the user's home folder, and any
   machine-wide route carries the label "machine-wide alternative (affects the whole computer)"
-  (`docs/INSTALL-SCOPE.md`; drift invariant 59; the code side refuses PEP 668 overrides).
+  (`docs/INSTALL-SCOPE.md`; drift invariant 59; the code side refuses PEP 668 overrides). On
+  Windows the setup wizard can run Microsoft's signed Visual C++ installer, machine-wide, after the
+  person confirms (ADR 0079).
 - Docs change in the SAME commit as the code they describe; new external citations go in a
   fenced `sources` block and get seeded into the registry.
 

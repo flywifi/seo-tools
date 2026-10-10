@@ -187,7 +187,9 @@ def _load_config() -> dict:
     """Load creator-os-config.json, then deep-merge creator-os-config.local.json over it.
 
     creator-os-config.local.json is gitignored and never touched by git pull.
-    Local capability flags always win over the committed defaults.
+    Local capability flags always win over the committed defaults. A local flag written as a bare
+    true or false (tools/setup.py, configure_tool and the wizard write that shape) keeps the
+    committed entry's description and requirements, with its enabled value replaced (P102).
     """
     base: dict = {}
     try:
@@ -198,7 +200,10 @@ def _load_config() -> dict:
         try:
             local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
             for key, val in local.get("capabilities", {}).items():
-                base.setdefault("capabilities", {})[key] = val
+                caps = base.setdefault("capabilities", {})
+                if isinstance(val, bool) and isinstance(caps.get(key), dict):
+                    val = dict(caps[key], enabled=val)
+                caps[key] = val
         except (OSError, json.JSONDecodeError) as exc:
             # P73: swallowing this silently reverted EVERY capability to the
             # committed defaults with no signal, so a user whose local config had one bad comma
@@ -208,6 +213,25 @@ def _load_config() -> dict:
                   f"to committed defaults. Your local capability flags are NOT in effect.",
                   file=sys.stderr)
     return base
+
+
+def _capabilities_view(caps: dict, live: dict) -> dict:
+    """get_capabilities' table: {key: {enabled, description, requires}} from the merged capability
+    map, with `live` checks overriding enabled. An entry is a dict or a bare true/false; anything
+    else reads as off (P102: a bare bool from the local config made get_capabilities raise)."""
+    result = {}
+    for key, meta in (caps or {}).items():
+        if not isinstance(meta, dict):
+            meta = {"enabled": meta} if isinstance(meta, bool) else {}
+        enabled = bool(meta.get("enabled", False))
+        if key in live:
+            enabled = live[key]
+        result[key] = {
+            "enabled": enabled,
+            "description": meta.get("description", ""),
+            "requires": meta.get("requires", "") if not enabled else "",
+        }
+    return result
 
 
 def _read_local_config_for_write(path) -> tuple:
@@ -242,7 +266,7 @@ def _read_local_config_for_write(path) -> tuple:
         return {}, str(bak), None
 
 
-_CACHE_REBUILD_HINT = "Run: python3 shared/cache/cache.py --build"
+_CACHE_REBUILD_HINT = env_paths.local_commands("Run: python3 shared/cache/cache.py --build")
 _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
                        "databaseerror", "file is encrypted or is not a database")
 
@@ -813,6 +837,26 @@ def _selftest_static() -> tuple:
         CONFIG_LOCAL_PATH = td / "corrupt.json"
         ok("corrupt local file never crashes the merge",
            _load_config()["capabilities"]["a"]["enabled"] is False)
+        # P102: tools/setup.py writes bare true/false flags; they merge into the committed entry.
+        (td / "base2.json").write_text(json.dumps({"capabilities": {
+            "a": {"enabled": False, "description": "A", "requires": "set A up"},
+            "b": {"enabled": True, "description": "B"}}}), encoding="utf-8")
+        (td / "bools.json").write_text(json.dumps(
+            {"capabilities": {"a": True, "b": False, "c": True}}), encoding="utf-8")
+        CONFIG_PATH, CONFIG_LOCAL_PATH = td / "base2.json", td / "bools.json"
+        bools = _load_config()["capabilities"]
+        ok("a bare local true or false keeps the committed entry with its enabled value replaced",
+           bools["a"] == {"enabled": True, "description": "A", "requires": "set A up"}
+           and bools["b"] == {"enabled": False, "description": "B"} and bools["c"] is True)
+        view = _capabilities_view(bools, {"b": True})
+        odd = _capabilities_view({"x": "yes", "y": None, "z": False}, {})
+        ok("the capability table reads dict, bare-bool and other entries, live checks winning",
+           view == {"a": {"enabled": True, "description": "A", "requires": ""},
+                    "b": {"enabled": True, "description": "B", "requires": ""},
+                    "c": {"enabled": True, "description": "", "requires": ""}}
+           and odd == {"x": {"enabled": False, "description": "", "requires": ""},
+                       "y": {"enabled": False, "description": "", "requires": ""},
+                       "z": {"enabled": False, "description": "", "requires": ""}})
     finally:
         CONFIG_PATH, CONFIG_LOCAL_PATH = real_paths
 
@@ -1033,6 +1077,24 @@ def _selftest_static() -> tuple:
        and src.count(_lb + "launch_note(url, confirmed)") == 1
        and src.count('"dashboard_url": ' + _lb + "dashboard_url(),") == 1
        and ('"dashboard_url": ' + '"http://localhost:') not in src)
+    # P102: every `python3 tools/` or `python3 shared/` command this module prints or returns is
+    # written as this computer runs the repo's scripts: outside docstrings, a string literal that holds
+    # one sits inside an env_paths.local_commands(...) call (read from the file, for the reason above).
+    import ast as _ast_lc
+    _tree_lc = _ast_lc.parse(src)
+    _docs_lc = {id(n.body[0].value) for n in _ast_lc.walk(_tree_lc)
+                if isinstance(n, (_ast_lc.Module, _ast_lc.FunctionDef, _ast_lc.AsyncFunctionDef, _ast_lc.ClassDef))
+                and n.body and isinstance(n.body[0], _ast_lc.Expr) and isinstance(n.body[0].value, _ast_lc.Constant)}
+    _wrapped_lc = {id(s) for n in _ast_lc.walk(_tree_lc)
+                   if isinstance(n, _ast_lc.Call) and _ast_lc.unparse(n.func) == "env_paths.local_commands"
+                   for a in n.args for s in _ast_lc.walk(a)}
+    _needles_lc = ("python3 " + "tools/", "python3 " + "shared/")  # assembled, so this check is not a hit
+    _bare_lc = [n.lineno for n in _ast_lc.walk(_tree_lc)
+                if isinstance(n, _ast_lc.Constant) and isinstance(n.value, str)
+                and any(x in n.value for x in _needles_lc)
+                and id(n) not in _docs_lc and id(n) not in _wrapped_lc]
+    ok(f"each printed or returned python3 command goes through env_paths.local_commands (bare at lines {_bare_lc})",
+       _bare_lc == [] and src.count('"manual": env_paths.' + 'local_commands("Run: ' + _needles_lc[0] + 'wizard.py")') == 1)
 
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
@@ -1058,12 +1120,13 @@ try:
 except ImportError:
     try:
         import mcp as _probe  # noqa: F401
-        print("ERROR: the installed 'mcp' package exposes neither MCPServer (2.x) nor FastMCP (1.x). "
-              "Reinstall with python3 tools/setup.py --install-deps (user-only, repo .venv).", file=sys.stderr)
+        print(env_paths.local_commands(
+            "ERROR: the installed 'mcp' package exposes neither MCPServer (2.x) nor FastMCP (1.x). "
+            "Reinstall with python3 tools/setup.py --install-deps (user-only, repo .venv)."), file=sys.stderr)
     except ImportError:
-        print("ERROR: 'mcp' package not installed.\n"
-              "Run: python3 tools/setup.py --install-deps  "
-              "(user-only, into the repo's private .venv)", file=sys.stderr)
+        print(env_paths.local_commands("ERROR: 'mcp' package not installed.\n"
+                                       "Run: python3 tools/setup.py --install-deps  "
+                                       "(user-only, into the repo's private .venv)"), file=sys.stderr)
     sys.exit(1)
 
 mcp = _ServerClass("creator-os")   # the first positional is `name` in both majors
@@ -1103,7 +1166,7 @@ def cache_query(query: str, limit: int = 5) -> str:
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
         return json.dumps({
             "error": "Cache index not found.",
-            "hint": "Run: python3 shared/cache/cache.py --build",
+            "hint": _CACHE_REBUILD_HINT,
         })
     rc, out, err = _run([
         sys.executable, str(cache_script),
@@ -1120,7 +1183,7 @@ def _construction_query(query, limit):
     """Run the offline cache query and keep only construction-dictionary results."""
     cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
-        return None, {"error": "Cache index not found.", "hint": "Run: python3 shared/cache/cache.py --build"}
+        return None, {"error": "Cache index not found.", "hint": _CACHE_REBUILD_HINT}
     rc, out, err = _run([sys.executable, str(cache_script), "--query", query,
                          "--limit", str(max(limit * 5, 20)), "--json"])
     if rc != 0:
@@ -1201,7 +1264,8 @@ def competitor_scan(competitor_id: str) -> str:
     if rc != 0:
         return json.dumps({
             "error": err.strip() or "parse failed",
-            "hint": "Add with add_competitor tool, then run: python3 tools/competitor_snapshot.py --fetch",
+            "hint": env_paths.local_commands(
+                "Add with add_competitor tool, then run: python3 tools/competitor_snapshot.py --fetch"),
         })
     # P75: this used to return the subprocess stdout, which is cmd_parse's COUNTER
     # ({"parsed": 1, "skipped": []}) -- the per-row detail goes to stderr. So the tool promised
@@ -1214,7 +1278,7 @@ def competitor_scan(competitor_id: str) -> str:
     db = ROOT / "pipeline" / "competitor-snapshots" / "index.local.db"
     if not db.exists():
         return json.dumps({"result": "no data found", "competitor_id": competitor_id,
-                           "hint": "Run: python3 tools/competitor_snapshot.py --fetch"})
+                           "hint": env_paths.local_commands("Run: python3 tools/competitor_snapshot.py --fetch")})
     import sqlite3 as _sq
     con = _sq.connect(f"file:{db}?mode=ro", uri=True)
     con.row_factory = _sq.Row
@@ -1608,7 +1672,7 @@ def add_competitor(url: str, platform: str) -> str:
         "result": "added",
         "url": url,
         "platform": platform,
-        "next_step": "Run: python3 tools/competitor_snapshot.py --fetch",
+        "next_step": env_paths.local_commands("Run: python3 tools/competitor_snapshot.py --fetch"),
     })
 
 
@@ -1635,16 +1699,7 @@ def get_capabilities() -> str:
         ).exists(),
     }
 
-    result = {}
-    for key, meta in caps.items():
-        enabled = meta.get("enabled", False)
-        if key in live:
-            enabled = live[key]
-        result[key] = {
-            "enabled": enabled,
-            "description": meta.get("description", ""),
-            "requires": meta.get("requires", "") if not enabled else "",
-        }
+    result = _capabilities_view(caps, live)
 
     return json.dumps({
         "capabilities": result,
@@ -2585,7 +2640,7 @@ def launch_setup() -> str:
         proc = subprocess.Popen([sys.executable, str(wizard)], **kwargs)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": f"could not start the wizard: {exc}",
-                           "manual": "Run: python3 tools/wizard.py"})
+                           "manual": env_paths.local_commands("Run: python3 tools/wizard.py")})
     url, confirmed = loopback_server.launched_wizard_url(proc, launch_id)
     return json.dumps({
         "result": "launching",
@@ -2962,8 +3017,9 @@ if __name__ == "__main__":
         try:
             from mcp.server.transport_security import TransportSecuritySettings as _TSS
         except ImportError:
-            print("[creator-os] ERROR: this mcp install predates 1.28 (no mcp.server.transport_security); "
-                  "run python3 tools/setup.py --install-deps (user-only, repo .venv)", file=sys.stderr)
+            print(env_paths.local_commands(
+                "[creator-os] ERROR: this mcp install predates 1.28 (no mcp.server.transport_security); "
+                "run python3 tools/setup.py --install-deps (user-only, repo .venv)"), file=sys.stderr)
             sys.exit(1)
         try:
             _hosts = _remote_allowed_hosts(_args.allowed_host)

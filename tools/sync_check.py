@@ -156,7 +156,9 @@ Invariants enforced:
   59. Install-scope policy (P93): every machine-wide install instruction in the live setup
       guidance (sudo package commands, brew install, npm install -g, the pip system-override
       flag, command-anchored pip install, a copy, move, link, redirect or download into
-      /Applications, /usr/local or /opt/homebrew, a drag into the Applications folder) carries the
+      /Applications, /usr/local or /opt/homebrew, a drag into the Applications folder, a Windows
+      installer: winget, Chocolatey, msiexec, an installer .exe with an install or silent switch,
+      vc_redist, wsl --install) carries the
       "machine-wide"/"whole computer" label
       on its line, above it in its paragraph, or on either of the two lines
       just above the blank line before that paragraph, so user-scoped stays the default.
@@ -2378,9 +2380,10 @@ def _migration_gaps(pdir, by_key, root=None):
 
 
 def _selfproof():
-    """0 when invariant 33's checks report nothing on the live tree and invariant 14's guard wiring
-    checks pass their cases; the entry the committed mutation cases in tools/file_hash.py run for
-    this module, which has no selftest()."""
+    """0 when invariant 33's checks report nothing on the live tree, invariant 14's guard wiring
+    checks pass their cases and invariant 59's detector proves itself (_install_scope_selfproof);
+    the entry the committed mutation cases in tools/file_hash.py run for this module, which has no
+    selftest()."""
     before = len(PROBLEMS)
     check_migration_manifest()
     found = PROBLEMS[before:]
@@ -2400,7 +2403,7 @@ def _selfproof():
         with file_hash.windows_paths():
             win_gap = _migration_gaps(t / "pipeline", {}, root=t)
     named = win_gap == [("pipeline/x/a.template.json", "1.0")]
-    return 0 if not found and named and not _selftest_guard_wiring() else 1
+    return 0 if not found and named and not _selftest_guard_wiring() and not _install_scope_selfproof() else 1
 
 
 def _selftest_guard_wiring():
@@ -4234,6 +4237,15 @@ _INSTALL_SCOPE_BRANCHES = {
                            r"|--prefix[= ][`'\"]?(?:/usr/local|/opt/homebrew)\b"
                            r"|\b(?:[Mm]ove|[Cc]opy|[Pp]ut|[Pp]lace|[Ss]ave)\b(?:[^\n.;]|\.(?=\S)){0,60}?"
                            r"\b(?:into|to|in)\s+(?:the\s+)?[`'\"]?(?:/usr/local|/opt/homebrew)\b",
+    # P102: a Windows install that lands machine-wide, in any letter case: winget install or upgrade
+    # (not with --scope user), Chocolatey, an msiexec install, an installer .exe run with an install or
+    # silent switch (switches in any order), Microsoft's Visual C++ Redistributable package by its file
+    # name, or wsl --install (it turns on Windows features).
+    "windows-installer": r"(?i:\bwinget\s+(?:install|upgrade)\b(?![^\n]*--scope\s+user)"
+                         r"|\bchoco(?:latey)?\s+install\b"
+                         r"|\bmsiexec(?:\.exe)?\b[^\n|;&]*?\s/(?:i|package)\b"
+                         r"|\.exe[`'\"]?\s+(?:[^\n|;&]*?\s)?/(?:install|passive|quiet|s|silent|verysilent)\b"
+                         r"|\bvc_redist\.(?:x64|x86|arm64)\.exe\b|\bwsl(?:\.exe)?\s+--install\b)",
 }
 _INSTALL_SCOPE_PATTERN = re.compile("|".join(f"(?:{p})" for p in _INSTALL_SCOPE_BRANCHES.values()))
 _INSTALL_SCOPE_LABEL = re.compile(r"(whole computer|machine-wide|machine wide)", re.I)
@@ -4362,13 +4374,132 @@ def _install_scope_pinned_branches():
     return _detector_pin_from(man, "install_scope")
 
 
+def _install_scope_selfproof():
+    """None when invariant 59's detector proves itself, else the problem to report: every branch in
+    _INSTALL_SCOPE_BRANCHES flags its fixture and passes once labeled, the anchoring and Windows
+    fixtures behave, and the file reader, exemption-map check and never-exempt derivation answer
+    as their fixtures say. check_install_scope runs it before scanning, and _selfproof (the entry
+    tools/file_hash.py's mutation cases run for this module) runs it too."""
+    # --- coverage proof: one fail-then-pass fixture per branch, by name ---
+    fixtures = {
+        "brew": "brew install ffmpeg",
+        "sudo-pkg": "sudo apt-get install -y nodejs",
+        "sudo-python": "sudo python3 -m pip install requests",
+        "macports": "port install ffmpeg",
+        "npm-global": "npm install -g some-cli",
+        "pipx-global": "pipx install black --global",
+        "pip-override": "pip install x --break-system-" + "packages",
+        "pip-command": "Run: pip install uv",
+        "macos-pkg": "installer -pkg python.pkg -target /",
+        "applications-dir": "Drag Claude.app into your Applications folder.",
+        "system-prefix-write": "curl https://x > /usr/local/bin/x",
+        "windows-installer": "winget install --exact --id Microsoft.VCRedist.2015+.x64",
+    }
+    gap = _coverage_proof("install-scope", _INSTALL_SCOPE_BRANCHES, fixtures,
+                          lambda _n, sample: len(_install_scope_scan(["intro", "", sample])) == 1,
+                          pinned=_install_scope_pinned_branches())
+    if gap:
+        return gap
+    for name, sample in fixtures.items():
+        if _install_scope_scan(["Machine-wide alternative (affects the whole computer):", "", sample]):
+            return (f"install-scope: detector self-proof failed -- the labeled '{name}' fixture flagged")
+    if _install_scope_scan(["The installer uses the repo .venv, so no real pip install",
+                            "ever touches the base interpreter."]):
+        return ("install-scope: detector self-proof failed -- prose 'no real pip install' flagged")
+    # A path under /opt/homebrew or /usr/local that is only read or only named in prose, and the
+    # per-user ~/Applications folder, are not machine-wide writes.
+    for sample in ("cp /opt/homebrew/bin/ffmpeg ~/bin/ffmpeg",
+                   "the install location is /usr/local/bin on Intel Macs",
+                   "mkdir -p ~/Applications, then drag the app into ~/Applications",
+                   "ls /Applications"):
+        if _install_scope_scan([sample]):
+            return (f"install-scope: detector self-proof failed -- {sample!r} flagged; only a write "
+                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
+    for sample in ("Move Foo.app to the Applications folder.", "Copy the binary to /usr/local/bin.",
+                   "cp ffmpeg /usr/local/bin  # then run it"):
+        if not _install_scope_scan([sample]):
+            return (f"install-scope: detector self-proof failed -- {sample!r} not flagged; a write "
+                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
+    # Each Windows installer form flags unlabeled and passes labeled; a Python package named after
+    # winget, or a page that only names the runtime, does not flag.
+    for sample in ("msiexec /i creator.msi", "msiexec.exe /package creator.msi", "MSIEXEC /I creator.msi",
+                   "msiexec /qn /i creator.msi", "setup.exe /quiet", "setup.exe /S", "setup.exe /VERYSILENT",
+                   "`installer.exe` /install /passive /norestart", "VC_redist.x64.exe /norestart /install",
+                   "setup.exe /norestart /quiet",
+                   "download https://aka.ms/vc14/vc_redist.x64.exe and run it", "run vc_redist.x86.exe",
+                   "download https://aka.ms/vc14/vc_redist.arm64.exe", "winget install ffmpeg",
+                   "winget upgrade --id Microsoft.VCRedist.2015+.x64", "choco install ffmpeg",
+                   "wsl --install"):
+        if (len(_install_scope_scan(["intro", "", sample])) != 1
+                or _install_scope_scan(["Machine-wide alternative (affects the whole computer):", "", sample])):
+            return (f"install-scope: detector self-proof failed -- the Windows installer form {sample!r} "
+                    f"is not flagged unlabeled and passed labeled")
+    for sample in ("winget list shows the apps installed", "the Visual C++ runtime (msvcp140.dll) is missing",
+                   "run setup.exe to see its options", "winget install ffmpeg --scope user",
+                   "py -3 tools/setup.py --install-deps"):
+        if _install_scope_scan([sample]):
+            return (f"install-scope: detector self-proof failed -- {sample!r} flagged; it installs nothing "
+                    f"machine-wide")
+    if _install_scope_scan(["brew install ffmpeg", "",
+                            "Machine-wide alternative (affects the whole computer):"]) != [(1, "brew install")]:
+        return ("install-scope: detector self-proof failed -- a label BELOW an instruction blessed "
+                "it; the window must look up, not down")
+    # A label heading governs its whole block, not just the next two lines.
+    if _install_scope_scan(["Machine-wide alternatives (affect the whole computer):",
+                            "  - the python.org universal2 installer,",
+                            "      https://example.invalid/downloads",
+                            "  - or install Homebrew, then run: brew install python@3.12"]):
+        return ("install-scope: detector self-proof failed -- a labeled block stopped governing "
+                "after two lines; the label heads the block it introduces")
+    # ...but it stops at a blank-separated NEW block, so it cannot bless a distant instruction.
+    if len(_install_scope_scan(["Machine-wide alternative (affects the whole computer):",
+                                "  brew install ffmpeg", "", "Now the everyday setup:", "",
+                                "  brew install something-else"])) != 1:
+        return ("install-scope: detector self-proof failed -- a label leaked past its block into "
+                "a later, unrelated instruction")
+    # The scan set is every tracked non-binary file, whatever its name.
+    readable = _install_scope_texts(
+        ["Start.bat", "VERSION", "page.html", "logo.png"],
+        {"Start.bat": b"@echo off\r\n", "VERSION": b"1.0\n", "page.html": b"<p>x</p>\n",
+         "logo.png": b"\x89PNG\r\n\x1a\n\x00\x00"}.__getitem__)
+    if sorted(readable) != ["Start.bat", "VERSION", "page.html"]:
+        return (f"install-scope: detector self-proof failed -- the file reader returned "
+                f"{sorted(readable)!r}; every tracked file except a binary must be read")
+    # A fenced `sources` block is citation data (invariant 52's domain), never an instruction.
+    if _install_scope_scan(["```sources", '{"id": "x", "url": "https://www.python.org/downloads/macos/"}',
+                            "```"]):
+        return ("install-scope: detector self-proof failed -- a citation row in a fenced sources "
+                "block was read as an install instruction")
+
+    shape = _install_scope_exempt_problems(
+        {"live.md": "r", "dead.md": "r", "gone.md": "r", "dir/": "r", "": "r", "bound.md": "r",
+         "bare.md": " "},
+        {"live.md": 2, "dead.md": 0, "dir/x.md": 1, "bound.md": 1, "bare.md": 1}, {"bound.md"})
+    want = ["'' is not a tracked file", "'bare.md' has no written reason", "'bound.md' names a file",
+            "'dead.md' is stale", "'dir/' is not a tracked file", "'gone.md' is not a tracked file"]
+    if len(shape) != len(want) or any(w not in m for w, m in zip(want, shape)):
+        return (f"install-scope: detector self-proof failed -- the exemption-map check returned "
+                f"{shape!r}; a prefix, a stale entry, a missing reason and a bound file must each "
+                f"be reported")
+    floor = (_install_scope_never_exempt({"corpus": {"a.md": {}}, "install_routes": []})[0],
+             _install_scope_never_exempt({"corpus": {"a.md": {}},
+                                          "routes": [{"in": ["b.md"], "prober": ["t.py::X"]}]})[0])
+    if floor != (None, {"a.md", "b.md", "t.py"}):
+        return (f"install-scope: detector self-proof failed -- the never-exempt derivation returned "
+                f"{floor!r}; a renamed 'routes' key must fail and a complete manifest must yield "
+                f"its corpus, route docs and probers")
+    return None
+
+
 def check_install_scope():
     """Invariant 59: install-scope policy (P93, widened P93-4). Every machine-wide install
     instruction anywhere in the repo's LIVE guidance -- brew, a sudo package command, MacPorts,
     a global npm/pipx install, the pip system-override flag, a command-anchored pip install, a
     copy/move/link/redirect/download into /Applications, /usr/local or /opt/homebrew, a drag into the
-    Applications folder, or
-    a macOS .pkg/python.org download -- must carry the label "machine-wide"/"whole computer" on
+    Applications folder,
+    a macOS .pkg/python.org download, or a Windows installer (winget install or upgrade, Chocolatey,
+    msiexec, an installer .exe with an install or silent switch, Microsoft's vc_redist package, wsl
+    --install) -- must carry the label "machine-wide"/"whole computer" on
     its own line, on a line above it in the same paragraph, or on either of the two lines just
     above the blank line that precedes that paragraph, so the user-scoped default (docs/INSTALL-SCOPE.md:
     home folder only, repo .venv, ~/.local, ~/.nvm) can never silently stop being the default.
@@ -4388,104 +4519,9 @@ def check_install_scope():
     narrowing coverage unnoticed (the invariant-58 lesson). Two anchoring fixtures ride along:
     prose reading "no real pip install" must NOT flag, and an instruction "Run: pip install uv"
     must."""
-    # --- coverage proof: one fail-then-pass fixture per branch, by name ---
-    fixtures = {
-        "brew": "brew install ffmpeg",
-        "sudo-pkg": "sudo apt-get install -y nodejs",
-        "sudo-python": "sudo python3 -m pip install requests",
-        "macports": "port install ffmpeg",
-        "npm-global": "npm install -g some-cli",
-        "pipx-global": "pipx install black --global",
-        "pip-override": "pip install x --break-system-" + "packages",
-        "pip-command": "Run: pip install uv",
-        "macos-pkg": "installer -pkg python.pkg -target /",
-        "applications-dir": "Drag Claude.app into your Applications folder.",
-        "system-prefix-write": "curl https://x > /usr/local/bin/x",
-    }
-    gap = _coverage_proof("install-scope", _INSTALL_SCOPE_BRANCHES, fixtures,
-                          lambda _n, sample: len(_install_scope_scan(["intro", "", sample])) == 1,
-                          pinned=_install_scope_pinned_branches())
+    gap = _install_scope_selfproof()
     if gap:
         problem(gap)
-        return
-    for name, sample in fixtures.items():
-        if _install_scope_scan(["Machine-wide alternative (affects the whole computer):", "", sample]):
-            problem(f"install-scope: detector self-proof failed -- the labeled '{name}' fixture flagged")
-            return
-    if _install_scope_scan(["The installer uses the repo .venv, so no real pip install",
-                            "ever touches the base interpreter."]):
-        problem("install-scope: detector self-proof failed -- prose 'no real pip install' flagged")
-        return
-    # A path under /opt/homebrew or /usr/local that is only read or only named in prose, and the
-    # per-user ~/Applications folder, are not machine-wide writes.
-    for sample in ("cp /opt/homebrew/bin/ffmpeg ~/bin/ffmpeg",
-                   "the install location is /usr/local/bin on Intel Macs",
-                   "mkdir -p ~/Applications, then drag the app into ~/Applications",
-                   "ls /Applications"):
-        if _install_scope_scan([sample]):
-            problem(f"install-scope: detector self-proof failed -- {sample!r} flagged; only a write "
-                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
-            return
-    for sample in ("Move Foo.app to the Applications folder.", "Copy the binary to /usr/local/bin.",
-                   "cp ffmpeg /usr/local/bin  # then run it"):
-        if not _install_scope_scan([sample]):
-            problem(f"install-scope: detector self-proof failed -- {sample!r} not flagged; a write "
-                    f"into /Applications, /usr/local or /opt/homebrew is machine-wide")
-            return
-    if _install_scope_scan(["brew install ffmpeg", "",
-                            "Machine-wide alternative (affects the whole computer):"]) != [(1, "brew install")]:
-        problem("install-scope: detector self-proof failed -- a label BELOW an instruction blessed "
-                "it; the window must look up, not down")
-        return
-    # A label heading governs its whole block, not just the next two lines.
-    if _install_scope_scan(["Machine-wide alternatives (affect the whole computer):",
-                            "  - the python.org universal2 installer,",
-                            "      https://example.invalid/downloads",
-                            "  - or install Homebrew, then run: brew install python@3.12"]):
-        problem("install-scope: detector self-proof failed -- a labeled block stopped governing "
-                "after two lines; the label heads the block it introduces")
-        return
-    # ...but it stops at a blank-separated NEW block, so it cannot bless a distant instruction.
-    if len(_install_scope_scan(["Machine-wide alternative (affects the whole computer):",
-                                "  brew install ffmpeg", "", "Now the everyday setup:", "",
-                                "  brew install something-else"])) != 1:
-        problem("install-scope: detector self-proof failed -- a label leaked past its block into "
-                "a later, unrelated instruction")
-        return
-    # The scan set is every tracked non-binary file, whatever its name.
-    readable = _install_scope_texts(
-        ["Start.bat", "VERSION", "page.html", "logo.png"],
-        {"Start.bat": b"@echo off\r\n", "VERSION": b"1.0\n", "page.html": b"<p>x</p>\n",
-         "logo.png": b"\x89PNG\r\n\x1a\n\x00\x00"}.__getitem__)
-    if sorted(readable) != ["Start.bat", "VERSION", "page.html"]:
-        problem(f"install-scope: detector self-proof failed -- the file reader returned "
-                f"{sorted(readable)!r}; every tracked file except a binary must be read")
-        return
-    # A fenced `sources` block is citation data (invariant 52's domain), never an instruction.
-    if _install_scope_scan(["```sources", '{"id": "x", "url": "https://www.python.org/downloads/macos/"}',
-                            "```"]):
-        problem("install-scope: detector self-proof failed -- a citation row in a fenced sources "
-                "block was read as an install instruction")
-        return
-
-    shape = _install_scope_exempt_problems(
-        {"live.md": "r", "dead.md": "r", "gone.md": "r", "dir/": "r", "": "r", "bound.md": "r",
-         "bare.md": " "},
-        {"live.md": 2, "dead.md": 0, "dir/x.md": 1, "bound.md": 1, "bare.md": 1}, {"bound.md"})
-    want = ["'' is not a tracked file", "'bare.md' has no written reason", "'bound.md' names a file",
-            "'dead.md' is stale", "'dir/' is not a tracked file", "'gone.md' is not a tracked file"]
-    if len(shape) != len(want) or any(w not in m for w, m in zip(want, shape)):
-        problem(f"install-scope: detector self-proof failed -- the exemption-map check returned "
-                f"{shape!r}; a prefix, a stale entry, a missing reason and a bound file must each "
-                f"be reported")
-        return
-    floor = (_install_scope_never_exempt({"corpus": {"a.md": {}}, "install_routes": []})[0],
-             _install_scope_never_exempt({"corpus": {"a.md": {}},
-                                          "routes": [{"in": ["b.md"], "prober": ["t.py::X"]}]})[0])
-    if floor != (None, {"a.md", "b.md", "t.py"}):
-        problem(f"install-scope: detector self-proof failed -- the never-exempt derivation returned "
-                f"{floor!r}; a renamed 'routes' key must fail and a complete manifest must yield "
-                f"its corpus, route docs and probers")
         return
 
     # --- derived denominator: every tracked text file, minus the written-reason exemptions ---

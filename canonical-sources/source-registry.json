@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-10-07",
+  "last_registry_update": "2026-10-10",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -7301,7 +7301,75 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "ms-vc-redist-latest",
+      "name": "Microsoft Visual C++ Redistributable latest supported downloads (Microsoft Learn)",
+      "url": "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "ms-vc-redist-troubleshoot",
+      "name": "Troubleshoot Visual C++ Redistributable installation problems (Microsoft Learn)",
+      "url": "https://learn.microsoft.com/en-us/cpp/windows/troubleshoot-vc-redistributable-installation-issues",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "ms-vc-redist-command-line",
+      "name": "Redistribute Visual C++ files, command-line options (Microsoft Learn)",
+      "url": "https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "ms-windows-installer-errors",
+      "name": "Windows Installer error messages (Microsoft Learn)",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-error-messages",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "0dec0176d50f4a0b80a8a4f1b8fe09ce864288450a4ac4a95c5ac899d541bc93"
+  "_content_digest": "d6b8fbd35118890cfcd47a325c7de94131c9b86acbc976ee529faf50d68e85b2"
 }

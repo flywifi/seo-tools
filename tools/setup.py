@@ -149,6 +149,30 @@ def _install_playwright_browser(python: str) -> tuple:
         return False, str(exc)
 
 
+def _check_faster_whisper(python, run=None, osname=None, missing=None) -> tuple:
+    """(ok, detail): whether faster-whisper, just installed into `python`, imports there (P102). On
+    Windows a missing Microsoft Visual C++ runtime makes it fail to load although pip installed it;
+    the detail then names that runtime (transcribe.vc_runtime_remedy), since installing the
+    requirements again cannot fix it. run, osname and missing stand in for the system's in the
+    selftest."""
+    run = subprocess.run if run is None else run
+    try:
+        r = run([str(python), "-c", "import faster_whisper"], capture_output=True, timeout=300,
+                **env_paths.tool_io())
+    except (OSError, subprocess.SubprocessError) as exc:
+        return False, f"could not run the faster-whisper check: {exc}"
+    if r.returncode == 0:
+        return True, "faster-whisper loads"
+    import transcribe
+    osname = env_paths._os_name() if osname is None else osname
+    gone = (transcribe.vc_runtime_missing() if missing is None else missing) if osname == "nt" else []
+    if transcribe.VC_RUNTIME_DECISIVE in gone:
+        return False, transcribe.vc_runtime_remedy()
+    lines = [ln for ln in (r.stderr or "").splitlines() if ln.strip()]
+    return False, ("faster-whisper is installed but does not load: "
+                   + (lines[-1] if lines else f"exit code {r.returncode}"))
+
+
 def install_dependencies() -> list:
     """Install every free, cross-platform pip set + uv + the Playwright browser into a private .venv
     (the 'private toolbox'), so a Homebrew Python's PEP 668 lock never silently blocks the install.
@@ -177,6 +201,13 @@ def install_dependencies() -> list:
             continue
         ok, detail = _pip_install(["-r", str(p)], python=target)
         results.append({"item": fname, "desc": desc, "ok": ok, "detail": detail})
+    # P102: faster-whisper can install and still not load (a missing Visual C++ runtime on Windows);
+    # check it now, so the gap shows at install time and not at the first transcription.
+    stt = next((r for r in results if r["item"] == "requirements-transcribe.txt"), None)
+    if stt is not None and stt["ok"] is True:
+        fw_ok, fw_detail = _check_faster_whisper(target)
+        results.append({"item": "faster-whisper check", "desc": "Local transcription loads",
+                        "ok": fw_ok, "detail": "" if fw_ok else fw_detail})
     # uv: pip-installable, cross-platform, no sudo. Powers the Google/Wolfram uvx MCP servers.
     venv_uv = Path(target).parent / "uv"
     if venv_uv.exists() or env_paths.which("uv"):
@@ -195,8 +226,9 @@ def run_install_deps(as_json: bool = False) -> int:
     In --json mode stdout carries ONLY the JSON object (the wizard parses it), no preamble."""
     if not as_json:
         _say("Installing Creator OS dependencies (free, cross-platform, no keys)...")
-        _say("These install into a private .venv toolbox inside the repo (never committed), so a")
-        _say("Homebrew Python's install lock cannot block them. Base function never depends on it.\n")
+        _say("These install into a private .venv toolbox inside the repo (never committed), so an")
+        _say("install lock on this computer's Python (PEP 668) cannot block them. Base function never")
+        _say("depends on it.\n")
     results = install_dependencies()
     if as_json:
         print(json.dumps({"results": results}, indent=2))
@@ -1055,6 +1087,7 @@ def _selftest() -> int:
     # P101: the repo-location warning (_selftest_location, which the committed mutation cases for
     # setup.py run alone).
     ok(_selftest_location() == 0, "repo-location checks failed (listed above)")
+    ok(_selftest_fw() == 0, "faster-whisper install checks failed (listed above)")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
@@ -1062,6 +1095,81 @@ def _selftest() -> int:
             print(f"  [FAIL] {m}")
     print(f"setup selftest: {passed}/{len(checks)} checks passed")
     return 0 if passed == len(checks) else 1
+
+
+def _selftest_fw() -> int:
+    """P102 checks for the post-install faster-whisper check (_check_faster_whisper) and its wiring
+    into install_dependencies, offline: the child process, the venv and pip are stood in for."""
+    checks = []
+
+    def ok(cond, msg):
+        checks.append((bool(cond), msg))
+    # P102: the post-install faster-whisper check, with the child process stood in for.
+    class _R:
+        def __init__(self, rc, err=""):
+            self.returncode, self.stderr, self.stdout = rc, err, ""
+    _seen_fw = []
+
+    def _run_fw(rc, err=""):
+        return lambda argv, **kw: _seen_fw.append((argv, kw)) or _R(rc, err)
+
+    def _boom(argv, **kw):
+        raise OSError(2, "No such file", argv[0])
+
+    def _slow_fw(argv, **kw):
+        raise subprocess.TimeoutExpired(argv, 300)
+    _fw = {"loads": _check_faster_whisper("/v/python", run=_run_fw(0)),
+           "vc": _check_faster_whisper("/v/python", run=_run_fw(1, "Traceback\nFileNotFoundError: x.dll\n"),
+                                       osname="nt", missing=["msvcp140.dll"]),
+           "nt_ok_dlls": _check_faster_whisper("/v/python", run=_run_fw(1, "ImportError: numpy\n"),
+                                               osname="nt", missing=[]),
+           "posix": _check_faster_whisper("/v/python", run=_run_fw(1, "Traceback\nImportError: libx.so\n"),
+                                          osname="posix", missing=["msvcp140.dll"]),
+           "older": _check_faster_whisper("/v/python", run=_run_fw(1, "ImportError: av\n"),
+                                          osname="nt", missing=["vcruntime140_1.dll"]),
+           "norun": _check_faster_whisper("/v/python", run=_boom),
+           "slow": _check_faster_whisper("/v/python", run=_slow_fw)}
+    import transcribe as _tr_fw
+    ok(_fw["loads"] == (True, "faster-whisper loads")
+       and _seen_fw[0][0] == ["/v/python", "-c", "import faster_whisper"]
+       and _seen_fw[0][1].get("env", {}).get("PYTHONUTF8") == "1"
+       and _fw["vc"] == (False, _tr_fw.vc_runtime_remedy())
+       and _fw["nt_ok_dlls"] == (False, "faster-whisper is installed but does not load: ImportError: numpy")
+       and _fw["posix"] == (False, "faster-whisper is installed but does not load: ImportError: libx.so")
+       and _fw["older"] == (False, "faster-whisper is installed but does not load: ImportError: av")
+       and _fw["norun"][0] is False and "could not run" in _fw["norun"][1]
+       and _fw["slow"][0] is False and "could not run" in _fw["slow"][1],
+       "the post-install faster-whisper check does not tell loading, a missing Visual C++ runtime on "
+       f"Windows (msvcp140.dll), another import error and a check that cannot run apart: {_fw}")
+    # The wiring: a successful transcription set is followed by the check, whose failure is reported.
+    _g_fw = globals()
+    _saved_fw = {k: _g_fw[k] for k in ("ensure_venv", "_pip_install", "_check_faster_whisper",
+                                       "_install_playwright_browser")}
+    _runs_fw, _checked_fw = {}, []
+    try:
+        _g_fw.update(ensure_venv=lambda: ("/v/python", "ok"),
+                     _check_faster_whisper=lambda python: _checked_fw.append(python) or (False, "REMEDY"),
+                     _install_playwright_browser=lambda python: (None, "skipped"))
+        for _case, _fail in (("stt-ok", ""), ("stt-failed", "requirements-transcribe.txt")):
+            _g_fw["_pip_install"] = lambda args, python, _f=_fail: (not (len(args) > 1 and args[1].endswith(_f) and _f), "x")
+            _runs_fw[_case] = [r for r in install_dependencies() if r["item"] == "faster-whisper check"]
+    finally:
+        _g_fw.update(_saved_fw)
+    ok(_runs_fw["stt-ok"] == [{"item": "faster-whisper check", "desc": "Local transcription loads",
+                               "ok": False, "detail": "REMEDY"}]
+       and _runs_fw["stt-failed"] == [] and _checked_fw == ["/v/python"],
+       f"install_dependencies does not check faster-whisper in the .venv interpreter after the "
+       f"transcription set installs, or reports a failed check as passing: {_runs_fw} {_checked_fw}")
+    for c, m in checks:
+        if not c:
+            print(f"  [FAIL] {m}")
+    return 0 if all(c for c, _ in checks) else 1
+
+
+def _selftest_offline() -> int:
+    """The offline setup checks the committed mutation cases in tools/file_hash.py run: the
+    repo-location checks and the faster-whisper install checks."""
+    return 1 if (_selftest_location() | _selftest_fw()) else 0
 
 
 def _selftest_location() -> int:

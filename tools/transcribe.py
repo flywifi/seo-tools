@@ -54,13 +54,307 @@ _NICHE_SEED = ("armoire", "patina", "wainscoting", "decoupage", "sconcing", "vig
 
 # ── backend detection + selection (pure where it matters; the selftest pins select_backend) ──
 
-def detect_backends():
-    """What STT backends are actually installed on THIS machine. Detection only; runs nothing."""
-    cpp_bin = None
+# On Windows, faster-whisper's ctranslate2 loads these Microsoft Visual C++ runtime libraries, which a
+# fresh Windows lacks and pip cannot install (P102). Their installer is machine-wide (it affects the
+# whole computer), so Creator OS runs it from the setup wizard on request. Microsoft's x64 package
+# also carries the ARM64 libraries ("The X64 Redistributable package contains both ARM64 and X64
+# binaries", Microsoft Learn, "Microsoft Visual C++ Redistributable latest supported downloads"), so
+# it serves both machines.
+VC_RUNTIME_DLLS = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+VC_RUNTIME_URL = "https://aka.ms/vc14/vc_redist.x64.exe"
+# The one of those that decides the load: Python for Windows ships vcruntime140.dll and
+# vcruntime140_1.dll beside python.exe, and Windows finds them there, but not msvcp140.dll. So a
+# computer with only an older runtime (vcruntime140_1.dll absent from System32) still loads
+# faster-whisper, and the runtime is named only when msvcp140.dll is absent.
+VC_RUNTIME_DECISIVE = "msvcp140.dll"
+
+
+def probe_faster_whisper(find_spec=None, importer=None):
+    """{"installed", "loads", "error"} for faster-whisper in this interpreter: installed when importlib
+    finds the package without importing it, loads when importing it succeeds, and error the first line
+    of the exception when it does not (on Windows a missing Visual C++ runtime raises FileNotFoundError
+    from ctranslate2's DLL). Never raises."""
+    import importlib
+    import importlib.util
+    find_spec = importlib.util.find_spec if find_spec is None else find_spec
+    importer = importlib.import_module if importer is None else importer
+    try:
+        installed = find_spec("faster_whisper") is not None
+    except (ImportError, ValueError):
+        installed = False
+    if not installed:
+        return {"installed": False, "loads": False, "error": ""}
+    try:
+        importer("faster_whisper")
+    except Exception as exc:  # noqa: BLE001 -- any failure to load is reported, never raised
+        return {"installed": True, "loads": False,
+                "error": (f"{type(exc).__name__}: {exc}".splitlines() or [""])[0][:300]}
+    return {"installed": True, "loads": True, "error": ""}
+
+
+def vc_runtime_missing(system_root=None, exists=None):
+    """The VC_RUNTIME_DLLS absent from %SystemRoot%\\System32. Callers ask on Windows only;
+    system_root and exists stand in for the system's in the selftest."""
+    import ntpath
+    root = system_root or os.environ.get("SystemRoot") or "C:\\Windows"
+    exists = os.path.exists if exists is None else exists
+    return [d for d in VC_RUNTIME_DLLS if not exists(ntpath.join(root, "System32", d))]
+
+
+def vc_runtime_remedy():
+    """What to do on Windows when faster-whisper is installed but the Visual C++ runtime is missing."""
+    return ("Install the Microsoft Visual C++ Redistributable (machine-wide: affects the whole computer). "
+            "Use the Install button on the setup wizard's Check my setup screen, or install it yourself "
+            f"from Microsoft ({VC_RUNTIME_URL}) or with: winget install --exact --id Microsoft.VCRedist.2015+.x64")
+
+
+# The install the setup wizard runs on request (P102, ADR 0079). It is machine-wide (affects the whole
+# computer), so the wizard asks first. Microsoft Learn's troubleshooting page: "Never install a Visual
+# C++ Redistributable installer that wasn't downloaded from a Microsoft site. Never install a Visual C++
+# Redistributable installer that Microsoft didn't sign." So the file comes from VC_RUNTIME_URL, and it
+# runs after Windows reports a Valid Authenticode signature whose signer's organization is Microsoft
+# Corporation and whose chain ends at Microsoft's code-signing root, pinned by thumbprint.
+VC_RUNTIME_LICENSE_URL = "https://aka.ms/VCRedistLicense"
+VC_RUNTIME_SIGNER_ORG = "Microsoft Corporation"
+VC_RUNTIME_ROOT_CN = "Microsoft Root Certificate Authority 2011"
+VC_RUNTIME_ROOT_THUMBPRINT = "8F43288AD272F3103B6FB1428485EA3014C0BCFE"
+# Microsoft Learn, "Redistribute Visual C++ files": /passive "shows a progress bar ... but doesn't
+# otherwise require user interaction"; /norestart "suppresses any attempts to restart"; and "/log
+# filename.txt to log to a specific file" (install_vc_runtime puts it in its temporary folder, so it is
+# deleted with the installer instead of staying in %TEMP%).
+VC_RUNTIME_ARGS = ("/install", "/passive", "/norestart")
+VC_RUNTIME_ARCHES = ("amd64", "x86_64", "arm64", "aarch64")
+VC_RUNTIME_TIMEOUT = 1800
+# Windows system error codes the installer returns: 3010 ERROR_SUCCESS_REBOOT_REQUIRED, 1638
+# ERROR_PRODUCT_VERSION (another version is already installed), 1602 ERROR_INSTALL_USEREXIT and
+# 1223 ERROR_CANCELLED (the person declined). Read as needing an administrator: 1307
+# ERROR_INVALID_OWNER (the installer could not elevate), 1925 (Windows Installer: "You do not have
+# sufficient privileges to complete this installation for all users of the machine") and 5
+# ERROR_ACCESS_DENIED (Microsoft Learn's troubleshooting page also names security software and group
+# policy for it).
+VC_RUNTIME_EXIT = {
+    0: (True, "installed", "The Microsoft Visual C++ Redistributable is installed."),
+    3010: (True, "restart", "The Microsoft Visual C++ Redistributable is installed. Restart Windows "
+                            "when convenient to finish it."),
+    1638: (True, "newer", "A newer Microsoft Visual C++ Redistributable is already installed, so the "
+                          "installer changed nothing."),
+    1602: (False, "cancelled", "The install was cancelled, so nothing was installed."),
+    1223: (False, "cancelled", "The install was cancelled at the Windows administrator prompt, so nothing "
+                               "was installed."),
+    1307: (False, "needs_admin", "Installing the Visual C++ runtime needs an administrator of this computer "
+                                 "(exit code 1307). Ask whoever manages it, or use the manual route on this "
+                                 "screen."),
+    1925: (False, "needs_admin", "Installing the Visual C++ runtime needs an administrator of this computer "
+                                 "(exit code 1925). Ask whoever manages it, or use the manual route on this "
+                                 "screen."),
+    5: (False, "needs_admin", "Windows denied the install (exit code 5, access denied). It needs an "
+                              "administrator of this computer, and security software or a work policy can "
+                              "also block it. Ask whoever manages it, or use the manual route on this screen."),
+}
+
+# Windows PowerShell: the file's Authenticode verdict, its signer, and the root its chain ends at. The
+# certificates inside the signature go into the chain's extra store, so the chain builds without a
+# download; revocation is not checked here because Get-AuthenticodeSignature's Valid already covers trust.
+# The root is reported only from a chain that built, or one whose only faults are time flags (the
+# signing certificate expires before the timestamped signature does); otherwise it is left empty and
+# vc_signature_verdict refuses. Output is UTF-8, so a localized error message decodes.
+_VC_SIGNATURE_PS = r"""
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$f = $env:CREATOR_OS_VC_FILE
+$s = Get-AuthenticodeSignature -LiteralPath $f
+$c = $s.SignerCertificate
+$root = $null
+if ($c) {
+  $chain = New-Object System.Security.Cryptography.X509Certificates.X509Chain
+  $chain.ChainPolicy.RevocationMode = 'NoCheck'
+  $extra = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+  try { $extra.Import($f) } catch { }
+  [void]$chain.ChainPolicy.ExtraStore.AddRange($extra)
+  $built = $chain.Build($c)
+  $flags = @($chain.ChainStatus | ForEach-Object { [string]$_.Status })
+  $other = @($flags | Where-Object { $_ -notin @('NotTimeValid', 'NotTimeNested') })
+  $n = $chain.ChainElements.Count
+  if (($built -or $other.Count -eq 0) -and $n -gt 0) { $root = $chain.ChainElements[$n - 1].Certificate }
+}
+$signer = ''
+if ($c) { $signer = $c.Subject }
+$rootThumb = ''
+$rootSubject = ''
+if ($root) { $rootThumb = $root.Thumbprint; $rootSubject = $root.Subject }
+$chainStatus = ''
+if ($c) { $chainStatus = ($flags -join ',') }
+[pscustomobject]@{ status = [string]$s.Status; signer = $signer; root_thumbprint = $rootThumb; root_subject = $rootSubject; chain_status = $chainStatus } | ConvertTo-Json -Compress
+"""
+
+
+def _dn_values(subject, key):
+    """The values of attribute `key` (O, CN) in an X.500 subject such as
+    'CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US'. The subject is
+    split at the commas outside double quotes, so a quoted value (CN="x, O=y") carries no attribute."""
+    parts, cur, quoted = [], "", False
+    for ch in str(subject or ""):
+        if ch == '"':
+            quoted = not quoted
+        if ch == "," and not quoted:
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    parts.append(cur)
+    out = []
+    for part in parts:
+        name, sep, value = part.strip().partition("=")
+        if sep and name.strip() == key:
+            value = value.strip()
+            out.append(value[1:-1] if len(value) >= 2 and value[0] == value[-1] == '"' else value)
+    return out
+
+
+def vc_signature_verdict(info):
+    """(ok, reason) for the facts _VC_SIGNATURE_PS reports: ok when the status is Valid, the signer
+    has one organization (O) and it is Microsoft Corporation, and the chain's root has the pinned
+    thumbprint and one common name (CN), Microsoft Root Certificate Authority 2011. Anything else, a
+    missing field or an error included, is refused."""
+    if not isinstance(info, dict) or info.get("error"):
+        why = info.get("error") if isinstance(info, dict) else None
+        return False, f"Windows could not check the signature ({why or 'no result'})"
+    status = str(info.get("status") or "")
+    if status != "Valid":
+        return False, f"Windows reports the signature as {status or 'missing'}, not Valid"
+    if _dn_values(info.get("signer"), "O") != [VC_RUNTIME_SIGNER_ORG]:
+        return False, f"it is signed by {info.get('signer') or 'nobody'}, not Microsoft Corporation"
+    if str(info.get("root_thumbprint") or "").upper() != VC_RUNTIME_ROOT_THUMBPRINT:
+        return False, (f"its signature chains to a root whose thumbprint "
+                       f"({info.get('root_thumbprint') or 'none reported'}) is not {VC_RUNTIME_ROOT_CN}'s")
+    if _dn_values(info.get("root_subject"), "CN") != [VC_RUNTIME_ROOT_CN]:
+        return False, (f"its signature chains to {info.get('root_subject') or 'an unknown root'}, not "
+                       f"{VC_RUNTIME_ROOT_CN}")
+    return True, f"signed by Microsoft Corporation, chained to {VC_RUNTIME_ROOT_CN}"
+
+
+def vc_signature_info(path, run=None, system_root=None):
+    """The signature facts for `path` from Windows PowerShell (by its full path under %SystemRoot%), as
+    a dict, or {"error": ...}. The file path travels in an environment variable and the script as
+    -EncodedCommand, so neither is parsed by a shell. `run` stands in for subprocess.run."""
+    import base64
+    import ntpath
+    run = subprocess.run if run is None else run
+    root = system_root or os.environ.get("SystemRoot") or "C:\\Windows"
+    ps = ntpath.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+    script = base64.b64encode(_VC_SIGNATURE_PS.encode("utf-16-le")).decode("ascii")
+    # PSModulePath is left out so Windows PowerShell builds its own: one inherited from PowerShell 7
+    # can stop it loading the module that provides Get-AuthenticodeSignature (PowerShell issue 18530).
+    env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
+    env["CREATOR_OS_VC_FILE"] = str(path)
+    try:
+        r = run([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", script],
+                capture_output=True, encoding="utf-8", errors="replace", timeout=120, env=env)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"error": f"{type(exc).__name__}: {str(exc)[:160]}"}
+    try:
+        info = json.loads((r.stdout or "").strip().splitlines()[-1])
+    except (IndexError, ValueError):
+        return {"error": (r.stderr or r.stdout or f"exit code {r.returncode}").strip()[:200]}
+    return info if isinstance(info, dict) else {"error": "the signature check printed no object"}
+
+
+def vc_exit_meaning(code):
+    """(ok, status, message) for the installer's exit code."""
+    if code in VC_RUNTIME_EXIT:
+        return VC_RUNTIME_EXIT[code]
+    return False, "failed", (f"The installer stopped with exit code {code}. You can install it yourself "
+                             f"from Microsoft: {VC_RUNTIME_URL}")
+
+
+def _run_vc_installer(argv):
+    """The installer's exit code; it raises Windows' administrator prompt itself (its manifest asks
+    for asInvoker)."""
+    return subprocess.run(list(argv), timeout=VC_RUNTIME_TIMEOUT).returncode
+
+
+def install_vc_runtime(os_name=None, arch=None, download=None, verify=None, run=None, mkdtemp=None,
+                       rmtree=None, missing=None):
+    """Download Microsoft's x64 Visual C++ Redistributable into a new temporary folder, run it with
+    VC_RUNTIME_ARGS and its log in that folder once vc_signature_verdict accepts its signature, and
+    delete the folder when this function returns or raises (a process killed mid-install leaves it).
+    Windows on x64 or ARM64 only (the x64 package carries the ARM64 libraries). Returns {"ok",
+    "status", "message"} plus "exit_code" when the installer ran and "note" when the folder could not
+    be deleted. Exit code 1638 (a newer version registered) with msvcp140.dll still absent reads as
+    repair_needed. Each step is injectable: download(url, dest) -> error or None, verify(path) ->
+    info dict, run(argv) -> exit code, missing() -> the absent runtime DLLs. The setup wizard calls
+    this after the person ticks its confirmation box; it is not a command-line verb."""
+    import tempfile
+    os_name = (os_name if os_name is not None else sys.platform).lower()
+    arch = (arch if arch is not None else platform.machine()).lower()
+    if not os_name.startswith("win") or arch not in VC_RUNTIME_ARCHES:
+        return {"ok": False, "status": "unsupported",
+                "message": "The Microsoft Visual C++ Redistributable install runs on Windows on x64 or ARM64."}
+    download = _stream_download if download is None else download
+    verify = vc_signature_info if verify is None else verify
+    run = _run_vc_installer if run is None else run
+    mkdtemp = tempfile.mkdtemp if mkdtemp is None else mkdtemp
+    rmtree = shutil.rmtree if rmtree is None else rmtree
+    missing = vc_runtime_missing if missing is None else missing
+    folder = mkdtemp(prefix="creator-os-vcredist-")
+    try:
+        dest = os.path.join(folder, VC_RUNTIME_URL.rsplit("/", 1)[-1])
+        err = download(VC_RUNTIME_URL, dest)
+        if err:
+            res = {"ok": False, "status": "download_failed",
+                   "message": f"The download from Microsoft did not finish: {err}"}
+        else:
+            ok, why = vc_signature_verdict(verify(dest))
+            if not ok:
+                res = {"ok": False, "status": "signature_refused",
+                       "message": f"The downloaded installer was not run: {why}. It has been deleted."}
+            else:
+                try:
+                    code = run([dest, *VC_RUNTIME_ARGS, "/log", os.path.join(folder, "vc_redist.log")])
+                except subprocess.TimeoutExpired:
+                    res = {"ok": False, "status": "timed_out",
+                           "message": f"The installer did not finish within {VC_RUNTIME_TIMEOUT // 60} minutes."}
+                except OSError as exc:
+                    res = {"ok": False, "status": "failed",
+                           "message": f"The installer could not start: {type(exc).__name__}: {str(exc)[:160]}"}
+                else:
+                    ok_code, status, message = vc_exit_meaning(code)
+                    if code == 1638 and VC_RUNTIME_DECISIVE in missing():
+                        ok_code, status, message = False, "repair_needed", (
+                            "A newer Microsoft Visual C++ Redistributable is registered, but msvcp140.dll is "
+                            "missing from System32. Repair it from Windows Settings (Apps, Installed apps, the "
+                            "Microsoft Visual C++ Redistributable (x64) entry, Modify, Repair), or ask whoever "
+                            "manages this computer.")
+                    res = {"ok": ok_code, "status": status, "exit_code": code, "message": message}
+    finally:
+        rmtree(folder, ignore_errors=True)
+    if os.path.exists(folder):
+        res["note"] = f"The temporary folder {folder} could not be deleted; you can delete it yourself."
+    return res
+
+
+def whisper_cpp_bin(which=None, os_name=None):
+    """The name of the first whisper.cpp CLI on PATH, or None. `which` is the lookup (default
+    shutil.which, read when called) and `os_name` the system (sys.platform form; None reads this
+    computer's). On Windows a match counts when it is a .exe: which() also returns the other PATHEXT
+    types (.CPL, .BAT, .CMD, ...), and C:\\Windows\\System32\\main.cpl, the Mouse control panel, answers
+    to "main" on a stock Windows computer (P102)."""
+    which = which or shutil.which
+    windows = str(os_name if os_name is not None else sys.platform).lower().startswith("win")
     for name in _WHISPER_CPP_BINS:
-        if shutil.which(name):
-            cpp_bin = name
-            break
+        found = which(name)
+        if not found:
+            continue
+        if windows and not str(found).lower().endswith(".exe"):
+            continue
+        return name
+    return None
+
+
+def detect_backends(os_name=None):
+    """What STT backends are actually installed on THIS machine. Detection only; runs nothing.
+    os_name (sys.platform form) is the system the whisper.cpp lookup judges by (whisper_cpp_bin)."""
+    cpp_bin = whisper_cpp_bin(os_name=os_name)
     try:
         import faster_whisper  # noqa: F401
         fw = True
@@ -69,10 +363,25 @@ def detect_backends():
     return {"whisper_cpp": cpp_bin, "faster_whisper": fw}
 
 
+def _local(text, os_name=None):
+    """text with its `python3 tools/...` commands as the computer runs them (env_paths.local_commands:
+    `py -3` or `python` on Windows). os_name is the system the doctor reports on (sys.platform form),
+    so a simulated system keeps its own wording; None reads this computer's."""
+    sys.path.insert(0, str(HERE))
+    import env_paths
+    if os_name is None:
+        return env_paths.local_commands(text)
+    return env_paths.local_commands(text, osname="nt" if str(os_name).startswith("win") else "posix")
+
+
 def _install_hint(os_name, arch):
     """The OS-correct one-liner a non-technical user runs to get a backend. P93: the default
     is always user-only (faster-whisper via the repo's .venv, docs/INSTALL-SCOPE.md); brew and
     apt routes are named as the machine-wide alternative."""
+    return _local(_install_hint_text(os_name, arch), os_name)
+
+
+def _install_hint_text(os_name, arch):
     if os_name == "darwin":
         return ("python3 tools/setup.py --install-deps   (user-only: faster-whisper in the "
                 "repo .venv; machine-wide alternative: brew install whisper-cpp ffmpeg)")
@@ -101,16 +410,20 @@ def _have_cuda():
     return bool(shutil.which("nvidia-smi"))
 
 
-def select_backend(os_name=None, arch=None, have=None, cuda=None):
+def select_backend(os_name=None, arch=None, have=None, cuda=None, fw_probe=None, vc_missing=None):
     """Pick the STT backend for a machine. Pure and fully injectable so the selftest can simulate
     any OS/arch/install combination with no real hardware.
 
     Returns {backend, device, reason, chain, install, ok}. `backend` is None when nothing is
     installed (ok False) and `install` then carries the OS-correct command. `chain` is the ordered
-    preference actually considered for this machine."""
+    preference actually considered for this machine. When nothing loads but faster-whisper is
+    installed (probe_faster_whisper, run on this machine when `have` is not given, or `fw_probe`),
+    the result says so (not_loading) and on Windows with msvcp140.dll absent (`vc_missing`, or
+    vc_runtime_missing) `install` names the Visual C++ runtime instead of the package install."""
+    detected = have is None
     os_name = (os_name if os_name is not None else sys.platform).lower()
     arch = (arch if arch is not None else platform.machine()).lower()
-    have = have if have is not None else {k: bool(v) for k, v in detect_backends().items()}
+    have = have if have is not None else {k: bool(v) for k, v in detect_backends(os_name).items()}
     cuda = _have_cuda() if cuda is None else cuda
     is_mac = os_name == "darwin"
     is_apple_silicon = is_mac and arch in ("arm64", "aarch64")
@@ -135,6 +448,14 @@ def select_backend(os_name=None, arch=None, have=None, cuda=None):
                     "device": "metal" if is_apple_silicon else "cpu",
                     "reason": note, "chain": chain, "install": None, "ok": True}
 
+    probe = fw_probe if fw_probe is not None else (probe_faster_whisper() if detected else None)
+    if probe and probe.get("installed") and not probe.get("loads"):
+        gone = ((vc_runtime_missing() if vc_missing is None else vc_missing)
+                if os_name.startswith("win") else [])
+        return {"backend": None, "device": None, "not_loading": True,
+                "reason": f"faster-whisper is installed but could not load ({probe.get('error') or 'unknown error'})",
+                "chain": chain, "ok": False,
+                "install": vc_runtime_remedy() if VC_RUNTIME_DECISIVE in gone else _install_hint(os_name, arch)}
     return {"backend": None, "device": None,
             "reason": "no STT backend installed; returning run_local_stt gap (never a fabricated transcript)",
             "chain": chain, "install": _install_hint(os_name, arch), "ok": False}
@@ -223,7 +544,9 @@ def transcribe(media_path, model=None, initial_prompt=None, out_dir=None,
     chain = [{"backend": sel.get("backend"), "device": sel.get("device"), "reason": sel.get("reason")}]
     if not sel.get("ok"):
         return _gap("no_backend",
-                    "No local STT backend is installed. Install one, then re-run (nothing is faked).",
+                    (f"{sel['reason']}. Follow the install step, then re-run (nothing is faked)."
+                     if sel.get("not_loading") else
+                     "No local STT backend is installed. Install one, then re-run (nothing is faked)."),
                     install=sel.get("install"), backend_chain=chain)
 
     # Validate the media before spending minutes on STT: zero-duration/corrupt -> honest gap.
@@ -242,7 +565,7 @@ def transcribe(media_path, model=None, initial_prompt=None, out_dir=None,
 
     model = model or default_model()
     if sel["backend"] == "whisper.cpp":
-        which = detect_backends().get("whisper_cpp") or "whisper-cli"
+        which = detect_backends(os_name).get("whisper_cpp") or "whisper-cli"
         srt_path, err = _run_whisper_cpp(which, media_path, model, out_dir, initial_prompt)
         if err:
             return _gap("backend_error", err, install=_install_hint((os_name or sys.platform).lower(),
@@ -411,7 +734,7 @@ def _verify_found_model(mp, allow):
 
 
 def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_present=None, ram_gb=None,
-           verify_model=False, allowlist_path=None):
+           verify_model=False, allowlist_path=None, fw_probe=None, system_root=None, dll_exists=None):
     """A plain-language readiness check for on-device transcription. Each step reports {ok,
     what_it_is, next_command, why}; the result carries a green/amber/red verdict and the single next
     action. Pure and injectable so the wizard and the selftest can simulate any machine. With
@@ -419,7 +742,16 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
     pins; library callers keep the fast existence-only default."""
     os_name = (os_name if os_name is not None else sys.platform).lower()
     arch = (arch if arch is not None else platform.machine()).lower()
-    have = have if have is not None else {k: bool(v) for k, v in detect_backends().items()}
+    real_machine = have is None
+    have = have if have is not None else {k: bool(v) for k, v in detect_backends(os_name).items()}
+    # P102: faster-whisper installed but not loading (a missing Visual C++ runtime on Windows) is told
+    # apart from not installed, so the doctor never sends the person back to --install-deps for it.
+    if fw_probe is None:
+        fw_probe = (probe_faster_whisper() if real_machine else
+                    {"installed": bool(have.get("faster_whisper")), "loads": bool(have.get("faster_whisper")),
+                     "error": ""})
+    fw_broken = fw_probe.get("installed") and not fw_probe.get("loads")
+    vc_missing = vc_runtime_missing(system_root, dll_exists) if fw_broken and os_name.startswith("win") else []
     is_mac = os_name == "darwin"
     sel = select_backend(os_name=os_name, arch=arch, have=have)
     steps = []
@@ -432,6 +764,18 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
     if sel["ok"]:
         steps.append({"step": "engine", "ok": True, "what_it_is": sel["backend"],
                       "why": "found a speech-to-text engine that runs on your computer"})
+    elif VC_RUNTIME_DECISIVE in vc_missing:
+        steps.append({"step": "engine", "ok": False,
+                      "what_it_is": ("faster-whisper is installed, but Windows is missing the Microsoft Visual "
+                                     f"C++ runtime it loads ({', '.join(vc_missing)})"),
+                      "next_command": vc_runtime_remedy(),
+                      "why": "pip cannot install this system library, so installing the Creator OS packages "
+                             "again would not fix it"})
+    elif fw_broken:
+        steps.append({"step": "engine", "ok": False,
+                      "what_it_is": f"faster-whisper is installed but could not load ({fw_probe.get('error') or 'unknown error'})",
+                      "next_command": _install_hint(os_name, arch),
+                      "why": "reinstalling the Creator OS packages replaces a broken faster-whisper install"})
     else:
         steps.append({"step": "engine", "ok": False,
                       "what_it_is": "a local speech-to-text engine (whisper.cpp or faster-whisper)",
@@ -457,7 +801,7 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
                     "why": ("the model matches its committed integrity pin" if ok_m else
                             "a model that fails its integrity pin must not be transcribed with; re-fetch it")}
             if not ok_m:
-                step["next_command"] = f"python3 tools/transcribe.py doctor --fetch-model {name}"
+                step["next_command"] = _local(f"python3 tools/transcribe.py doctor --fetch-model {name}", os_name)
             steps.append(step)
         elif mp:
             steps.append({"step": "model", "ok": True,
@@ -466,7 +810,7 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
         else:
             steps.append({"step": "model", "ok": False,
                           "what_it_is": "a one-time speech model download (a few hundred MB)",
-                          "next_command": f"python3 tools/transcribe.py doctor --fetch-model {name}",
+                          "next_command": _local(f"python3 tools/transcribe.py doctor --fetch-model {name}", os_name),
                           "why": "whisper.cpp needs a model file; this downloads and verifies it for you"})
     elif sel.get("backend") == "faster-whisper":
         steps.append({"step": "model", "ok": True,
@@ -482,7 +826,8 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
         verdict = "amber"
     next_action = reds[0]["next_command"] if reds else None
     return {"os": os_name, "arch": arch, "verdict": verdict, "backend": sel.get("backend"),
-            "steps": steps, "next_action": next_action,
+            "steps": steps, "next_action": next_action, "faster_whisper": fw_probe,
+            "vc_runtime_missing": vc_missing, "vc_runtime_needed": VC_RUNTIME_DECISIVE in vc_missing,
             "summary": {"green": "You are ready to transcribe on this computer.",
                         "amber": "Almost ready: one optional step remains (see next_action).",
                         "red": "Install a speech-to-text engine first (see next_action)."}[verdict]}
@@ -554,6 +899,327 @@ def selftest():
                                model_dir_override=str(tmp / "empty-models"))
         ok("doctor amber when whisper.cpp present but no model", d_cpp_nomodel["verdict"] == "amber"
            and "--fetch-model" in (d_cpp_nomodel["next_action"] or ""))
+        # P102: faster-whisper installed but not loading is told apart from not installed; on Windows
+        # with the Visual C++ runtime absent the doctor names it, never the --install-deps loop.
+        _dll_err = FileNotFoundError("Could not find module 'ctranslate2.dll' (or one of its dependencies)")
+
+        def _raise_dll(_name):
+            raise _dll_err
+
+        def _no_spec(_name):
+            raise ValueError("faster_whisper.__spec__ is None")
+        _pr = [probe_faster_whisper(find_spec=lambda n: None),
+               probe_faster_whisper(find_spec=lambda n: object(), importer=_raise_dll),
+               probe_faster_whisper(find_spec=lambda n: object(), importer=lambda n: None),
+               probe_faster_whisper(find_spec=_no_spec)]
+        ok("probe_faster_whisper tells not installed, installed but not loading, and loading apart",
+           _pr[0] == {"installed": False, "loads": False, "error": ""}
+           and _pr[1]["installed"] is True and _pr[1]["loads"] is False
+           and _pr[1]["error"].startswith("FileNotFoundError: Could not find module")
+           and _pr[2] == {"installed": True, "loads": True, "error": ""}
+           and _pr[3]["installed"] is False)
+        _seen_dll = []
+        _missing = vc_runtime_missing("C:\\Windows", exists=lambda p: _seen_dll.append(p) or p.endswith("msvcp140.dll"))
+        ok("vc_runtime_missing lists the absent DLLs under System32",
+           _missing == ["vcruntime140.dll", "vcruntime140_1.dll"]
+           and _seen_dll[0] == "C:\\Windows\\System32\\msvcp140.dll"
+           and vc_runtime_missing("C:\\Windows", exists=lambda p: True) == [])
+        _none = {"whisper_cpp": False, "faster_whisper": False}
+        _d_vc = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[1],
+                       system_root="C:\\Windows", dll_exists=lambda p: False)
+        _d_dll_ok = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[1],
+                           system_root="C:\\Windows", dll_exists=lambda p: True)
+        _d_mac = doctor(os_name="darwin", arch="arm64", have=_none, fw_probe=_pr[1], brew_present=True)
+        _d_older = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[1], system_root="C:\\Windows",
+                          dll_exists=lambda p: not p.endswith("vcruntime140_1.dll"))
+        _d_absent = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[0],
+                           system_root="C:\\Windows", dll_exists=lambda p: False)
+        ok("on Windows with the runtime absent the doctor names the Visual C++ runtime, labeled machine-wide",
+           _d_vc["verdict"] == "red" and _d_vc["next_action"] == vc_runtime_remedy()
+           and "machine-wide: affects the whole computer" in _d_vc["next_action"]
+           and "https://aka.ms/vc14/vc_redist.x64.exe" in _d_vc["next_action"]
+           and "--install-deps" not in _d_vc["next_action"]
+           and _d_vc["vc_runtime_missing"] == list(VC_RUNTIME_DLLS) and _d_vc["vc_runtime_needed"] is True
+           and "Visual C++" in _d_vc["steps"][1]["what_it_is"])
+        _sb = {k: select_backend(os_name="win32", arch="amd64", have=_none, cuda=False, fw_probe=_pr[1], vc_missing=v)
+               for k, v in (("runtime", ["msvcp140.dll"]), ("older", ["vcruntime140_1.dll"]))}
+        _sb_mac = select_backend(os_name="darwin", arch="arm64", have=_none, cuda=False, fw_probe=_pr[1],
+                                 vc_missing=["msvcp140.dll"])
+        _sb_absent = select_backend(os_name="win32", arch="amd64", have=_none, cuda=False, fw_probe=_pr[0])
+        _gap_nl = transcribe(tmp / "none.wav", out_dir=tmp, _selection=_sb["runtime"])
+        ok("select_backend and transcribe tell installed but not loading apart, naming the runtime on Windows",
+           _sb["runtime"]["not_loading"] is True and _sb["runtime"]["install"] == vc_runtime_remedy()
+           and "could not load (FileNotFoundError" in _sb["runtime"]["reason"]
+           and _sb["older"]["install"] == _install_hint("win32", "amd64")
+           and _sb_mac["install"] == _install_hint("darwin", "arm64") and _sb_mac["not_loading"] is True
+           and "not_loading" not in _sb_absent and _sb_absent["install"] == _install_hint("win32", "amd64")
+           and "installed but could not load" in json.dumps(_gap_nl) and vc_runtime_remedy() in json.dumps(_gap_nl))
+        # P102: on Windows the whisper.cpp lookup takes a .exe, so the Mouse control panel
+        # (System32\\main.cpl, which which() returns for "main" through PATHEXT) is not an engine.
+        _cpl = "C:\\WINDOWS\\system32\\main.CPL"
+
+        def _paths(**found):
+            return lambda name, *a, **k: found.get(name.replace("-", "_"))
+        _wb = {
+            "cpl": whisper_cpp_bin(_paths(main=_cpl), "win32"),
+            "cli_and_cpl": whisper_cpp_bin(_paths(whisper_cli="C:\\tools\\whisper-cli.EXE", main=_cpl), "win32"),
+            "main_exe": whisper_cpp_bin(_paths(main="C:\\tools\\MAIN.EXE"), "win32"),
+            "main_bat": whisper_cpp_bin(_paths(main="C:\\tools\\main.bat"), "win32"),
+            "mac": whisper_cpp_bin(_paths(whisper_cli="/opt/homebrew/bin/whisper-cli"), "darwin"),
+            "linux": whisper_cpp_bin(_paths(main="/usr/local/bin/main"), "linux"),
+            "none": whisper_cpp_bin(_paths(), "win32"),
+        }
+        ok("whisper_cpp_bin takes a .exe on Windows, so main.cpl or main.bat is not whisper.cpp, and any match elsewhere",
+           _wb == {"cpl": None, "cli_and_cpl": "whisper-cli", "main_exe": "main", "main_bat": None,
+                   "mac": "whisper-cli", "linux": "main", "none": None})
+        _real_which = shutil.which
+        shutil.which = lambda name, *a, **k: _cpl if name == "main" else None
+        try:
+            _det_w, _det_l = detect_backends("win32")["whisper_cpp"], detect_backends("linux")["whisper_cpp"]
+            _d_cpl = doctor(os_name="win32", arch="amd64", fw_probe=_pr[1], system_root="C:\\Windows",
+                            dll_exists=lambda p: False)
+            _sb_cpl = select_backend(os_name="win32", arch="amd64", cuda=False, fw_probe=_pr[1],
+                                     vc_missing=["msvcp140.dll"])
+        finally:
+            shutil.which = _real_which
+        ok("with only main.cpl on a simulated Windows PATH, detection, the doctor and the selection skip whisper.cpp "
+           "and the doctor names the Visual C++ runtime",
+           _det_w is None and _det_l == "main" and _d_cpl["backend"] != "whisper.cpp"
+           and _d_cpl["next_action"] == vc_runtime_remedy() and _sb_cpl["backend"] != "whisper.cpp"
+           and _sb_cpl["install"] == vc_runtime_remedy())
+        # The other direction, so a lookup that judges by the real system is caught on a Windows host
+        # too: on a simulated Mac, a whisper-cli outside a .exe is the engine the doctor and the
+        # selection pick.
+        shutil.which = lambda name, *a, **k: "/opt/homebrew/bin/whisper-cli" if name == "whisper-cli" else None
+        try:
+            _d_mac_cli = doctor(os_name="darwin", arch="arm64", fw_probe=_pr[0], brew_present=True)
+            _sb_mac_cli = select_backend(os_name="darwin", arch="arm64", cuda=False, fw_probe=_pr[0])
+        finally:
+            shutil.which = _real_which
+        ok("on a simulated Mac with whisper-cli on PATH, the doctor and the selection pick whisper.cpp",
+           _d_mac_cli["backend"] == "whisper.cpp" and _sb_mac_cli["backend"] == "whisper.cpp")
+        ok("with msvcp140.dll present (an older runtime), a load failure points at a reinstall, not the runtime",
+           _d_older["vc_runtime_missing"] == ["vcruntime140_1.dll"] and _d_older["vc_runtime_needed"] is False
+           and "could not load" in _d_older["steps"][1]["what_it_is"]
+           and "--install-deps" in (_d_older["next_action"] or ""))
+        ok("installed but not loading for another reason, or off Windows, points at a reinstall",
+           "could not load (FileNotFoundError" in _d_dll_ok["steps"][1]["what_it_is"]
+           and "--install-deps" in (_d_dll_ok["next_action"] or "") and _d_dll_ok["vc_runtime_missing"] == []
+           and "could not load" in _d_mac["steps"][1]["what_it_is"] and _d_mac["vc_runtime_missing"] == [])
+        ok("not installed keeps the install hint and asks nothing about the runtime",
+           "--install-deps" in (_d_absent["next_action"] or "") and _d_absent["vc_runtime_missing"] == []
+           and _d_absent["steps"][1]["what_it_is"].startswith("a local speech-to-text engine"))
+        # P102: the Visual C++ install the wizard runs on request. The signature verdict accepts only a
+        # Valid signature from Microsoft Corporation chained to the pinned root.
+        _ms = {"status": "Valid",
+               "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+               "root_thumbprint": VC_RUNTIME_ROOT_THUMBPRINT,
+               "root_subject": "CN=Microsoft Root Certificate Authority 2011, O=Microsoft Corporation, "
+                               "L=Redmond, S=Washington, C=US"}
+        _verdicts = {
+            "microsoft": vc_signature_verdict(_ms),
+            "lowercase thumbprint": vc_signature_verdict(dict(_ms, root_thumbprint=VC_RUNTIME_ROOT_THUMBPRINT.lower())),
+            "hash mismatch": vc_signature_verdict(dict(_ms, status="HashMismatch")),
+            "not signed": vc_signature_verdict({"status": "NotSigned", "signer": "", "root_thumbprint": "",
+                                                "root_subject": ""}),
+            "other root": vc_signature_verdict(dict(_ms, root_thumbprint="0" * 40)),
+            "root name": vc_signature_verdict(dict(_ms, root_subject="CN=Microsoft Root Certificate Authority 2010")),
+            "signer org": vc_signature_verdict(dict(_ms, signer="CN=Microsoft Corporation, O=Contoso Ltd")),
+            "lookalike org": vc_signature_verdict(dict(_ms, signer="CN=x, O=Microsoft Corporation Fake")),
+            "org in CN only": vc_signature_verdict(dict(_ms, signer="CN=O=Microsoft Corporation")),
+            "org inside a quoted CN": vc_signature_verdict(dict(
+                _ms, signer='CN="Contoso, O=Microsoft Corporation", O=Contoso Ltd, C=US')),
+            "org inside a quoted OU": vc_signature_verdict(dict(
+                _ms, signer='CN=x, OU="Dev, O=Microsoft Corporation", O=Contoso Ltd')),
+            "two organizations": vc_signature_verdict(dict(_ms, signer="CN=x, O=Contoso, O=Microsoft Corporation")),
+            "root name inside a quoted O": vc_signature_verdict(dict(
+                _ms, root_subject='CN=Other Root, O="x, CN=Microsoft Root Certificate Authority 2011"')),
+            "error": vc_signature_verdict({"error": "powershell missing"}),
+            "nothing": vc_signature_verdict(None),
+        }
+        ok("the signature verdict accepts Valid, signed by Microsoft Corporation, chained to the pinned root",
+           _verdicts["microsoft"][0] is True and _verdicts["lowercase thumbprint"][0] is True)
+        ok("the signature verdict refuses a bad hash, an unsigned file, another root or signer, and an error",
+           all(_verdicts[k][0] is False for k in _verdicts if k not in ("microsoft", "lowercase thumbprint"))
+           and "HashMismatch" in _verdicts["hash mismatch"][1]
+           and "Contoso" in _verdicts["signer org"][1] and "2010" in _verdicts["root name"][1]
+           and "thumbprint (0000" in _verdicts["other root"][1]
+           and _dn_values('CN="a, b", O=Microsoft Corporation', "CN") == ["a, b"])
+        # The PowerShell call: the full path under %SystemRoot%, the script as -EncodedCommand, the file
+        # in the environment, and the last line of its output read as JSON.
+        import base64 as _b64
+        _ps_seen = []
+
+        class _PsDone:
+            def __init__(self, out, err="", code=0):
+                self.stdout, self.stderr, self.returncode = out, err, code
+
+        def _ps_run(argv, **kw):
+            _ps_seen.append((argv, kw))
+            return _PsDone("warming up\n" + json.dumps(_ms) + "\n")
+        _saved_psm = os.environ.get("PSModulePath")
+        os.environ["PSModulePath"] = "C:\\from-powershell-7"
+        try:
+            _info = vc_signature_info("C:\\Temp\\x y\\installer.exe", run=_ps_run, system_root="D:\\Win")
+        finally:
+            if _saved_psm is None:
+                os.environ.pop("PSModulePath", None)
+            else:
+                os.environ["PSModulePath"] = _saved_psm
+        _argv, _kw = _ps_seen[0]
+        _script = _b64.b64decode(_argv[-1]).decode("utf-16-le")
+        ok("vc_signature_info runs Windows PowerShell by its full path, with the file in the environment",
+           _info == _ms
+           and _argv[:-1] == ["D:\\Win\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile",
+                              "-NonInteractive", "-EncodedCommand"]
+           and "Get-AuthenticodeSignature -LiteralPath $f" in _script and "X509Chain" in _script
+           and _kw["env"]["CREATOR_OS_VC_FILE"] == "C:\\Temp\\x y\\installer.exe"
+           and "C:\\Temp" not in _argv[-1])
+        ok("vc_signature_info drops PSModulePath, decodes UTF-8, and the script reports the chain only when it built",
+           not any(k.upper() == "PSMODULEPATH" for k in _kw["env"]) and _kw.get("encoding") == "utf-8"
+           and _kw.get("errors") == "replace" and "text" not in _kw
+           and "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8" in _script
+           and "$built = $chain.Build($c)" in _script and "if (($built -or $other.Count -eq 0)" in _script)
+        # On Windows, the real Windows PowerShell call: an unsigned file is refused, and Windows
+        # PowerShell's own executable reads as Valid from Microsoft Corporation.
+        if os.name == "nt":
+            _unsigned = tmp / "unsigned-stand-in.exe"
+            _unsigned.write_bytes(b"MZ" + b"\0" * 510)
+            _real_un = vc_signature_info(str(_unsigned))
+            _ps_exe = Path(os.environ.get("SystemRoot") or "C:\\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+            _real_ms = vc_signature_info(str(_ps_exe))
+            ok("on Windows the real signature check refuses an unsigned file and reads powershell.exe as Valid "
+               "from Microsoft Corporation",
+               _real_un.get("status") not in (None, "", "Valid") and vc_signature_verdict(_real_un)[0] is False
+               and _real_ms.get("status") == "Valid"
+               and _dn_values(_real_ms.get("signer"), "O") == ["Microsoft Corporation"])
+        else:
+            print("  [skip] the real Windows PowerShell signature check runs on Windows only")
+
+        def _ps_raise(argv, **kw):
+            raise FileNotFoundError("powershell.exe")
+        _bad = [vc_signature_info("f", run=lambda a, **k: _PsDone("", "Get-AuthenticodeSignature : no file", 1)),
+                vc_signature_info("f", run=_ps_raise),
+                vc_signature_info("f", run=lambda a, **k: _PsDone("[1, 2]\n"))]
+        ok("vc_signature_info reports an error for text, a failed start or a non-object, never a verdict",
+           all("error" in b and vc_signature_verdict(b)[0] is False for b in _bad)
+           and "no file" in _bad[0]["error"] and "FileNotFoundError" in _bad[1]["error"])
+        # install_vc_runtime with each step stood in: a real temporary folder under the selftest's.
+        _vc_tmp = tmp / "vc"
+        _vc_tmp.mkdir()
+
+        def _vc(code=0, verdict=None, dl_err=None, os_name="win32", arch="amd64", run_exc=None, rmtree=None,
+                still_missing=(), dl_exc=None):
+            seen = {"download": [], "verify": [], "run": [], "folders": []}
+
+            def _mk(prefix):
+                d = tempfile.mkdtemp(prefix=prefix, dir=str(_vc_tmp))
+                seen["folders"].append(d)
+                return d
+
+            def _dl(url, dest):
+                seen["download"].append((url, dest))
+                if dl_exc:
+                    raise dl_exc
+                if dl_err:
+                    return dl_err
+                Path(dest).write_bytes(b"MZ installer stand-in")
+                return None
+
+            def _ver(path):
+                seen["verify"].append((path, Path(path).is_file()))
+                return _ms if verdict is None else verdict
+
+            def _run(argv):
+                seen["run"].append(list(argv))
+                if run_exc:
+                    raise run_exc
+                return code
+            try:
+                res = install_vc_runtime(os_name=os_name, arch=arch, download=_dl, verify=_ver, run=_run,
+                                         mkdtemp=_mk, missing=lambda: list(still_missing),
+                                         **({"rmtree": rmtree} if rmtree else {}))
+            except Exception as exc:  # noqa: BLE001 -- a raising step is one of the cases
+                res = {"raised": type(exc).__name__}
+            return res, seen
+        _codes = {c: _vc(code=c) for c in (0, 3010, 1638, 1602, 1223, 1307, 1925, 5, 1603)}
+        _r0, _s0 = _codes[0]
+        ok("install_vc_runtime downloads Microsoft's machine-wide x64 package into its own folder, checks "
+           "it, then runs it",
+           _s0["download"][0][0] == VC_RUNTIME_URL
+           and Path(_s0["download"][0][1]).parent == Path(_s0["folders"][0])
+           and Path(_s0["download"][0][1]).name == "vc_redist.x64.exe"
+           and _s0["verify"] == [(_s0["download"][0][1], True)]
+           and _s0["run"] == [[_s0["download"][0][1], "/install", "/passive", "/norestart", "/log",
+                               os.path.join(_s0["folders"][0], "vc_redist.log")]]
+           and _r0 == {"ok": True, "status": "installed", "exit_code": 0,
+                       "message": VC_RUNTIME_EXIT[0][2]})
+        ok("each installer exit code maps to its outcome",
+           [(c, r["ok"], r["status"], r["exit_code"]) for c, (r, _s) in _codes.items()]
+           == [(0, True, "installed", 0), (3010, True, "restart", 3010), (1638, True, "newer", 1638),
+               (1602, False, "cancelled", 1602), (1223, False, "cancelled", 1223),
+               (1307, False, "needs_admin", 1307), (1925, False, "needs_admin", 1925),
+               (5, False, "needs_admin", 5), (1603, False, "failed", 1603)]
+           and all("administrator" in _codes[c][0]["message"] and "manual route" in _codes[c][0]["message"]
+                   for c in (1307, 1925, 5))
+           and "exit code 1603" in _codes[1603][0]["message"] and VC_RUNTIME_URL in _codes[1603][0]["message"]
+           and "Restart Windows" in _codes[3010][0]["message"])
+        _refused = {k: _vc(verdict=v) for k, v in (
+            ("hash", dict(_ms, status="HashMismatch")), ("root", dict(_ms, root_thumbprint="0" * 40)),
+            ("signer", dict(_ms, signer="CN=x, O=Contoso Ltd")), ("error", {"error": "no powershell"}))}
+        ok("a signature the verdict refuses stops the install before it runs, and says the file is deleted",
+           all(r["status"] == "signature_refused" and r["ok"] is False and s["run"] == [] and "deleted" in r["message"]
+               and "exit_code" not in r for r, s in _refused.values()))
+        _dl_fail, _dl_seen = _vc(dl_err="URLError: offline")
+        ok("a download error is reported and nothing is checked or run",
+           _dl_fail["status"] == "download_failed" and "offline" in _dl_fail["message"]
+           and _dl_seen["verify"] == [] and _dl_seen["run"] == [])
+        _to, _ = _vc(run_exc=subprocess.TimeoutExpired("vc_redist", VC_RUNTIME_TIMEOUT))
+        _nostart, _ = _vc(run_exc=OSError(740, "The requested operation requires elevation"))
+        ok("an installer that times out or cannot start is reported, not mapped to an exit code",
+           _to["status"] == "timed_out" and _nostart["status"] == "failed" and "elevation" in _nostart["message"]
+           and "exit_code" not in _to and "exit_code" not in _nostart)
+        _raised, _raised_seen = _vc(dl_exc=RuntimeError("download crashed"))
+        _to_run = _vc(run_exc=subprocess.TimeoutExpired("vc_redist", VC_RUNTIME_TIMEOUT))
+        _all_runs = (list(_codes.values()) + list(_refused.values())
+                     + [(_dl_fail, _dl_seen), _vc(run_exc=OSError(5, "x")), _to_run])
+        ok("a step that raises propagates, and its folder is deleted too",
+           _raised == {"raised": "RuntimeError"} and len(_raised_seen["folders"]) == 1
+           and not Path(_raised_seen["folders"][0]).exists())
+        _repair, _ = _vc(code=1638, still_missing=("msvcp140.dll",))
+        _newer_ok, _ = _vc(code=1638, still_missing=("vcruntime140_1.dll",))
+        ok("exit code 1638 with msvcp140.dll still missing reads as repair needed, and with it present as newer",
+           _repair["ok"] is False and _repair["status"] == "repair_needed" and "Repair" in _repair["message"]
+           and _newer_ok["ok"] is True and _newer_ok["status"] == "newer")
+        ok("the temporary folder is deleted in every outcome above",
+           all(len(s["folders"]) == 1 and not Path(s["folders"][0]).exists() and "note" not in r
+               for r, s in _all_runs))
+        _kept, _kept_seen = _vc(rmtree=lambda path, ignore_errors=False: None)
+        ok("a folder that could not be deleted is named in a note",
+           _kept_seen["folders"][0] in _kept.get("note", "") and _kept["ok"] is True)
+        _arm, _arm_seen = _vc(arch="ARM64")
+        _off = {o: _vc(os_name=o) for o in ("darwin", "linux")}
+        _x86, _x86_seen = _vc(arch="x86")
+        ok("ARM64 Windows downloads the same x64 package; macOS, Linux and 32-bit Windows start nothing",
+           _arm["ok"] is True and _arm_seen["download"][0][0] == VC_RUNTIME_URL
+           and all(r["status"] == "unsupported" and s["folders"] == [] and s["download"] == []
+                   for r, s in list(_off.values()) + [(_x86, _x86_seen)]))
+        # P102: on a computer that runs the repo's scripts as py -3, the printed commands say so.
+        import env_paths as _ep_w
+        _real_pc_w = _ep_w.python_command
+        _ep_w.python_command = lambda osname=None, which=None: (  # Windows runs the scripts as py -3
+            "python3" if osname not in (None, "nt") else "py -3")
+        try:
+            _hint_w = _install_hint("win32", "amd64")
+            _fetch_w = doctor(os_name="win32", arch="amd64", have={"whisper_cpp": True, "faster_whisper": False},
+                              model_dir_override=str(tmp / "empty-models"))["next_action"] or ""
+            _mac_w = _install_hint("darwin", "arm64")
+        finally:
+            _ep_w.python_command = _real_pc_w
+        ok("the install hint and the model command are written as this computer runs the scripts",
+           _hint_w.startswith("py -3 tools/setup.py --install-deps")
+           and _fetch_w.startswith("py -3 tools/transcribe.py doctor --fetch-model")
+           and "python3 tools/" not in _hint_w + _fetch_w and _mac_w.startswith("python3 tools/setup.py"))
         mdir = tmp / "models"
         mdir.mkdir()
         (mdir / "ggml-base.en.bin").write_bytes(b"x")

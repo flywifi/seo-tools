@@ -42,10 +42,12 @@ confirmation is the hands-on list below.
    "**Quit completely (Cmd-Q) and reopen**", and point at `~/Library/Logs/Claude/mcp-server-<name>.log`.
    <!-- verify: tools/wizard.py::_mcp_command -->
 6. **whisper.cpp CLI-rename resilience.** The binary has been `whisper-cli`, `whisper-cpp`, and `main`
-   across versions; the detector probes all three (`transcribe.py::detect_backends`,
-   `wizard._stt_backend_present`). Metal is default-on on Apple Silicon and off on Intel — copy must not
-   promise Metal on Intel.
+   across versions; the detector probes all three through one lookup (`transcribe.py::whisper_cpp_bin`,
+   called by `detect_backends`, `wizard._stt_backend_present` and `videoedit/preflight.py`). On Windows
+   it requires a `.exe`, since `main.cpl` (the Mouse control panel) answers to `main` there. Metal is
+   default-on on Apple Silicon and off on Intel — copy must not promise Metal on Intel.
    <!-- verify: tools/transcribe.py::detect_backends -->
+   <!-- verify: tools/transcribe.py::whisper_cpp_bin -->
 7. **STT backend selection is OS/arch aware and injectable.** `transcribe.select_backend` picks
    whisper.cpp (Metal) on Apple Silicon, whisper.cpp (CPU) on Intel, faster-whisper fallback, and an
    honest `run_local_stt` gap when nothing is installed. Keep it pure/injectable so it is testable
