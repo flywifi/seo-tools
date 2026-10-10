@@ -38,10 +38,12 @@ PER_TOOL_TIMEOUT = 300
 # Longer caps, each with its reason; a key names a discovered target. The surface workflow suite's
 # --selftest runs its committed mutants one after another and took 246 to 287 s on a Windows
 # computer (P102), close to the default cap, and a hosted Windows runner can be slower.
-# tools/file_hash.py --selftest runs every committed mutation row, and took 165 s alone on a
-# 4-CPU Linux computer in P102, more than half the default cap; its rows grow with each change.
+# tools/file_hash.py --selftest runs the committed mutation rows, which grow with each change:
+# on a 4-CPU Linux computer it took 165 s alone at 482 rows and 415 s at 1,022 rows (P102,
+# Push 4b), where a GitHub Windows runner went past 900 s. 1800 s stays inside the Windows CI
+# job's 45 minutes with the other gates.
 TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900,
-                 "tools/file_hash.py": 900}
+                 "tools/file_hash.py": 1800}
 
 
 def _tool_timeout(rel) -> int:
@@ -272,9 +274,9 @@ def selftest():
     finally:
         subprocess.run, globals()["discover"] = real_run, real_discover
         PACKAGE_ENTRIES[:] = real_pkgs
-    check("the sweep runs each target with its own cap (the suite and file_hash 900 s, another tool "
-          "the default)",
-          sorted(seen) == [("tools/file_hash.py", 900), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
+    check("the sweep runs each target with its own cap (the suite 900 s, file_hash 1800 s, another "
+          "tool the default)",
+          sorted(seen) == [("tools/file_hash.py", 1800), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
                            ("tools/surface_workflow_check.py", 900)])
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")

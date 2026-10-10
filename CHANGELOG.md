@@ -355,6 +355,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 1800 s, up from 900 s
+  (`selftest_sweep.TOOL_TIMEOUTS`). Its selftest runs the committed mutation rows; at 1,022 rows
+  a GitHub Windows runner took longer than 900 s, and the Windows CI job failed. The job's
+  45-minute limit still bounds a hang.
 - P102 (zip member names zipfile cannot decode): a zip whose member name carries the UTF-8 flag
   but is not valid UTF-8 made zipfile raise UnicodeDecodeError, which `classify.zip_kind` did not
   catch, so one such zip in the Inbox stopped the whole scan, and `import_parse`'s zip parsers
