@@ -1594,6 +1594,8 @@ def _selftest_checks() -> int:
         "drive-backup.zip": (zb(["Takeout/Drive/My YouTube scripts/notes.txt"]), None),
         "notes-backup.zip": (zb(["Takeout/My YouTube notes/x.txt"]), None),
         "lookalike.zip": (zb(["not_your_instagram_activity/x.json"]), None),
+        "ig-old.zip": (zb(["your_instagram_activity_old/x.json"]), None),
+        "renamed-copy.zip": (zb(["takeout2/YouTube and YouTube Music/videos/porch.mp4"]), None),
         "photos.zip": (_classify._bad_name_zip_bytes(), None),
     }
     for name, (raw, _kind) in exports.items():
@@ -1614,9 +1616,9 @@ def _selftest_checks() -> int:
        "Instagram folder, and a user_data.json stay unknown",
        {"photos-backup.zip", "mail-backup.zip", "nested-backup.zip", "folder-copy.zip", "blog-backup.zip",
         "app-backup.zip", "drive-backup.zip"} <= unknown_x)
-    ok("a Takeout folder whose name holds YouTube but does not start with it, and a folder whose name "
-       "ends in your_instagram_activity, stay unknown",
-       {"notes-backup.zip", "lookalike.zip"} <= unknown_x)
+    ok("a Takeout folder whose name holds YouTube but does not start with it, a folder whose name ends "
+       "in your_instagram_activity or only starts with it, and a root folder named takeout2 stay unknown",
+       {"notes-backup.zip", "lookalike.zip", "ig-old.zip", "renamed-copy.zip"} <= unknown_x)
     ok("a zip whose member name zipfile cannot decode stays unknown, and the scan goes on to the others",
        "photos.zip" in unknown_x and {n: got.get(n) for n in want} == want)
     held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}

@@ -1803,6 +1803,10 @@ _MUTANTS = (
     ('cli: the status ignores the platform it is given', 'cli', '        if (platform or sys.platform) == "darwin":\n', '        if sys.platform == "darwin":\n'),
     ('cli: the status names install-agent off macOS', 'cli', '        if (platform or sys.platform) == "darwin":\n', '        if (platform or sys.platform) != "darwin":\n'),
     ('cli: the off-macOS status keeps python3', 'cli', '            lines.append(env_paths.local_commands(\n                "agent: the scheduled sync is macOS only;', '            lines.append((\n                "agent: the scheduled sync is macOS only;'),
+    ('doc: the hub folder name is lowercased', 'doc', '        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name', '        root_id, err = da.find_folder(token, pd.hub_folder_name().lower(), transport)  # the configured name'),
+    ('doc: the Doc lookup asks for the name without the config', 'doc', '        root_id, err = da.find_folder(token, pd.hub_folder_name(), transport)  # the configured name', '        root_id, err = da.find_folder(token, pd.hub_folder_name(load=lambda: {}), transport)  # the configured name'),
+    ('doc: the move-it log names the hub with spaces around it', 'doc', 'DOC_NAME, pd.hub_folder_name())', 'DOC_NAME, " " + pd.hub_folder_name() + " ")'),
+    ('doc: the status names Creator OS for an unmoved Doc', 'doc', 'move it into {pd.hub_folder_name()}/Profile once"', 'move it into {pd.hub_folder_name() if False else "Creator OS"}/Profile once"'),
 )
 
 

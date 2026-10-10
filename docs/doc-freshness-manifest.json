@@ -4,7 +4,7 @@
   "docs": {
     "docs/PROFILE-MIRROR.md": {
       "sources": {
-        "tools/profile_mirror.py": "7faf52199c264fc36232a82a4e60acd68171dd381cb2fe606b939df19da7baba",
+        "tools/profile_mirror.py": "d6297bde987097313a808c40140ac97a3850ab87b0efce324c70d8dbce564435",
         "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8"
       }
     },
@@ -136,7 +136,7 @@
         "tools/handoff/runner.py": "4c96ce933b8cd666e0941916872ab1cbe7a87ccf2a589e10a9e14276eaba6e04",
         "tools/handoff/watcher.py": "dd2faf4b7d410d5fe76fe0787ade50f2d80938e2e69d8451aa2e56952dcaab42",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "3d32fac8405801c62d456f6890c19e0ea13dcb67473be258a1695db2fb24f1ec",
+        "tools/handoff/inbox.py": "b7e62f31f5832eedc8e14564dbca2823ff601e21a254465ce97c6466e3d76a6e",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
         "tools/project_docs.py": "4225fa31df2132aa73de9a117972b2f8994badd47764d43b43f830ce69bfff47"
       }
@@ -147,7 +147,7 @@
         "tools/handoff/runner.py": "4c96ce933b8cd666e0941916872ab1cbe7a87ccf2a589e10a9e14276eaba6e04",
         "tools/handoff/watcher.py": "dd2faf4b7d410d5fe76fe0787ade50f2d80938e2e69d8451aa2e56952dcaab42",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "3d32fac8405801c62d456f6890c19e0ea13dcb67473be258a1695db2fb24f1ec",
+        "tools/handoff/inbox.py": "b7e62f31f5832eedc8e14564dbca2823ff601e21a254465ce97c6466e3d76a6e",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }
     }
