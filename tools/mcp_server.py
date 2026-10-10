@@ -187,7 +187,9 @@ def _load_config() -> dict:
     """Load creator-os-config.json, then deep-merge creator-os-config.local.json over it.
 
     creator-os-config.local.json is gitignored and never touched by git pull.
-    Local capability flags always win over the committed defaults.
+    Local capability flags always win over the committed defaults. A local flag written as a bare
+    true or false (tools/setup.py, configure_tool and the wizard write that shape) keeps the
+    committed entry's description and requirements, with its enabled value replaced (P102).
     """
     base: dict = {}
     try:
@@ -198,7 +200,10 @@ def _load_config() -> dict:
         try:
             local = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
             for key, val in local.get("capabilities", {}).items():
-                base.setdefault("capabilities", {})[key] = val
+                caps = base.setdefault("capabilities", {})
+                if isinstance(val, bool) and isinstance(caps.get(key), dict):
+                    val = dict(caps[key], enabled=val)
+                caps[key] = val
         except (OSError, json.JSONDecodeError) as exc:
             # P73: swallowing this silently reverted EVERY capability to the
             # committed defaults with no signal, so a user whose local config had one bad comma
@@ -208,6 +213,25 @@ def _load_config() -> dict:
                   f"to committed defaults. Your local capability flags are NOT in effect.",
                   file=sys.stderr)
     return base
+
+
+def _capabilities_view(caps: dict, live: dict) -> dict:
+    """get_capabilities' table: {key: {enabled, description, requires}} from the merged capability
+    map, with `live` checks overriding enabled. An entry is a dict or a bare true/false; anything
+    else reads as off (P102: a bare bool from the local config made get_capabilities raise)."""
+    result = {}
+    for key, meta in (caps or {}).items():
+        if not isinstance(meta, dict):
+            meta = {"enabled": meta} if isinstance(meta, bool) else {}
+        enabled = bool(meta.get("enabled", False))
+        if key in live:
+            enabled = live[key]
+        result[key] = {
+            "enabled": enabled,
+            "description": meta.get("description", ""),
+            "requires": meta.get("requires", "") if not enabled else "",
+        }
+    return result
 
 
 def _read_local_config_for_write(path) -> tuple:
@@ -813,6 +837,26 @@ def _selftest_static() -> tuple:
         CONFIG_LOCAL_PATH = td / "corrupt.json"
         ok("corrupt local file never crashes the merge",
            _load_config()["capabilities"]["a"]["enabled"] is False)
+        # P102: tools/setup.py writes bare true/false flags; they merge into the committed entry.
+        (td / "base2.json").write_text(json.dumps({"capabilities": {
+            "a": {"enabled": False, "description": "A", "requires": "set A up"},
+            "b": {"enabled": True, "description": "B"}}}), encoding="utf-8")
+        (td / "bools.json").write_text(json.dumps(
+            {"capabilities": {"a": True, "b": False, "c": True}}), encoding="utf-8")
+        CONFIG_PATH, CONFIG_LOCAL_PATH = td / "base2.json", td / "bools.json"
+        bools = _load_config()["capabilities"]
+        ok("a bare local true or false keeps the committed entry with its enabled value replaced",
+           bools["a"] == {"enabled": True, "description": "A", "requires": "set A up"}
+           and bools["b"] == {"enabled": False, "description": "B"} and bools["c"] is True)
+        view = _capabilities_view(bools, {"b": True})
+        odd = _capabilities_view({"x": "yes", "y": None, "z": False}, {})
+        ok("the capability table reads dict, bare-bool and other entries, live checks winning",
+           view == {"a": {"enabled": True, "description": "A", "requires": ""},
+                    "b": {"enabled": True, "description": "B", "requires": ""},
+                    "c": {"enabled": True, "description": "", "requires": ""}}
+           and odd == {"x": {"enabled": False, "description": "", "requires": ""},
+                       "y": {"enabled": False, "description": "", "requires": ""},
+                       "z": {"enabled": False, "description": "", "requires": ""}})
     finally:
         CONFIG_PATH, CONFIG_LOCAL_PATH = real_paths
 
@@ -1635,16 +1679,7 @@ def get_capabilities() -> str:
         ).exists(),
     }
 
-    result = {}
-    for key, meta in caps.items():
-        enabled = meta.get("enabled", False)
-        if key in live:
-            enabled = live[key]
-        result[key] = {
-            "enabled": enabled,
-            "description": meta.get("description", ""),
-            "requires": meta.get("requires", "") if not enabled else "",
-        }
+    result = _capabilities_view(caps, live)
 
     return json.dumps({
         "capabilities": result,

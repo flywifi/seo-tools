@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "3f57c06210007ae8d0f77cff7c36a317fdbf37256d647f6b01113f43ecabf71e"
+        "tools/mcp_server.py": "89b22bdbf15b6fbc8e4a14f9ac923dbc5ed1eb7eba0648e81e559d289e3fdaf5"
       }
     },
     "docs/TRANSITIONS.md": {

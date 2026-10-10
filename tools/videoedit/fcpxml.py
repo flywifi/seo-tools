@@ -111,7 +111,7 @@ def build(pkg: dict, version: str | None = None) -> str:
     })
     library = ET.SubElement(fcpxml, "library")
     event = ET.SubElement(library, "event", {"name": "Creator OS"})
-    project = ET.SubElement(event, "project", {"name": pkg.get("title", "Untitled")})
+    project = ET.SubElement(event, "project", {"name": str(pkg.get("title") or "Untitled")})
     sequence = ET.SubElement(project, "sequence", {
         "format": "r1",
         "duration": sec_to_time(duration, fps),
@@ -120,7 +120,7 @@ def build(pkg: dict, version: str | None = None) -> str:
     })
     spine = ET.SubElement(sequence, "spine")
     gap = ET.SubElement(spine, "gap", {
-        "name": tl.get("name", "Timeline"),
+        "name": str(tl.get("name") or "Timeline"),
         "offset": "0s",
         "start": "0s",
         "duration": sec_to_time(duration, fps),
@@ -131,13 +131,13 @@ def build(pkg: dict, version: str | None = None) -> str:
         start = sec_to_time(float(m.get("start_seconds", 0) or 0), fps)
         mtype = (m.get("type") or "standard").lower()
         if mtype == "chapter":
-            attrs = {"start": start, "duration": fdur, "value": m.get("name", "")}
+            attrs = {"start": start, "duration": fdur, "value": str(m.get("name") or "")}
             po = m.get("poster_offset_seconds")
             if po is not None:
                 attrs["posterOffset"] = sec_to_time(float(po), fps)
             ET.SubElement(gap, "chapter-marker", attrs)
         else:
-            attrs = {"start": start, "duration": fdur, "value": m.get("name", "")}
+            attrs = {"start": start, "duration": fdur, "value": str(m.get("name") or "")}
             if m.get("note"):
                 attrs["note"] = m["note"]
             if mtype == "to-do":
@@ -151,7 +151,7 @@ def build(pkg: dict, version: str | None = None) -> str:
         attrs = {
             "start": sec_to_time(float(c.get("start_seconds", 0) or 0), fps),
             "duration": fdur,
-            "value": c.get("title", ""),
+            "value": str(c.get("title") or ""),
         }
         po = c.get("poster_offset_seconds")
         if po is not None:
@@ -163,17 +163,17 @@ def build(pkg: dict, version: str | None = None) -> str:
         ET.SubElement(gap, "keyword", {
             "start": sec_to_time(float(k.get("start_seconds", 0) or 0), fps),
             "duration": sec_to_time(float(k.get("duration_seconds", 0) or 0), fps),
-            "value": k.get("keyword", ""),
+            "value": str(k.get("keyword") or ""),
         })
 
     # Title beats as connected title clips (Basic Title placeholder; Motion template ref
     # is injected by motion-fill in a later phase).
     for t in tl.get("titles", []) or []:
         title = ET.SubElement(gap, "title", {
-            "name": t.get("text", "Title"),
+            "name": str(t.get("text") or "Title"),
             "offset": sec_to_time(float(t.get("start_seconds", 0) or 0), fps),
             "duration": sec_to_time(float(t.get("duration_seconds", 4) or 4), fps),
-            "role": t.get("role", "titles"),
+            "role": str(t.get("role") or "titles"),
         })
         if t.get("template"):
             title.set("data-template", t["template"])
@@ -430,6 +430,24 @@ def selftest() -> int:
        abs(time_to_sec(sec_to_time(2.5, 24), 24) - 2.5) < 1e-6)
     ok("zero seconds round-trips", abs(time_to_sec(sec_to_time(0.0, 30), 30)) < 1e-6)
     ok("rational time is emitted in FCPXML's N/Ds form", sec_to_time(1.0, 30).endswith("s"))
+
+    # P102: the edit-package template ships "title": null and "name": null; a null in any field
+    # that becomes an XML attribute builds with its default instead of raising.
+    _tmpl = Path(__file__).resolve().parents[2] / "pipeline" / "editing" / "edit-package.template.json"
+    _nulls = {"title": None, "timeline": {"name": None, "duration_seconds": 10,
+              "markers": [{"name": None, "type": "chapter"}, {"name": None}],
+              "chapters": [{"title": None}], "keywords": [{"keyword": None}],
+              "titles": [{"text": None, "role": None}]}}
+    try:
+        _built = [build(json.loads(_tmpl.read_text(encoding="utf-8"))), build(_nulls)]
+    except (TypeError, ValueError) as _exc:
+        _built = [repr(_exc)]
+    _root = _ET.fromstring(_built[-1]) if len(_built) == 2 else None
+    ok("a package from the template, and one with null names, build with the defaults",
+       _root is not None and _root.find(".//project").get("name") == "Untitled"
+       and _root.find(".//gap").get("name") == "Timeline"
+       and {e.get("value") for e in _root.iter("marker")} == {""}
+       and _root.find(".//title").get("name") == "Title" and _root.find(".//title").get("role") == "titles")
 
     pkg = {"timeline": {"clips": [{"name": "a", "start_seconds": 0, "duration_seconds": 5}]}}
     x = build(pkg)

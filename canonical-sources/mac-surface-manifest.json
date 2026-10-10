@@ -111,7 +111,7 @@
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
     "tools/videoedit/compressor.py": "5aee181e13c1870836d3f17546c06efb23b299eb1162ce49f12eefbdf51f012f",
-    "tools/videoedit/fcpxml.py": "23f07f0b245eb6695471102fa44871a910a42ee149c7413e30611fcb543d3ee3",
+    "tools/videoedit/fcpxml.py": "54ff20c766e5a99ab9aa839ef8adbe20a3fb18f24fec711edb1eb5bb54ff7da2",
     "tools/videoedit/preflight.py": "e2fc9fe54b3794959aa3a619f5f4188233123ca77b9e5cf05e384f21cad38e4e",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
     "tools/wizard.py": "849a9ba6b8114d6222859b9a84fa5d12b70243d4021b74f6eb479921a713d426"

@@ -2152,6 +2152,25 @@ _MUTANTS = (
     ('NP6 the UNC long-path form is missed', 'wizard.py',
      '    if f.upper().startswith("\\\\\\\\?\\\\UNC\\\\"):\n        return True\n',
      '    if False:\n        return True\n'),
+    # P102 push 4a: a null field that becomes an fcpxml attribute builds with its default.
+    ('FX1 a null package title reaches the project name', 'videoedit/fcpxml.py',
+     '{"name": str(pkg.get("title") or "Untitled")}',
+     '{"name": pkg.get("title", "Untitled")}'),
+    ('FX2 a null timeline name reaches the gap', 'videoedit/fcpxml.py',
+     '        "name": str(tl.get("name") or "Timeline"),\n',
+     '        "name": tl.get("name", "Timeline"),\n'),
+    ('FX3 a null chapter-marker name reaches its value', 'videoedit/fcpxml.py',
+     '            attrs = {"start": start, "duration": fdur, "value": str(m.get("name") or "")}\n            po = m.get',
+     '            attrs = {"start": start, "duration": fdur, "value": m.get("name", "")}\n            po = m.get'),
+    ('FX4 a null marker name reaches its value', 'videoedit/fcpxml.py',
+     '            attrs = {"start": start, "duration": fdur, "value": str(m.get("name") or "")}\n            if m.get("note"):',
+     '            attrs = {"start": start, "duration": fdur, "value": m.get("name", "")}\n            if m.get("note"):'),
+    ('FX5 a null title text reaches its name', 'videoedit/fcpxml.py',
+     '            "name": str(t.get("text") or "Title"),\n',
+     '            "name": t.get("text", "Title"),\n'),
+    ('FX6 a null title role reaches its role', 'videoedit/fcpxml.py',
+     '            "role": str(t.get("role") or "titles"),\n',
+     '            "role": t.get("role", "titles"),\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

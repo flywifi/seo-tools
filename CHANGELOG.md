@@ -349,6 +349,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   scheduled sync is macOS only and names the manual sync command instead of `install-agent`.
   `docs/SETUP_WINDOWS.md` now leads with the Python install manager and keeps the traditional
   installer as the alternative the Python documentation marks deprecated since 3.14.
+- P102 (get_capabilities on a set-up install): the MCP tool `get_capabilities` raised
+  `AttributeError` on any install where `tools/setup.py` had written the local config, because a
+  local flag written as a bare true or false replaced the committed capability entry. `_load_config`
+  now keeps the committed entry with its `enabled` value replaced, and the capability table
+  (`mcp_server._capabilities_view`) reads a dict or a bare true/false entry (checked in the
+  selftest's package-independent tier).
+- P102 (Final Cut export of a template package): `videoedit/fcpxml.py build` raised `TypeError` on
+  an edit package filled from `pipeline/editing/edit-package.template.json`, which ships
+  `"title": null` and `"name": null`; each field that becomes an XML attribute now falls back to its
+  default when it is null, as `mltxml.py` already did (the selftest builds the template).
 - P102 (video set on Python 3.14): `requirements-videoedit.txt` installs `opentimelineio` and its
   two adapters only on Python before 3.14, because opentimelineio 0.18.1 publishes wheels for
   CPython 3.9 to 3.13 only; on 3.14 pip built it from source, which needs CMake and a C++ compiler,
