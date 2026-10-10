@@ -27,17 +27,24 @@ import re
 import sys
 from pathlib import Path
 
-TIME = re.compile(r"(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})")
-CUE = re.compile(
-    r"(\d{1,2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{3})"
-)
+try:  # imported as shared.docintel.transcripts
+    from . import textdecode as _td
+except ImportError:  # run as a script, imported with shared/docintel on sys.path, or loaded from its file
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import textdecode as _td
+
+# A timestamp is hh:mm:ss.ttt or, in WebVTT, mm:ss.ttt with the hours left out (the WebVTT
+# timestamp rule, w3.org/TR/webvtt1); SRT writes a comma before the milliseconds.
+TIME = re.compile(r"(?:(\d{1,2}):)?(\d{2}):(\d{2})[.,](\d{3})")
+_STAMP = r"(?:\d{1,2}:)?\d{2}:\d{2}[.,]\d{3}"
+CUE = re.compile(rf"({_STAMP})\s*-->\s*({_STAMP})")
 
 
 def to_seconds(stamp):
     m = TIME.search(stamp)
     if not m:
         return 0.0
-    h, mn, s, ms = (int(x) for x in m.groups())
+    h, mn, s, ms = (int(x or 0) for x in m.groups())
     return h * 3600 + mn * 60 + s + ms / 1000.0
 
 
@@ -51,8 +58,14 @@ def from_seconds(sec, sep=","):
     return f"{h:02d}:{mn:02d}:{s:02d}{sep}{ms:03d}"
 
 
+def read_text_with_encoding(path):
+    """(text, encoding) for a transcript file: textdecode's reading order (a byte-order mark, then
+    strict UTF-8, then cp1252), so a UTF-16 or cp1252 file saved on Windows reads as written."""
+    return _td.read_text_file(path)
+
+
 def read_text(path):
-    return Path(path).read_text(encoding="utf-8", errors="replace")
+    return read_text_with_encoding(path)[0]
 
 
 def parse_srt_vtt(text):
@@ -92,7 +105,7 @@ def parse_json(text):
 
 def parse(path):
     ext = Path(path).suffix.lower().lstrip(".")
-    text = read_text(path)
+    text, encoding = read_text_with_encoding(path)
     if ext == "json" or text.lstrip().startswith(("{", "[")):
         fmt, segments = "json", parse_json(text)
     elif ext in ("srt", "vtt") or CUE.search(text):
@@ -110,6 +123,7 @@ def parse(path):
         "duration_seconds": round(duration, 3),
         "plain_text": plain,
         "segments": segments,
+        "encoding": encoding,
         "ran_locally": True,
         "tokens_spent_on_parse": 0,
     }
@@ -212,6 +226,7 @@ def normalize(parsed, min_gap_seconds=None):
         "silences": gm["silences"],
         "min_gap_seconds": gm["min_gap_seconds"],
         "chapters": suggest_chapters(parsed["segments"], chap_min),
+        "encoding": parsed.get("encoding"),
         "ran_locally": True,
     }
 
@@ -252,6 +267,39 @@ def _selftest():
        shared["min_gap_seconds"] == 12.0
        and shared["silences"] == gap_metrics(parsed["segments"], 12.0)["silences"]
        and shared["chapters"] == suggest_chapters(parsed["segments"], 12.0))
+
+    # P102: a file saved by Windows tools reads as written, and a WebVTT cue without hours parses.
+    import codecs
+    want = ["Caf\u00e9 cr\u00e8me \u2014 today", "Na\u00efve r\u00e9sum\u00e9"]
+    two = ("1\n00:00:01,000 --> 00:00:02,500\n" + want[0] + "\n\n"
+           "2\n00:00:03,000 --> 00:00:04,000\n" + want[1] + "\n")
+    saved = {
+        "utf-8": (two.encode("utf-8"), "utf-8"),
+        "UTF-8 with a BOM (Out-File -Encoding utf8)": (codecs.BOM_UTF8 + two.encode("utf-8"), "utf-8-sig"),
+        "UTF-16 LE with a BOM (Out-File, >)": (codecs.BOM_UTF16_LE + two.replace("\n", "\r\n").encode("utf-16-le"),
+                                              "utf-16"),
+        "UTF-16 BE with a BOM": (codecs.BOM_UTF16_BE + two.encode("utf-16-be"), "utf-16"),
+        "cp1252 (Set-Content)": (two.replace("\n", "\r\n").encode("cp1252"), "cp1252-fallback"),
+    }
+    with tempfile.TemporaryDirectory() as td:
+        for name, (raw, label) in saved.items():
+            fp = Path(td) / "talk.srt"
+            fp.write_bytes(raw)
+            got = parse(str(fp))
+            ok(f"encoding: {name} gives both cues as written, labelled {label}",
+               [s["text"] for s in got["segments"]] == want and got["encoding"] == label
+               and normalize(got)["encoding"] == label)
+    vtt = ("WEBVTT\n\n00:01.000 --> 00:02.500\nShort cue\n\n"
+           "01:02:03.000 --> 01:02:04.000\nLong cue\n")
+    cues = parse_srt_vtt(vtt)
+    ok("WebVTT: a cue without hours parses beside one with hours",
+       [(c["start"], c["end"], c["text"]) for c in cues]
+       == [(1.0, 2.5, "Short cue"), (3723.0, 3724.0, "Long cue")])
+    ok("WebVTT: mm:ss.ttt and hh:mm:ss.ttt read as the same time",
+       to_seconds("02:03.250") == to_seconds("00:02:03.250") == 123.25
+       and to_seconds("1:02:03,000") == 3723.0)
+    ok("emit still writes hours, so the files Creator OS writes do not change",
+       emit(cues, "vtt").splitlines()[2] == "00:00:01.000 --> 00:00:02.500")
 
     import contextlib
     import io

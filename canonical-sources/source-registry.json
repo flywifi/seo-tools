@@ -7369,7 +7369,41 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "ms-powershell-character-encoding",
+      "name": "about_Character_Encoding (PowerShell, Microsoft Learn)",
+      "url": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "w3c-webvtt",
+      "name": "WebVTT: The Web Video Text Tracks Format (W3C)",
+      "url": "https://www.w3.org/TR/webvtt1/",
+      "category": "platform-spec",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "d6b8fbd35118890cfcd47a325c7de94131c9b86acbc976ee529faf50d68e85b2"
+  "_content_digest": "168633d180ac57663398a068eda74db2eb2aa441982db7a4d95ff9b0513ac893"
 }

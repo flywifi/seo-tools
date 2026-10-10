@@ -16,11 +16,17 @@ import re
 import sys
 from pathlib import Path
 
+try:  # imported as shared.docintel.wer
+    from . import textdecode as _td
+except ImportError:  # run as a script, imported with shared/docintel on sys.path, or loaded from its file
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import textdecode as _td
+
 
 def load(value):
     p = Path(value)
     if p.exists() and p.is_file():
-        return p.read_text(encoding="utf-8", errors="replace")
+        return _td.read_text_file(p)[0]  # a byte-order mark, then strict UTF-8, then cp1252
     return value
 
 
@@ -113,5 +119,35 @@ def main(argv):
                           "next_step": "pass a readable file path (this one could not be opened)"}))
         return 1
 
+def selftest() -> int:
+    """Offline checks: the error rates on a known pair, and a reference file saved by Windows tools
+    (UTF-16 with a byte-order mark, or cp1252) read as written (P102)."""
+    import codecs
+    import tempfile
+    checks = []
+
+    def ok(name, cond):
+        checks.append((name, bool(cond)))
+        print(f"  [{'ok' if cond else 'FAIL'}] {name}")
+
+    r = evaluate("the quick brown fox", "the quick fox")
+    ok("one deleted word of four is a WER of 0.25", r["wer"] == 0.25 and r["word_edits"]["deletions"] == 1)
+    ok("identical text is a WER of 0", evaluate("caf\u00e9 cr\u00e8me", "caf\u00e9 cr\u00e8me")["wer"] == 0.0)
+    ok("a value that is not a file is the text itself", load("the quick fox") == "the quick fox")
+    ref = "Caf\u00e9 cr\u00e8me na\u00efve r\u00e9sum\u00e9"
+    with tempfile.TemporaryDirectory() as td:
+        for name, raw in (("UTF-16 with a BOM", codecs.BOM_UTF16_LE + ref.encode("utf-16-le")),
+                          ("cp1252", ref.encode("cp1252"))):
+            fp = Path(td) / "ref.txt"
+            fp.write_bytes(raw)
+            ok(f"a {name} reference file reads as written and scores 0 against the text",
+               load(str(fp)) == ref and evaluate(load(str(fp)), ref)["wer"] == 0.0)
+    passed = sum(1 for _n, c in checks if c)
+    print(f"wer selftest: {'PASS' if passed == len(checks) else 'FAIL'} ({passed} of {len(checks)} checks)")
+    return 0 if passed == len(checks) else 1
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        sys.exit(selftest())
     sys.exit(main(sys.argv[1:]))

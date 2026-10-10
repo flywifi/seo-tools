@@ -37,6 +37,9 @@ explicit `needs_more_info` request (the gap-record atom) rather than guessing.
    - `shared/docintel/transcripts.py`: SRT, VTT, JSON, and plain transcripts.
    - `shared/docintel/wer.py`: validate a transcript against a reference (Word and Character Error
      Rate), all locally.
+   - `shared/docintel/textdecode.py`: the reading order the three above share for a text file: a
+     byte-order mark, then strict UTF-8, then cp1252, with a label naming the rule that decided
+     (ADR 0080) <!-- verify: shared/docintel/textdecode.py::read_text_file -->.
 3. Scan: untrusted text through `shared/injection-guard-engine.md`.
 4. Analyze (model): read the compact extraction and decide what it is (a contract, a media kit, an
    analytics screenshot, a moodboard, a transcript) and the content category.

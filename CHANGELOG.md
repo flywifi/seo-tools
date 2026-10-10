@@ -13,6 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (text files read as saved): `shared/docintel/textdecode.py` decodes a text file by
+  byte-order mark (UTF-32, UTF-8, UTF-16), then strict UTF-8, then cp1252, and labels which rule
+  decided (ADR 0080). The transcript parser, the word-error-rate tool, the offline text extractor
+  and the export importer read through it, so a subtitle saved by Windows PowerShell 5.1's
+  `Out-File` (UTF-16) or `Set-Content` (cp1252) reads as written instead of giving 0 segments or
+  replaced accents, and a YouTube Studio CSV saved with a BOM imports its rows.
+  `transcripts.parse` and its `--normalize` output gain an `encoding` field. The extractor no longer
+  guesses UTF-16 without a BOM, which misread even-length cp1252 files.
+- P102 (WebVTT cues without hours): the transcript parser reads a cue timed `mm:ss.ttt`, which
+  WebVTT allows beside `hh:mm:ss.ttt`; it used to drop it. Files Creator OS writes keep their hours.
 - P102 (Windows CI job): `.github/workflows/ci.yml` gains a `windows` job that runs
   `tools/battery.py` on GitHub's `windows-latest` image under Git for Windows' bash, on Python
   3.12 and 3.14, with full history (ADR 0076). The selftest sweep gives

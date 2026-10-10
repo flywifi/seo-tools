@@ -33,6 +33,9 @@ import sys
 import zipfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared" / "docintel"))
+import textdecode as _td  # noqa: E402  (a byte-order mark, then strict UTF-8, then cp1252)
+
 SOURCE_MODE = "export_bundle"
 
 
@@ -55,14 +58,14 @@ def _num(v):
 def _read_text(path_or_text):
     """Accept a path (to a .csv/.json), a path-like object, or raw text; return text."""
     if isinstance(path_or_text, (bytes, bytearray)):
-        return path_or_text.decode("utf-8", "replace")
+        return _td.decode_text(path_or_text)[0]
     s = str(path_or_text)
     # Raw CSV/JSON text contains newlines or is long; never stat() it as a path.
     if "\n" not in s and len(s) < 4096:
         try:
             p = Path(s)
             if p.exists() and p.is_file():
-                return p.read_text(encoding="utf-8", errors="replace")
+                return _td.read_text_file(p)[0]
         except OSError:
             pass
     return s
@@ -86,7 +89,7 @@ def _zip_member_text(zip_path, name_contains):
     with z:
         for n in z.namelist():
             if name_contains.lower() in n.lower() and n.lower().endswith(".csv"):
-                return z.read(n).decode("utf-8", "replace")
+                return _td.decode_text(z.read(n))[0]
     return None
 
 
@@ -166,7 +169,7 @@ def parse_youtube_studio_zip(zip_path):
             with z:
                 for n in z.namelist():
                     if n.lower().endswith(".csv"):
-                        t = z.read(n).decode("utf-8", "replace")
+                        t = _td.decode_text(z.read(n))[0]
                         if t.splitlines() and "content" in t.splitlines()[0].lower():
                             text = t
                             break
@@ -220,13 +223,13 @@ def parse_youtube_takeout(path):
             with z:
                 for n in z.namelist():
                     if "video metadata" in n.lower() and n.lower().endswith(".csv"):
-                        texts.append(z.read(n).decode("utf-8", "replace"))
+                        texts.append(_td.decode_text(z.read(n))[0])
     elif p.is_dir():
         for f in p.rglob("*.csv"):
             if "video metadata" in str(f).lower() or "video" in f.name.lower():
-                texts.append(f.read_text(encoding="utf-8", errors="replace"))
+                texts.append(_td.read_text_file(f)[0])
     elif p.is_file() and p.suffix.lower() == ".csv":
-        texts.append(p.read_text(encoding="utf-8", errors="replace"))
+        texts.append(_td.read_text_file(p)[0])
     out = []
     for t in texts:
         out.extend(_from_csv_text(t))
@@ -288,12 +291,12 @@ def parse_instagram_dyi(path):
                 for n in z.namelist():
                     b = Path(n).name.lower()
                     if n.lower().endswith(".json") and (b.startswith("posts_") or b in ("reels.json", "posts.json") or "reels" in b):
-                        texts.append(z.read(n).decode("utf-8", "replace"))
+                        texts.append(_td.decode_text(z.read(n))[0])
     elif p.is_dir():
         for f in list(p.rglob("posts_*.json")) + list(p.rglob("reels.json")) + list(p.rglob("posts.json")):
-            texts.append(f.read_text(encoding="utf-8", errors="replace"))
+            texts.append(_td.read_text_file(f)[0])
     elif p.is_file() and p.suffix.lower() == ".json":
-        texts.append(p.read_text(encoding="utf-8", errors="replace"))
+        texts.append(_td.read_text_file(p)[0])
     out = []
     for t in texts:
         try:
@@ -458,6 +461,24 @@ def selftest():
               "Total,,,\"20,000\",460.5,,140000,,\"$73.10\"\n")
     yt = parse_youtube_studio_csv(yt_csv)
     ok("yt studio: two rows, Totals skipped", len(yt) == 2)
+    # P102: a Studio CSV saved with a byte-order mark keeps its first column, "Content".
+    import codecs
+    ok("yt studio: a CSV with a UTF-8 BOM parses the same two rows",
+       parse_youtube_studio_csv(codecs.BOM_UTF8 + yt_csv.encode("utf-8")) == yt)
+    ok("yt studio: a UTF-16 CSV with a BOM parses the same two rows",
+       parse_youtube_studio_csv(codecs.BOM_UTF16_LE + yt_csv.encode("utf-16-le")) == yt)
+    import tempfile as _tf_bom
+    with _tf_bom.TemporaryDirectory() as _td_bom:
+        _zp = Path(_td_bom) / "Content 2026-09-07_2026-10-05 Fictional Channel.zip"
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(_zp, "w") as _z:
+                _z.writestr("Table data.csv", codecs.BOM_UTF8 + yt_csv.encode("utf-8"))
+        except (OSError, zipfile.BadZipFile):
+            pass  # the check below then fails
+        _csvp = Path(_td_bom) / "Table data.csv"
+        _csvp.write_bytes(codecs.BOM_UTF8 + yt_csv.encode("utf-8"))
+        ok("yt studio: a zip whose Table data.csv carries a BOM, and the same file on disk, parse the "
+           "same two rows", parse_youtube_studio_zip(_zp) == yt and parse_youtube_studio_csv(str(_csvp)) == yt)
     ok("yt studio: id from Content", yt[0]["platform_video_id"] == "abc123")
     ok("yt studio: views parsed with comma", yt[0]["stats"]["views"] == 12000)
     ok("yt studio: revenue parsed (only source)", yt[0]["revenue"]["estimated_revenue"] == 52.10)

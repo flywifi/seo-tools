@@ -20,7 +20,6 @@
     "tools/videoedit/__init__.py": "Package marker and re-export shim; no independent logic.",
     "tools/handoff/__init__.py": "Package marker; 13 lines, no logic.",
     "tools/importers/__init__.py": "Package marker; 9 lines, no logic.",
-    "shared/docintel/wer.py": "A pure word-error-rate helper fully exercised by coverage_verify's selftest (19 checks), which is its only caller.",
     "shared/docintel/classify.py": "Exercised by handoff/inbox.py, whose own selftest drives classification end to end."
   }
 }

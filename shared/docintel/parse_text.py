@@ -13,12 +13,19 @@ Usage:
 import argparse
 import csv
 import html
+import io
 import json
 import re
 import sys
 import zipfile
 import zlib
 from pathlib import Path
+
+try:  # imported as shared.docintel.parse_text
+    from . import textdecode as _td
+except ImportError:  # run as a script, imported with shared/docintel on sys.path, or loaded from its file
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import textdecode as _td
 
 PDF_MIN_YIELD = 24
 
@@ -41,13 +48,10 @@ def result(path, ftype, status, text="", tables=None, confidence="high", notes="
 
 
 def read_text(path):
-    raw = Path(path).read_bytes()
-    for enc in ("utf-8", "utf-16", "latin-1"):
-        try:
-            return raw.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    return raw.decode("utf-8", "replace")
+    """The file's text in textdecode's reading order: a byte-order mark, then strict UTF-8, then
+    cp1252. UTF-16 without a mark is not tried: any even-length file decodes as UTF-16, so a
+    cp1252 file would come back as unrelated characters."""
+    return _td.read_text_file(path)[0]
 
 
 def strip_tags(markup):
@@ -115,11 +119,10 @@ def parse_xlsx(path):
 
 def parse_csv(path, delimiter):
     rows = []
-    with open(path, newline="", encoding="utf-8", errors="replace") as fh:
-        for i, row in enumerate(csv.reader(fh, delimiter=delimiter)):
-            rows.append(row)
-            if i >= 500:
-                break
+    for i, row in enumerate(csv.reader(io.StringIO(read_text(path), newline=""), delimiter=delimiter)):
+        rows.append(row)
+        if i >= 500:
+            break
     text = "\n".join(delimiter.join(r) for r in rows)
     return result(path, "csv", "content_ingested", text, tables=rows[:50],
                   notes=f"{len(rows)} rows parsed (capped at 500)")
@@ -267,6 +270,23 @@ def selftest() -> int:
         r4 = parse(str(bad))
         ok("a corrupt docx degrades to metadata_only with empty text, no traceback",
            r4["ingestion_status"] == "metadata_only" and r4["text"] == "")
+
+        # P102: Windows encodings read as written. A cp1252 file of even length decoded as
+        # UTF-16 before the shared decoder.
+        import codecs
+        note = "Caf\u00e9 \u2014 na\u00efve"
+        for name, raw in (("cp1252", note.encode("cp1252")),
+                          ("utf-16", codecs.BOM_UTF16_LE + note.encode("utf-16-le")),
+                          ("utf-8-sig", codecs.BOM_UTF8 + note.encode("utf-8"))):
+            fp = d / f"note-{name}.txt"
+            fp.write_bytes(raw)
+            ok(f"a {name} text file ({len(raw)} bytes) reads as written", parse(str(fp))["text"] == note)
+        ok("the cp1252 sample has an even length, the case UTF-16 guessing misread",
+           len(note.encode("cp1252")) % 2 == 0)
+        cp = d / "rates.csv"
+        cp.write_bytes("item,note\r\nlamp,caf\u00e9\r\n".encode("cp1252"))
+        ok("a cp1252 csv keeps its accents in the table",
+           parse(str(cp))["tables"] == [["item", "note"], ["lamp", "caf\u00e9"]])
 
     print(f"parse_text selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0
