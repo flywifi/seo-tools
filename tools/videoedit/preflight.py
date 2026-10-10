@@ -96,9 +96,10 @@ def preflight(config: dict | None = None) -> dict:
         "scenedetect": _importable("scenedetect"),
         "moviepy": _importable("moviepy"),
         # Local STT backends (P45 completion layer): whisper.cpp CLI (renamed across versions,
-        # so probe all three names) or the faster-whisper Python package. Either lets the
-        # content-library complete missing transcripts on-device.
-        "whisper_cpp": bool(shutil.which("whisper-cli") or shutil.which("whisper-cpp") or shutil.which("main")),
+        # so transcribe.whisper_cpp_bin probes all three names, and on Windows takes a .exe) or the
+        # faster-whisper Python package. Either lets the content-library complete missing
+        # transcripts on-device.
+        "whisper_cpp": bool(__import__("transcribe").whisper_cpp_bin()),
         "faster_whisper": _importable("faster_whisper"),
     }
     resolve = _resolve_present()
@@ -227,6 +228,20 @@ def selftest() -> int:
     ok("the no-engine note is written as this computer runs the scripts",
        "'py -3 tools/setup.py --install-deps'" in _notes_w and "'python3 tools/" not in _notes_w
        and "'py -3 tools/transcribe.py doctor' names the reason" in _notes_w)
+    # P102: on Windows the Mouse control panel (System32\\main.cpl, which which() returns for "main"
+    # through PATHEXT) is not whisper.cpp; elsewhere a file named main is.
+    _saved_c = (shutil.which, sys.platform)
+    _cpl_seen = {}
+    shutil.which = lambda name, *a, **k: ("C:\\WINDOWS\\system32\\main.CPL" if sys.platform == "win32"
+                                          else "/usr/local/bin/main") if name == "main" else None
+    try:
+        for _plat in ("win32", "linux"):
+            sys.platform = _plat
+            _cpl_seen[_plat] = preflight({"capabilities": {}})["tools"]["whisper_cpp"]
+    finally:
+        shutil.which, sys.platform = _saved_c
+    ok("main.cpl on a Windows PATH is not whisper.cpp, and a main on Linux is",
+       _cpl_seen == {"win32": False, "linux": True})
 
     print(f"preflight selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

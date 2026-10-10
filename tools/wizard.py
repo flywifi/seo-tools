@@ -3150,12 +3150,11 @@ Class B: {', '.join(summ['B']) or 'none'}<br>Class C: {', '.join(summ['C']) or '
 
 def _stt_backend_present() -> tuple:
     """Which local STT backend, if any, is installed on this machine. Detection only; runs nothing.
-    Returns (backend_label_or_None, whisper_cpp_bin_or_None, faster_whisper_bool)."""
-    cpp = None
-    for name in ("whisper-cli", "whisper-cpp", "main"):
-        if env_paths.which(name):  # brew-prefix-aware so a double-click launch still finds whisper-cli
-            cpp = name
-            break
+    Returns (backend_label_or_None, whisper_cpp_bin_or_None, faster_whisper_bool). The whisper.cpp
+    lookup is transcribe.whisper_cpp_bin (a .exe on Windows), through env_paths.which so a
+    double-click launch still finds a Homebrew whisper-cli."""
+    import transcribe as _tr_stt
+    cpp = _tr_stt.whisper_cpp_bin(env_paths.which, _os())
     try:
         import faster_whisper  # noqa: F401
         fw = True
@@ -5655,10 +5654,31 @@ def _selftest_p101() -> int:
           and [(n, f) for n, f in _jobs_v] == [("vc_runtime", _vc_runtime_job)],
           f"the Visual C++ install route starts a job without the ticked confirmation or where the "
           f"check does not offer it, or does not start it once when both hold ({_jobs_v}, {_sent_v[:4]})")
-    _import_v = _screen_import()
-    check(("Transcription engine found" in _import_v)
-          or 'href="/doctor">Check my setup</a> tells a missing engine from one that is installed but cannot load' in _import_v,
+    _real_stt_v = _stt_backend_present
+    globals()["_stt_backend_present"] = lambda: (None, None, False)
+    try:
+        _import_v = _screen_import()
+    finally:
+        globals()["_stt_backend_present"] = _real_stt_v
+    check('href="/doctor">Check my setup</a> tells a missing engine from one that is installed but cannot load' in _import_v
+          and "Transcription engine found" not in _import_v,
           "the import screen without an engine does not point at Check my setup for an engine that cannot load")
+    # P102: the engine probe takes a .exe on Windows, so the Mouse control panel (main.cpl, which
+    # which() returns for "main" through PATHEXT) is not reported as whisper.cpp.
+    _real_which_v, _real_os_v = env_paths.which, _OS_OVERRIDE
+    _stt_v = {}
+    try:
+        for _os_v, _found_v in (("windows", {"main": "C:\\WINDOWS\\system32\\main.CPL"}),
+                                ("windows", {"whisper-cli": "C:\\tools\\whisper-cli.exe",
+                                             "main": "C:\\WINDOWS\\system32\\main.CPL"}),
+                                ("linux", {"main": "/usr/local/bin/main"})):
+            _OS_OVERRIDE = _os_v
+            env_paths.which = lambda name, *a, _f=_found_v, **k: _f.get(name)
+            _stt_v[len(_stt_v)] = _stt_backend_present()[:2]
+    finally:
+        env_paths.which, _OS_OVERRIDE = _real_which_v, _real_os_v
+    check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main")},
+          f"the wizard's engine probe counts main.cpl as whisper.cpp on Windows, or misses a real engine ({_stt_v})")
     check(_quit_v[0] == "send" and "still running" in _quit_v[1] and _quit_shut_v is False,
           "/quit closes the wizard while the Visual C++ install runs, leaving its temporary folder")
     check(_waiting_v[0] == "send" and "Visual C++ Redistributable" in _waiting_v[1]
@@ -6267,7 +6287,9 @@ def _selftest() -> int:
           "wizard binds the all-interfaces address (loopback exemption lost)")
 
     # 7) whisper.cpp CLI-rename resilience (G2): the detector must probe all three known binary names.
-    check('("whisper-cli", "whisper-cpp", "main")' in src, "whisper.cpp 3-name probe was narrowed")
+    import transcribe as _tr_names
+    check(_tr_names._WHISPER_CPP_BINS == ("whisper-cli", "whisper-cpp", "main")
+          and "_tr_stt.whisper_cpp_bin(env_paths.which, _os())" in src, "whisper.cpp 3-name probe was narrowed")
 
     # 8) P60 Drive hub screens render with a next action, and the hub folder input is confined.
     try:

@@ -30,7 +30,7 @@
     "docs/FRESHNESS.md": "cb3baa4af60adc0fa23e92b6ea90813afb4c910ff021d7369b85de38392db16b",
     "docs/INSTALL-SCOPE.md": "a8fb9c89f7d37ee4aabf02c60b0cd063419951dfb4a72aa7eae713716e3c27e2",
     "docs/MAC-VALIDATION.md": "f31107b34b665afacd43cbcfba0986f8b2ceb19b24f987aeb331368392655478",
-    "docs/MACOS-MAINTENANCE.md": "9793e1fa16a8b02e4f529c56d620431bee556e33c159d8233be0df4886567505",
+    "docs/MACOS-MAINTENANCE.md": "9084072fbad22afed9992596318c333ea50a1cddc924abdd40df0d328f2f3424",
     "docs/PROFILE-MIRROR.md": "b9890f3cee91fdc8cd5c2bc78945555c9a00f06a6890cb5e3a403612d5e9e9d6",
     "docs/PUBLISHING.md": "715a732d76426c392c0bcb8adaa675a81d64471df00e3592d07c20c955064f05",
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
@@ -108,14 +108,14 @@
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
     "tools/setup.py": "94e1ed1b2efbb267852a80512138a0d5a6de7add80e81c1bb6ec1edd03101c01",
     "tools/surface_workflow_check.py": "dffdf28644b2903d73d113bda8b7314520ec07a1b89c2862e3d6bab62b9c6828",
-    "tools/transcribe.py": "8b9fc6c5a33caac563b34fc2e2c66275647631f6474984bedfc3853e252c4d48",
+    "tools/transcribe.py": "f4ef3f10c8c608670cea637a5889612658db1aaedc38599a7b460347fea81803",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
     "tools/videoedit/compressor.py": "5aee181e13c1870836d3f17546c06efb23b299eb1162ce49f12eefbdf51f012f",
     "tools/videoedit/fcpxml.py": "82a286abc92df0f9abfc2092d694be0c5b5e258adbb5b63ee34d10e41eb676b4",
-    "tools/videoedit/preflight.py": "9ffe8741c5a0ac8888560b5b6f3d902443f049cc3898632b0d16ddea64230443",
+    "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "074d258efcfbdb7f3619466bafc2822a1c662453bd9f1a3d258b4120215d58a4"
+    "tools/wizard.py": "2fd71eea8ea080160aad599a9efd9002fbb2fc9cf5666d4c0d1c60ee585d72cc"
   },
   "excluded": {}
 }

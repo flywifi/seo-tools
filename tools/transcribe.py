@@ -333,13 +333,28 @@ def install_vc_runtime(os_name=None, arch=None, download=None, verify=None, run=
     return res
 
 
-def detect_backends():
-    """What STT backends are actually installed on THIS machine. Detection only; runs nothing."""
-    cpp_bin = None
+def whisper_cpp_bin(which=None, os_name=None):
+    """The name of the first whisper.cpp CLI on PATH, or None. `which` is the lookup (default
+    shutil.which, read when called) and `os_name` the system (sys.platform form; None reads this
+    computer's). On Windows a match counts when it is a .exe: which() also returns the other PATHEXT
+    types (.CPL, .BAT, .CMD, ...), and C:\\Windows\\System32\\main.cpl, the Mouse control panel, answers
+    to "main" on a stock Windows computer (P102)."""
+    which = which or shutil.which
+    windows = str(os_name if os_name is not None else sys.platform).lower().startswith("win")
     for name in _WHISPER_CPP_BINS:
-        if shutil.which(name):
-            cpp_bin = name
-            break
+        found = which(name)
+        if not found:
+            continue
+        if windows and not str(found).lower().endswith(".exe"):
+            continue
+        return name
+    return None
+
+
+def detect_backends(os_name=None):
+    """What STT backends are actually installed on THIS machine. Detection only; runs nothing.
+    os_name (sys.platform form) is the system the whisper.cpp lookup judges by (whisper_cpp_bin)."""
+    cpp_bin = whisper_cpp_bin(os_name=os_name)
     try:
         import faster_whisper  # noqa: F401
         fw = True
@@ -408,7 +423,7 @@ def select_backend(os_name=None, arch=None, have=None, cuda=None, fw_probe=None,
     detected = have is None
     os_name = (os_name if os_name is not None else sys.platform).lower()
     arch = (arch if arch is not None else platform.machine()).lower()
-    have = have if have is not None else {k: bool(v) for k, v in detect_backends().items()}
+    have = have if have is not None else {k: bool(v) for k, v in detect_backends(os_name).items()}
     cuda = _have_cuda() if cuda is None else cuda
     is_mac = os_name == "darwin"
     is_apple_silicon = is_mac and arch in ("arm64", "aarch64")
@@ -550,7 +565,7 @@ def transcribe(media_path, model=None, initial_prompt=None, out_dir=None,
 
     model = model or default_model()
     if sel["backend"] == "whisper.cpp":
-        which = detect_backends().get("whisper_cpp") or "whisper-cli"
+        which = detect_backends(os_name).get("whisper_cpp") or "whisper-cli"
         srt_path, err = _run_whisper_cpp(which, media_path, model, out_dir, initial_prompt)
         if err:
             return _gap("backend_error", err, install=_install_hint((os_name or sys.platform).lower(),
@@ -728,7 +743,7 @@ def doctor(os_name=None, arch=None, have=None, model_dir_override=None, brew_pre
     os_name = (os_name if os_name is not None else sys.platform).lower()
     arch = (arch if arch is not None else platform.machine()).lower()
     real_machine = have is None
-    have = have if have is not None else {k: bool(v) for k, v in detect_backends().items()}
+    have = have if have is not None else {k: bool(v) for k, v in detect_backends(os_name).items()}
     # P102: faster-whisper installed but not loading (a missing Visual C++ runtime on Windows) is told
     # apart from not installed, so the doctor never sends the person back to --install-deps for it.
     if fw_probe is None:
@@ -939,6 +954,39 @@ def selftest():
            and _sb_mac["install"] == _install_hint("darwin", "arm64") and _sb_mac["not_loading"] is True
            and "not_loading" not in _sb_absent and _sb_absent["install"] == _install_hint("win32", "amd64")
            and "installed but could not load" in json.dumps(_gap_nl) and vc_runtime_remedy() in json.dumps(_gap_nl))
+        # P102: on Windows the whisper.cpp lookup takes a .exe, so the Mouse control panel
+        # (System32\\main.cpl, which which() returns for "main" through PATHEXT) is not an engine.
+        _cpl = "C:\\WINDOWS\\system32\\main.CPL"
+
+        def _paths(**found):
+            return lambda name, *a, **k: found.get(name.replace("-", "_"))
+        _wb = {
+            "cpl": whisper_cpp_bin(_paths(main=_cpl), "win32"),
+            "cli_and_cpl": whisper_cpp_bin(_paths(whisper_cli="C:\\tools\\whisper-cli.EXE", main=_cpl), "win32"),
+            "main_exe": whisper_cpp_bin(_paths(main="C:\\tools\\MAIN.EXE"), "win32"),
+            "main_bat": whisper_cpp_bin(_paths(main="C:\\tools\\main.bat"), "win32"),
+            "mac": whisper_cpp_bin(_paths(whisper_cli="/opt/homebrew/bin/whisper-cli"), "darwin"),
+            "linux": whisper_cpp_bin(_paths(main="/usr/local/bin/main"), "linux"),
+            "none": whisper_cpp_bin(_paths(), "win32"),
+        }
+        ok("whisper_cpp_bin takes a .exe on Windows, so main.cpl or main.bat is not whisper.cpp, and any match elsewhere",
+           _wb == {"cpl": None, "cli_and_cpl": "whisper-cli", "main_exe": "main", "main_bat": None,
+                   "mac": "whisper-cli", "linux": "main", "none": None})
+        _real_which = shutil.which
+        shutil.which = lambda name, *a, **k: _cpl if name == "main" else None
+        try:
+            _det_w, _det_l = detect_backends("win32")["whisper_cpp"], detect_backends("linux")["whisper_cpp"]
+            _d_cpl = doctor(os_name="win32", arch="amd64", fw_probe=_pr[1], system_root="C:\\Windows",
+                            dll_exists=lambda p: False)
+            _sb_cpl = select_backend(os_name="win32", arch="amd64", cuda=False, fw_probe=_pr[1],
+                                     vc_missing=["msvcp140.dll"])
+        finally:
+            shutil.which = _real_which
+        ok("with only main.cpl on a simulated Windows PATH, detection, the doctor and the selection skip whisper.cpp "
+           "and the doctor names the Visual C++ runtime",
+           _det_w is None and _det_l == "main" and _d_cpl["backend"] != "whisper.cpp"
+           and _d_cpl["next_action"] == vc_runtime_remedy() and _sb_cpl["backend"] != "whisper.cpp"
+           and _sb_cpl["install"] == vc_runtime_remedy())
         ok("with msvcp140.dll present (an older runtime), a load failure points at a reinstall, not the runtime",
            _d_older["vc_runtime_missing"] == ["vcruntime140_1.dll"] and _d_older["vc_runtime_needed"] is False
            and "could not load" in _d_older["steps"][1]["what_it_is"]

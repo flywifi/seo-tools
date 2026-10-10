@@ -383,6 +383,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the winget command, labeled machine-wide (`vc_runtime_remedy`), instead of sending the person back
   to `--install-deps`, which cannot install it. `setup.py --install-deps` imports faster-whisper in
   the `.venv` right after installing it (`_check_faster_whisper`) and reports the same.
+- P102 (whisper.cpp lookup on Windows): `transcribe.whisper_cpp_bin` is the one whisper.cpp
+  lookup, used by `detect_backends`, `wizard._stt_backend_present` and `videoedit/preflight.py`. On
+  Windows it accepts a `.exe` and skips the other types `shutil.which` returns through PATHEXT, so
+  `C:\Windows\System32\main.cpl` (the Mouse control panel) no longer reads as the whisper.cpp CLI
+  `main`, which had hidden the Visual C++ step and pointed the doctor at a whisper.cpp model. The
+  doctor and the backend selection judge the lookup by the system they report on.
 - P102 (Visual C++ runtime installed on request, machine-wide): on Windows on x64 or ARM64, when
   faster-whisper is installed but cannot load and `msvcp140.dll` (the runtime library Python does not
   ship) is missing from System32, the
