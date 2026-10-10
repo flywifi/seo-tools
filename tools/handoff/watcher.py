@@ -334,10 +334,17 @@ def selftest() -> int:
     def _unreadable():
         raise OSError("the config cannot be read")
     names["raises"] = hub_folder_name(load=_unreadable)
+
+    def _not_json():
+        raise ValueError("Expecting value: line 1 column 1 (char 0)")
+    names["not json"] = hub_folder_name(load=_not_json)
+    names["a list"] = hub_folder_name(load=lambda: ["drive_hub"])
     ok("hub_folder_name reads drive_hub.folder_name from the config files, local first, stripped, "
-       "with Creator OS for a missing, blank or null name or a config that cannot be read",
+       "with Creator OS for a missing, blank or null name, a config that cannot be read or parsed, "
+       "and one that is not a mapping",
        names == {"absent": "Creator OS", "padded": "Creator OS Test", "local": "Local Hub",
-                 "blank": "Creator OS", "null": "Creator OS", "raises": "Creator OS"})
+                 "blank": "Creator OS", "null": "Creator OS", "raises": "Creator OS",
+                 "not json": "Creator OS", "a list": "Creator OS"})
     import oauth_flow as _oauth_t
     from handoff import drive_api as _dapi_t
     asked = []

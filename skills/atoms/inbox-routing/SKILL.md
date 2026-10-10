@@ -125,9 +125,10 @@ cannot read as text (a byte payload that trips the binary sniff, an oversize fil
 being unavailable) is NOT routed unscreened; it is held for a session, since a real transcript is
 text and an unreadable one is a screening-evasion signal. A file that starts with a UTF-16 or
 UTF-32 byte-order mark is decoded before the binary sniff, so a subtitle saved that way on Windows
-is screened as text; its bytes are also screened as UTF-8 and as Python's `utf-16` codec reads
-them, and the most cautious verdict is kept, so a mark put in front of text in another encoding
-does not hide that text. `approve` does not move a text-format file
+is screened as text; the bytes after the mark are also screened as UTF-8 (with NUL bytes dropped,
+and read as spaces), as UTF-16 in either byte order, and behind a UTF-32 mark as UTF-32 in either
+byte order, and the most cautious verdict is kept, so ASCII text, or UTF-16 or UTF-32 text in the
+byte order opposite to the mark's, is screened the way a reader that ignores the mark reads it. `approve` does not move a text-format file
 over the tier's 2 MB limit (a transcript, or a JSON or CSV export), since the tier read only its
 first part: ask the person to split it into files under 2 MB. The two sanctioned writers never
 overwrite: a same-name file in a dated `Processed/` or `Quarantine/` folder is kept alongside as

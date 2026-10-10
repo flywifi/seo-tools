@@ -333,6 +333,17 @@ def selftest() -> int:
            f"6 MB of memory ({peak / 1048576:.1f} MB)",
            bigc.stat().st_size > 8 * 1048576 and peak < 6 * 1048576
            and len(got_big["tables"]) == 50 and got_big["notes"].startswith("501 rows"))
+        # A byte the encoding cannot decode past the first MiB (here 0xFF in UTF-8, in row 450 of
+        # rows 3 KB long) becomes U+FFFD in its row; the file is still read.
+        latec = d / "late-byte.csv"
+        with open(latec, "wb") as fh:
+            fh.write(b"video,notes\n")
+            for i in range(480):
+                fh.write(f"v{i},".encode("ascii") + (b"\xff" if i == 450 else b"") + b"n" * 3000 + b"\n")
+        got_late = parse(str(latec))
+        ok("a byte past the first MiB that the encoding cannot decode becomes U+FFFD in its row",
+           got_late["ingestion_status"] == "content_ingested" and "v450,�n" in got_late["text"]
+           and got_late["notes"].startswith("481 rows"))
 
     print(f"parse_text selftest: {'PASS' if not failures else 'FAIL'} ({len(failures)} failure(s))")
     return 1 if failures else 0

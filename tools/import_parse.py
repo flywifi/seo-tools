@@ -78,6 +78,10 @@ def _note(message):
     print(f"note: {message}", file=sys.stderr)
 
 
+_ZIP_UNREAD_NOTE = ("this file's zip directory could not be read here (it may be an incomplete "
+                    "download); unzip it and import the folder")
+
+
 def _safe_zip(path):
     """Open a zip, or return None if it is missing/unreadable/corrupt. Note: zipfile.BadZipFile is
     NOT an OSError subclass (it derives directly from Exception), so both must be caught. This lets a
@@ -85,7 +89,8 @@ def _safe_zip(path):
     gap, never a traceback. The end record is read first (classify.zip_directory), and a zip whose
     end records are not read here, or whose directory is over classify's limits, is not opened: a
     note says so and how to import it instead (P102; the inbox proposes a zip it could not list when
-    its name says it is an export)."""
+    its name says it is an export). A zip file it does not open gets one note, so a caller that gets
+    None for a zip file prints none of its own."""
     if Path(str(path)).is_file():
         directory = _classify.zip_directory(path)
         refused = _classify.zip_refusal(directory)
@@ -93,24 +98,14 @@ def _safe_zip(path):
             _note(f"this zip is too large to read here ({refused}); unzip it and import the folder")
             return None
         if directory is None:
-            _note("this file's zip directory could not be read here (it may be an incomplete "
-                  "download); unzip it and import the folder")
+            _note(_ZIP_UNREAD_NOTE)
             return None
     try:
         return zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile):
+        if Path(path).is_file():  # its end record reads, its directory does not: a damaged download
+            _note(_ZIP_UNREAD_NOTE)
         return None
-
-
-def _zip_member_text(zip_path, name_contains):
-    z = _safe_zip(zip_path)
-    if z is None:
-        return None
-    with z:
-        for n in z.namelist():
-            if name_contains.lower() in n.lower() and n.lower().endswith(".csv"):
-                return _td.decode_text(z.read(n))[0]
-    return None
 
 
 # ── YouTube Studio CSV (header-driven; the ONLY revenue source) ──────────────
@@ -184,18 +179,23 @@ def parse_youtube_studio_csv(path_or_text):
 
 
 def parse_youtube_studio_zip(zip_path):
-    text = _zip_member_text(zip_path, "table data")
-    if text is None:
-        # fall back to any csv that has a "Content" header
-        z = _safe_zip(zip_path)
-        if z is not None:
-            with z:
-                for n in z.namelist():
-                    if n.lower().endswith(".csv"):
-                        t = _td.decode_text(z.read(n))[0]
-                        if t.splitlines() and "content" in t.splitlines()[0].lower():
-                            text = t
-                            break
+    """The Studio table CSV in an export zip ("Table data", else any CSV whose first line names a
+    Content column), opened once, so a zip _safe_zip does not open gives one note."""
+    z = _safe_zip(zip_path)
+    if z is None:
+        return []
+    text = None
+    with z:
+        csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
+        table = next((n for n in csvs if "table data" in n.lower()), None)
+        if table is not None:
+            text = _td.decode_text(z.read(table))[0]
+        else:  # fall back to any csv that has a "Content" header
+            for n in csvs:
+                t = _td.decode_text(z.read(n))[0]
+                if t.splitlines() and "content" in t.splitlines()[0].lower():
+                    text = t
+                    break
     return parse_youtube_studio_csv(text) if text else []
 
 
@@ -354,17 +354,18 @@ def _is_path_text(value) -> bool:
 
 
 def _tiktok_zip_text(zip_path):
-    """The text of the export JSON inside a TikTok data zip (user_data_tiktok.json first), or None."""
+    """(text, opened): the text of the export JSON inside a TikTok data zip (user_data_tiktok.json
+    first), or None; opened is False when _safe_zip did not open the zip, which it has said."""
     z = _safe_zip(zip_path)
     if z is None:
-        return None
+        return None, False
     with z:
         names = z.namelist()
         for want in _TIKTOK_MEMBERS:
             for n in names:
                 if n.replace("\\", "/").rsplit("/", 1)[-1].lower() == want:
-                    return _td.decode_text(z.read(n))[0]
-    return None
+                    return _td.decode_text(z.read(n))[0], True
+    return None, True
 
 
 def parse_tiktok_dyi(path_or_obj):
@@ -373,10 +374,11 @@ def parse_tiktok_dyi(path_or_obj):
     if isinstance(path_or_obj, (dict, list)):
         obj = path_or_obj
     elif _is_path_text(path_or_obj) and str(path_or_obj).lower().endswith(".zip"):
-        text = _tiktok_zip_text(path_or_obj)
+        text, opened = _tiktok_zip_text(path_or_obj)
         if text is None:
-            _note("no user_data_tiktok.json or user_data.json in this zip (choose JSON as the file "
-                  "format when you request your TikTok data)")
+            if opened:  # a zip _safe_zip did not open has its own note
+                _note("no user_data_tiktok.json or user_data.json in this zip (choose JSON as the file "
+                      "format when you request your TikTok data)")
             return []
         obj = json.loads(text)
     else:
@@ -648,6 +650,37 @@ def selftest():
            from_bad == [] and any("incomplete download" in ln for ln in _lines3))
         ok("a header-only CSV with unrecognised column names gives [] and no note",
            from_hdr == [] and not any("column names" in ln for ln in _lines3))
+        # A zip _safe_zip does not open gives one note per parser, and no parser adds one of its own:
+        # a zip over the limits, and one whose end record reads but whose directory does not.
+        _bent = Path(_td_tt) / "bent.zip"
+        _bent.write_bytes(_classify._zip_bytes(["user_data_tiktok.json"]).replace(b"PK\x01\x02", b"PK\x01\x03"))
+
+        def _notes_of(fn, arg):
+            buf = _io_n.StringIO()
+            with _cl_n.redirect_stderr(buf):
+                got = fn(arg)
+            return got, [ln for ln in buf.getvalue().splitlines() if ln.startswith("note: ")]
+        _shut = {(name, fn.__name__): _notes_of(fn, str(name))
+                 for name in (_many, _bent) for fn in (parse_tiktok_dyi, parse_youtube_studio_zip)}
+        ok("a zip that is not opened gives [] and one note, the refusal or the damaged download, from "
+           "the TikTok and Studio parsers alike",
+           all(got == [] and len(lines) == 1 for got, lines in _shut.values())
+           and all("too large to read here" in lines[0] for (name, _f), (_g, lines) in _shut.items()
+                   if name == _many)
+           and all("incomplete download" in lines[0] for (name, _f), (_g, lines) in _shut.items()
+                   if name == _bent))
+        # A zip whose directory classify does not read is not opened, even where this Python's
+        # zipfile would open it (the fake ZIP64 locator on a Python without the CVE-2025-8291 fix):
+        # zip_directory is stubbed to report no directory for a readable TikTok zip.
+        _real_zd = _classify.zip_directory
+        _classify.zip_directory = lambda _path: None
+        try:
+            _unread = _notes_of(parse_tiktok_dyi, str(_both))
+        finally:
+            _classify.zip_directory = _real_zd
+        ok("a zip whose directory classify does not read is not opened, with one note, even when "
+           "zipfile could open it",
+           _unread[0] == [] and len(_unread[1]) == 1 and "incomplete download" in _unread[1][0])
 
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})

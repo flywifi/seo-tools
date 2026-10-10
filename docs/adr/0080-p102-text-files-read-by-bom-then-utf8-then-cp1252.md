@@ -49,9 +49,12 @@ the WebVTT format allows beside `hh:mm:ss.ttt`. The files Creator OS writes keep
   trips, and is skipped as binary only when the decoded text holds a NUL character. Its record
   names the encoding.
 - A BOM can be put in front of text in another encoding, and a reader that ignores the mark then
-  reads that text while the decoded reading does not. Behind a UTF-16 or UTF-32 BOM the screen
-  therefore also reads the bytes as UTF-8 and through Python's `utf-16` codec, which takes a UTF-32
-  LE mark for a UTF-16 LE one, and keeps the reading with the highest score.
+  reads that text while the decoded reading does not: as UTF-8, where a reader may drop a NUL byte
+  or show it as a space, or in one fixed byte order whatever order the mark names. Behind a UTF-16
+  or UTF-32 BOM the screen therefore also reads the bytes after the mark as UTF-8, that reading with
+  its NUL bytes dropped and with them as spaces, and UTF-16 LE and BE (behind a UTF-32 mark, UTF-32
+  LE and BE too), and keeps the reading with the highest score. UTF-32 text behind a UTF-16 mark
+  decodes to NUL characters, which the binary rule already skips.
 
 ```sources
 [

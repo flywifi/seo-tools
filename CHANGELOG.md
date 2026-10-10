@@ -50,15 +50,20 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 - P102 (import notes): `import_parse` reads a TikTok data zip through its JSON member instead of
   stopping with a JSONDecodeError, and prints a `note:` line on stderr for a `.tgz` Takeout and for
   a Studio CSV none of whose column names it recognises (another language); the wizard's import
-  screen and a done job's log show those lines.
+  screen and a done job's log show those lines. A zip it does not open (over the limits, or one
+  whose directory cannot be read) gets one note from the Studio and TikTok parsers alike, and the
+  TikTok parser no longer adds a second note saying the export JSON is missing.
 - P102 (UTF-16 text in the injection screen): `injection_scan.scan_file` decodes through
   `textdecode`, and a file that starts with a UTF-16 or UTF-32 byte-order mark is decoded before
   the binary sniff, so a subtitle saved by Windows PowerShell's `Out-File` is screened and can be
   proposed; before, a UTF-16 file was skipped as binary, since its text holds NUL bytes, and held.
-  Behind such a mark the screen also reads the bytes as UTF-8 and through Python's `utf-16` codec
-  and keeps the reading with the highest score (`verdict_reading` names it when it is not the
-  decoded one), so a mark put in front of plain ASCII or UTF-16 text does not turn a flagged
-  file clean. The record names the encoding. The selftest's oversize checks run in a temporary
+  Behind such a mark the screen also reads the bytes after it as UTF-8 (and, when that reading
+  holds NUL bytes, with each one dropped and with each one as a space), as UTF-16 LE and BE, and
+  behind a UTF-32 mark as UTF-32 LE and BE, and keeps the reading with the highest score
+  (`verdict_reading` names it when it is not the decoded one). Its selftest flags each of these
+  behind a mark: plain ASCII text, UTF-16 or UTF-32 text in the byte order opposite to the mark's,
+  and ASCII whose spaces, or one byte inside each word, are NUL bytes. The record names the
+  encoding. The selftest's oversize checks run in a temporary
   folder that is removed afterwards; it left about 48 MB, a 50 MB sparse file, per run.
 - P102 (text files read as saved): `shared/docintel/textdecode.py` decodes a text file by
   byte-order mark (UTF-32, UTF-8, UTF-16), then strict UTF-8, then cp1252, and labels which rule
@@ -67,8 +72,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `Out-File` (UTF-16) or `Set-Content` (cp1252) reads as written instead of giving 0 segments or
   replaced accents, and a YouTube Studio CSV saved with a BOM imports its rows.
   `transcripts.parse` and its `--normalize` output gain an `encoding` field, and a text or
-  subtitle file that starts with `[` or `{` and does not parse as JSON (`[Music]`, say) is read as
-  text or as a subtitle instead of stopping with a JSONDecodeError. The extractor no longer guesses
+  subtitle file that starts with `[` or `{` and does not parse as JSON (`[Music]`, say), or holds
+  JSON of another shape (a field of the wrong type, a number `float()` cannot hold, nesting past the
+  recursion limit), is read as text or as a subtitle instead of stopping with an error; a `.json`
+  file still raises. The extractor no longer guesses
   UTF-16 without a BOM, which misread even-length cp1252 files; its CSV reader takes the encoding
   `textdecode` gives the first MiB and then reads rows as a stream (`textdecode.CODECS`).
   `wer.py` gains a selftest and leaves the selftest exemptions.

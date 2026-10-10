@@ -1223,16 +1223,20 @@ def _selftest_checks() -> int:
        and not s16["needs_review"])
     a16 = approve(w16, {"proposals": s16["proposals"]}, ledger_path=Path(tempfile.mkdtemp()) / "w16.json")
     ok("approve moves the clean UTF-16 subtitle", a16["moved"] == ["Inbox/talk16.srt"] and not a16["refused"])
-    # A UTF-16 mark put in front of plain ASCII text does not hide the payload from the screen.
+    # A UTF-16 mark put in front of plain ASCII text, or of UTF-16 text in the other byte order,
+    # does not hide the payload from the screen.
     (w16 / "Inbox" / "masked.srt").write_bytes(_codecs_w.BOM_UTF16_BE + (srt + "\n" + poison).encode("ascii"))
+    (w16 / "Inbox" / "flipped.srt").write_bytes(_codecs_w.BOM_UTF16_BE + (srt + "\n" + poison).encode("utf-16-le"))
     sm = scan(w16, ledger={})
-    am = approve(w16, {"proposals": [prop_for(w16, "masked.srt", offline_pattern_scan=clean_rec)]},
+    am = approve(w16, {"proposals": [prop_for(w16, n, offline_pattern_scan=clean_rec)
+                                     for n in ("masked.srt", "flipped.srt")]},
                  ledger_path=Path(tempfile.mkdtemp()) / "wm.json")
-    ok("scan seals a subtitle whose UTF-16 mark sits in front of ASCII text carrying the payload, and "
-       "approve refuses a clean proposal for it",
-       "Inbox/masked.srt" in [e["file"] for e in sm["quarantined"]]
-       and "Inbox/masked.srt" not in [e["file"] for e in sm["proposals"]]
-       and not am["moved"] and "SEAL-TERMINAL" in am["refused"][0]["why"])
+    ok("scan seals a subtitle whose UTF-16 mark sits in front of ASCII text, or of UTF-16 LE text "
+       "behind a BE mark, carrying the payload, and approve refuses a clean proposal for each",
+       {"Inbox/masked.srt", "Inbox/flipped.srt"} <= {e["file"] for e in sm["quarantined"]}
+       and not {"Inbox/masked.srt", "Inbox/flipped.srt"} & {e["file"] for e in sm["proposals"]}
+       and not am["moved"] and len(am["refused"]) == 2
+       and all("SEAL-TERMINAL" in r["why"] for r in am["refused"]))
 
     # P102: an oversize text file is read only up to injection_scan's max_bytes, so a clean verdict
     # for that part neither routes it from scan nor lets approve move it; a flag in that part seals.
@@ -1579,6 +1583,9 @@ def _selftest_checks() -> int:
         "yt-backslash.zip": (zb(["Takeout\\YouTube and YouTube Music\\video metadata\\videos.csv"]),
                              "youtube-takeout"),
         "takeout-of-my-instagram.zip": (zb(["your_instagram_activity/media/posts_2.json"]), "instagram-dyi"),
+        "my-data-2026.zip": (zb(["instagram-me-20261001/your_instagram_activity/media/posts_1.json"]),
+                             "instagram-dyi"),
+        "drive-backup.zip": (zb(["Takeout/Drive/My YouTube scripts/notes.txt"]), None),
     }
     for name, (raw, _kind) in exports.items():
         (ex / "Inbox" / name).write_bytes(raw)
@@ -1593,10 +1600,11 @@ def _selftest_checks() -> int:
     unknown_x = {e["file"].split("/", 1)[1] for e in sx["unknown"]}
     ok("a zip of photos, a lone table and a file that is not a zip stay unknown",
        {"holiday-photos.zip", "report-tables.zip", "broken.zip"} <= unknown_x)
-    ok("a Takeout without a YouTube folder, a Takeout folder below the root, a posts_1.json or "
-       "reels.json outside an Instagram folder, and a user_data.json stay unknown",
+    ok("a Takeout without a YouTube folder directly under Takeout/ (one with a YouTube name deeper "
+       "down included), a Takeout folder below the root, a posts_1.json or reels.json outside an "
+       "Instagram folder, and a user_data.json stay unknown",
        {"photos-backup.zip", "mail-backup.zip", "nested-backup.zip", "folder-copy.zip", "blog-backup.zip",
-        "app-backup.zip"} <= unknown_x)
+        "app-backup.zip", "drive-backup.zip"} <= unknown_x)
     held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}
     ok("a zip with too many files to list, and no name hint, is held with a note naming the import screen",
        "archive-of-everything.zip" in held_x

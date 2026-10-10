@@ -6195,7 +6195,8 @@ def _selftest_p101() -> int:
         _left = sorted(p.name for p in pathlib.Path(_ib_dir.name).glob("creator-os-import-*.json"))
         _kept_other = []
         (pathlib.Path(_ib_dir.name) / "elsewhere").mkdir()
-        for _other_name in ("notes.json", "creator-os-import-keep.txt", "elsewhere/creator-os-import-x.json"):
+        for _other_name in ("notes.json", "creator-os-notes.json", "creator-os-import-keep.txt",
+                            "elsewhere/creator-os-import-x.json"):
             _other_ib = pathlib.Path(_ib_dir.name) / _other_name
             _other_ib.write_text("{}", encoding="utf-8")
             _set(import_batch_file=str(_other_ib), import_batch_token="t")
@@ -6228,7 +6229,7 @@ def _selftest_p101() -> int:
     check(_replaced and _after_ok == ("", False, True, True) and _after_fail == ("", False) and _left == [],
           f"the parsed import batch is left in the temp folder ({_replaced}, {_after_ok}, {_after_fail}, "
           f"{_left})")
-    check(_kept_other == [(True, "", "")] * 3,
+    check(_kept_other == [(True, "", "")] * 4,
           f"the batch cleanup deletes a recorded file not named creator-os-import-*.json in the temp "
           f"folder ({_kept_other})")
     check(_pending_kept_ib and _partial_ib == ([], True),

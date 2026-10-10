@@ -336,6 +336,12 @@ def selftest() -> int:
         ok("an end record at the very end is read first, as zipfile reads it, even when its own fields "
            "hold the signature bytes",
            got_s is not None and got_s["entries"] == 0x0605)
+        commented_sig = bytearray(selfsig)
+        commented_sig[ep + 20:ep + 22] = struct.pack("<H", 1)  # a comment length, with no comment after
+        ok("an end record at the very end with a comment length that is not 0 is not read first: the "
+           "last signature in the window is, here inside its own fields, so it has no directory (zipfile "
+           "3.11 to 3.14 refuses this file)",
+           zip_directory(put("selfsig-comment.zip", bytes(commented_sig))) is None)
         got_t = zip_directory(put("trailer.zip", plain + b"\x00" * (1 << 16)))
         ok("an end record at the first byte of zipfile's search window is found",
            got_t is not None and got_t["entries"] == 2)

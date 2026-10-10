@@ -2591,8 +2591,8 @@ _MUTANTS = (
      '                return _td.read_text_file(p)[0]\n',
      '                return p.read_text(encoding="utf-8", errors="replace")\n'),
     ('IP3 a zip member read as UTF-8 with replacement', 'import_parse.py',
-     '            if name_contains.lower() in n.lower() and n.lower().endswith(".csv"):\n                return _td.decode_text(z.read(n))[0]\n',
-     '            if name_contains.lower() in n.lower() and n.lower().endswith(".csv"):\n                return z.read(n).decode("utf-8", "replace")\n'),
+     '            text = _td.decode_text(z.read(table))[0]\n',
+     '            text = z.read(table).decode("utf-8", "replace")\n'),
     # P102 push 4b: the injection screen decodes a UTF-16 or UTF-32 file before the binary sniff.
     ('SC1 a wide byte-order mark is not noticed', 'injection_scan.py',
      '    wide = raw.startswith(_WIDE_BOMS)\n',

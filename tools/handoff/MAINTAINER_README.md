@@ -117,8 +117,9 @@ Fail-closed for text (P61): a transcript the offline tier could not read as text
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
 A file with a UTF-16 or UTF-32 byte-order mark is decoded before the sniff (P102, ADR 0080), so a
 subtitle saved that way is screened; the selftest's UTF-16 cases cover scan and approve. Behind such
-a mark `injection_scan.scan_file` also screens the UTF-8 and `utf-16` readings of the bytes
-(`injection_scan._screen_readings`) and keeps the highest score, naming that reading under
+a mark `injection_scan.scan_file` also screens the other readings of the bytes after it (UTF-8,
+with NULs dropped and as spaces, and each fixed UTF-16 byte order, plus the UTF-32 ones behind a
+UTF-32 mark; `injection_scan._screen_readings`) and keeps the highest score, naming that reading under
 `verdict_reading` <!-- verify: tools/injection_scan.py::_screen_readings -->.
 `approve` refuses a text file the tier read only in part (`inbox._fully_screened`), and `scan` holds
 one with `inbox._OVERSIZE_NOTE`, so a transcript or a JSON or CSV export over 2 MB stays in the

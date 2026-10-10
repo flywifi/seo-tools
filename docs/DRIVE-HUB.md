@@ -199,8 +199,9 @@ injection guard still runs in a Claude session and remains authoritative. Becaus
 text format, one the offline tier cannot read as text (a byte payload that trips the binary sniff,
 an oversize file, or the tool being unavailable) is held for a session rather than routed
 unscreened. A subtitle saved as UTF-16, as Windows PowerShell's `Out-File` writes it, is decoded
-before that sniff and screened like any other text, and its bytes are also screened as UTF-8 and
-as Python's `utf-16` codec reads them, keeping the most cautious verdict (ADR 0080). A text-format file over the tier's 2 MB limit (a transcript, or a JSON or CSV export)
+before that sniff and screened like any other text, and the bytes after its mark are also
+screened as UTF-8 (with NUL bytes dropped, and as spaces) and in each fixed UTF-16 byte order (UTF-32
+too, behind a UTF-32 mark), keeping the most cautious verdict (ADR 0080). A text-format file over the tier's 2 MB limit (a transcript, or a JSON or CSV export)
 stays in the Inbox, since approve does not move a text file read only in part: split it into files
 under 2 MB and drop those in; one that cannot be split stays where it is for a Claude session to read. A file that cannot
 be read (on Windows, one another program holds open) is listed for review with the error, and the

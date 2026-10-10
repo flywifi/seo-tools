@@ -110,10 +110,13 @@ def parse(path):
     if ext == "json" or text.lstrip().startswith(("{", "[")):
         try:
             fmt, segments = "json", parse_json(text)
-        except ValueError:
+        except (ValueError, TypeError, OverflowError, RecursionError):
             if ext == "json":
                 raise
-            fmt = None  # a subtitle or text file that starts with "[Music]" or "{" is not JSON
+            # a subtitle or text file that starts with "[Music]" or "{" is not JSON, and neither is
+            # JSON of another shape: a field of the wrong type, a number float() cannot hold, or
+            # brackets nested past Python's recursion limit
+            fmt = None
     if fmt is None and (ext in ("srt", "vtt") or CUE.search(text)):
         fmt = "vtt" if (ext == "vtt" or "WEBVTT" in text[:32]) else "srt"
         segments = parse_srt_vtt(text)
@@ -335,6 +338,45 @@ def _selftest():
         except ValueError:
             broken_raised = True
         ok("a .json file that does not parse still raises", broken_raised)
+        # JSON of another shape in a text or subtitle file falls through too; in a .json it raises.
+        odd = {"typed.txt": b'[{"text": "hi", "start": [1]}]',
+               "typed.srt": b'{"segments": [{"text": "hi", "start": {"a": 1}}]}',
+               "word.txt": b'[{"text": "hi", "start": "soon"}]',
+               "huge.txt": b'[{"text": "hi", "start": 1' + b"0" * 400 + b'}]',
+               "deep.txt": b"[" * 50000,
+               "cues.txt": b"[Music]\n\n1\n00:00:01,000 --> 00:00:02,000\nHi there\n"}
+        got_odd = {}
+        for name, raw in odd.items():
+            (Path(td) / name).write_bytes(raw)
+            try:
+                got_odd[name] = parse(str(Path(td) / name))["format"]
+            except Exception as exc:  # noqa: BLE001 - the check below names what escaped
+                got_odd[name] = type(exc).__name__
+        ok("a text or subtitle file holding JSON of another shape is read by the text and subtitle "
+           "parsers (a wrongly typed field, a word or a 400-digit number for a time, 50,000 open "
+           "brackets), and a .txt with cues after [Music] is read as a subtitle",
+           got_odd == {"typed.txt": "text", "typed.srt": "srt", "word.txt": "text", "huge.txt": "text",
+                       "deep.txt": "text", "cues.txt": "srt"})
+        # The nesting depth that raises RecursionError depends on the Python build (3.14 sets it from
+        # the real stack), so a parser stub raises it here.
+        def _too_deep(_text):
+            raise RecursionError("maximum recursion depth exceeded while decoding a JSON array")
+        real_parse_json = globals()["parse_json"]
+        globals()["parse_json"] = _too_deep
+        try:
+            deep_fmt = parse(str(Path(td) / "typed.txt"))["format"]
+        except RecursionError:
+            deep_fmt = "RecursionError"
+        finally:
+            globals()["parse_json"] = real_parse_json
+        ok("a RecursionError from the JSON parser sends a text file to the text parser", deep_fmt == "text")
+        (Path(td) / "typed.json").write_bytes(odd["typed.txt"])
+        try:
+            parse(str(Path(td) / "typed.json"))
+            typed_raised = False
+        except TypeError:
+            typed_raised = True
+        ok("a .json file holding a wrongly typed field still raises", typed_raised)
 
     import contextlib
     import io

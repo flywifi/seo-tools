@@ -26,7 +26,7 @@
     "docs/DEPENDENCIES.md": "b5859b2963906ae1844e7c32a1f0d5c82f842634f9ce67ae5b2b16c025959a8d",
     "docs/DEPLOYMENT.md": "1b578bf8e80f396102ef5852c2c5c067be19ba94d06dd3b17971bf073622277c",
     "docs/DOC-MAINTENANCE.md": "d24ae8064e12c3a0883133c2e26540137dd601833f139881f3fda3061573aa60",
-    "docs/DRIVE-HUB.md": "9efcc8e08b0b2e8b984ceee259fddc51f8fc01d474c79f04dafed5d77a0216b7",
+    "docs/DRIVE-HUB.md": "1f0049add4f3295822874f5681a3890fbf4647d5e4b6c4098a936b79bca4dc37",
     "docs/FRESHNESS.md": "cb3baa4af60adc0fa23e92b6ea90813afb4c910ff021d7369b85de38392db16b",
     "docs/INSTALL-SCOPE.md": "a8fb9c89f7d37ee4aabf02c60b0cd063419951dfb4a72aa7eae713716e3c27e2",
     "docs/MAC-VALIDATION.md": "f31107b34b665afacd43cbcfba0986f8b2ceb19b24f987aeb331368392655478",
@@ -96,10 +96,10 @@
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
     "tools/env_paths.py": "4ce5ae30c445bbfe84ca8b02804fa1c0dcaed15e2c76671f68ba6e70a6339c58",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
-    "tools/handoff/MAINTAINER_README.md": "f02adebc504332ba02f34cebb6942226912ba88d72edef7bd9d1bd449b03694a",
-    "tools/handoff/inbox.py": "a852dc5a2e4cd262528ba59f8bf0c4923f239766351964197ade61d02054ebbd",
+    "tools/handoff/MAINTAINER_README.md": "1191f930a760abbe2c928d5867b30b40a31d60bfc44302709a08ed1658b6fa41",
+    "tools/handoff/inbox.py": "b875890fe6eec4aaf4499166f8acec06d89d6616dd625d80eda4b9672e8ff7c7",
     "tools/handoff/runner.py": "4c96ce933b8cd666e0941916872ab1cbe7a87ccf2a589e10a9e14276eaba6e04",
-    "tools/handoff/watcher.py": "34c17b8088039842dbcb1cd3b2b565f09349b5d468a8f6319d51d004b55049c4",
+    "tools/handoff/watcher.py": "dd2faf4b7d410d5fe76fe0787ade50f2d80938e2e69d8451aa2e56952dcaab42",
     "tools/library_complete.py": "a3b52fd07db897a2be2d03dcc6ca96bd13ce40ccd784472e9133339b6cf48b7f",
     "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a",
     "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8",
@@ -115,7 +115,7 @@
     "tools/videoedit/fcpxml.py": "82a286abc92df0f9abfc2092d694be0c5b5e258adbb5b63ee34d10e41eb676b4",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "0c3ed72727c1d2d36cc2b8eefdf7356d3082121958256babc82896d51ead11fe"
+    "tools/wizard.py": "f1234f681527d09dfb3d0f2e32db204a67bb74ad31b81feccfadb5094876cd38"
   },
   "excluded": {}
 }
