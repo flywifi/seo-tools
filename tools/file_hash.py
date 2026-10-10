@@ -2593,6 +2593,25 @@ _MUTANTS = (
     ('IP3 a zip member read as UTF-8 with replacement', 'import_parse.py',
      '                return _td.decode_text(z.read(n))[0]\n',
      '                return z.read(n).decode("utf-8", "replace")\n'),
+    # P102 push 4b: the injection screen decodes a UTF-16 or UTF-32 file before the binary sniff.
+    ('SC1 a wide byte-order mark is not noticed', 'injection_scan.py',
+     '    wide = raw.startswith(_WIDE_BOMS)\n',
+     '    wide = False\n'),
+    ('SC2 decoded text holding NULs is scanned', 'injection_scan.py',
+     '    if wide and "\\x00" in text[:4096]:\n',
+     '    if False:\n'),
+    ('SC3 the screen decodes UTF-8 with replacement again', 'injection_scan.py',
+     '    text, encoding = _td.decode_text(raw[:max_bytes], complete=not truncated)\n',
+     '    text, encoding = raw[:max_bytes].decode("utf-8", errors="replace"), "utf-8"\n'),
+    ('SC4 the record does not name its encoding', 'injection_scan.py',
+     '    rec["encoding"] = encoding\n',
+     '    pass\n'),
+    ('SC5 the UTF-32 BE mark is not a wide mark', 'injection_scan.py',
+     '_WIDE_BOMS = (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE, codecs.BOM_UTF32_BE)\n',
+     '_WIDE_BOMS = (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)\n'),
+    ('SC6 a cut file is decoded as a whole one', 'injection_scan.py',
+     'complete=not truncated)\n',
+     'complete=True)\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

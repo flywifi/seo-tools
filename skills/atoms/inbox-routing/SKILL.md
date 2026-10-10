@@ -117,7 +117,9 @@ which stays authoritative. The offline verdict is carried as `offline_pattern_sc
 `injection_scan_result` (the session field). Fail-closed for text: a transcript the offline tier
 cannot read as text (a byte payload that trips the binary sniff, an oversize file, or the tool
 being unavailable) is NOT routed unscreened; it is held for a session, since a real transcript is
-text and an unreadable one is a screening-evasion signal. `approve` does not move a text-format file
+text and an unreadable one is a screening-evasion signal. A file that starts with a UTF-16 or
+UTF-32 byte-order mark is decoded before the binary sniff, so a subtitle saved that way on Windows
+is screened as text. `approve` does not move a text-format file
 over the tier's 2 MB limit (a transcript, or a JSON or CSV export), since the tier read only its
 first part: ask the person to split it into files under 2 MB. The two sanctioned writers never
 overwrite: a same-name file in a dated `Processed/` or `Quarantine/` folder is kept alongside as

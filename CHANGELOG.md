@@ -13,6 +13,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (UTF-16 text in the injection screen): `injection_scan.scan_file` decodes through
+  `textdecode`, and a file that starts with a UTF-16 or UTF-32 byte-order mark is decoded before
+  the binary sniff, so a subtitle saved by Windows PowerShell's `Out-File` is screened and can be
+  proposed, and one carrying an injection payload is sealed; before, it was skipped as binary and
+  held. The record names the encoding. The selftest's oversize checks run in a temporary folder
+  that is removed afterwards; it left about 48 MB, a 50 MB sparse file, per run.
 - P102 (text files read as saved): `shared/docintel/textdecode.py` decodes a text file by
   byte-order mark (UTF-32, UTF-8, UTF-16), then strict UTF-8, then cp1252, and labels which rule
   decided (ADR 0080). The transcript parser, the word-error-rate tool, the offline text extractor

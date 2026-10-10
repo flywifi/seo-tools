@@ -100,6 +100,8 @@ file (a collision is kept as `name (2)`, so a sanctioned move never deletes):
   than leaving it in the drop folder counted as handled.
 Fail-closed for text (P61): a transcript the offline tier could not read as text (binary
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
+A file with a UTF-16 or UTF-32 byte-order mark is decoded before the sniff (P102, ADR 0080), so a
+subtitle saved that way is screened; the selftest's UTF-16 cases cover scan and approve.
 `approve` refuses a text file the tier read only in part (`inbox._fully_screened`), and `scan` holds
 one with `inbox._OVERSIZE_NOTE`, so a transcript or a JSON or CSV export over 2 MB stays in the
 Inbox until it is split; on other formats a cut record's verdict is kept,

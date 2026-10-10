@@ -1128,6 +1128,21 @@ def _selftest_checks() -> int:
     ok("a binary file the tier cannot read keeps the proposal's verdict, so a sealed record refuses",
        not ma["moved"] and "SEAL-TERMINAL" in ma["refused"][0]["why"])
 
+    # P102: a subtitle saved as UTF-16 (Windows PowerShell's Out-File) is screened as text: a clean
+    # one is proposed and moved, one carrying the payload is sealed.
+    import codecs as _codecs_w
+    w16 = Path(tempfile.mkdtemp()); (w16 / "Inbox").mkdir()
+    (w16 / "Inbox" / "talk16.srt").write_bytes(_codecs_w.BOM_UTF16_LE + srt.encode("utf-16-le"))
+    (w16 / "Inbox" / "poison16.srt").write_bytes(
+        _codecs_w.BOM_UTF16_LE + (srt + "\n" + poison).encode("utf-16-le"))
+    s16 = scan(w16, ledger={})
+    ok("scan proposes a clean UTF-16 subtitle and seals one carrying the payload",
+       [e["file"] for e in s16["proposals"]] == ["Inbox/talk16.srt"]
+       and [e["file"] for e in s16["quarantined"]] == ["Inbox/poison16.srt"]
+       and not s16["needs_review"])
+    a16 = approve(w16, {"proposals": s16["proposals"]}, ledger_path=Path(tempfile.mkdtemp()) / "w16.json")
+    ok("approve moves the clean UTF-16 subtitle", a16["moved"] == ["Inbox/talk16.srt"] and not a16["refused"])
+
     # P102: an oversize text file is read only up to injection_scan's max_bytes, so a clean verdict
     # for that part neither routes it from scan nor lets approve move it; a flag in that part seals.
     b2 = Path(tempfile.mkdtemp()); (b2 / "Inbox").mkdir()
