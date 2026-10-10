@@ -76,7 +76,10 @@ export archives). An archive is a `platform_export` when its name carries a hint
 (P102); that kind rides on the proposal as `export_kind`, through approve's `moved_details`, to
 `plan_followups`, which accepts only the kinds in `_CONTENT_KINDS`. The zip's directory size comes
 from `classify.zip_directory` (the end record, ZIP64 included) before anything is listed; over
-`classify.ZIP_MAX_ENTRIES` or `ZIP_MAX_DIRECTORY_BYTES` it is not listed. Content-gated categories (contracts, pitches, invoices) are listed as
+`classify.ZIP_MAX_ENTRIES` or `ZIP_MAX_DIRECTORY_BYTES` it is not listed. A file whose extension
+is in `_GOOGLE_POINTER_EXTS` (a Drive for desktop shortcut) is put in `needs_review` with
+`_POINTER_NOTE` before it is hashed or classified, so its read error on Windows (EINVAL) never
+happens and no ledger entry is made; it shows on each scan until it is removed. Content-gated categories (contracts, pitches, invoices) are listed as
 `needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
 FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
 (`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned

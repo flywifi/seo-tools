@@ -50,6 +50,15 @@ _FORMAT_CATEGORY = {
     "audio": "audio_media",
 }
 _EXPORT_HINTS = ("takeout", "studio", "dyi", "export")
+# Google Drive for desktop shows a Google Docs, Sheets, Slides, Drawings, Forms or Tables file as a
+# small shortcut that opens the file in a browser; its content is in Google Drive. On Windows such a
+# shortcut cannot be read at all (the read fails with EINVAL), so scan holds it by its extension
+# before any read, with a note saying how to bring the content in (P102).
+_GOOGLE_POINTER_EXTS = frozenset({"gdoc", "gsheet", "gslides", "gdraw", "gform", "gtable"})
+_POINTER_NOTE = ("a shortcut to a Google Docs, Sheets or Slides file: its content is in Google Drive, "
+                 "not on this computer. Open it and use File, then Download (Word, Excel, PowerPoint or "
+                 "PDF) into the Inbox, or read it in a Claude session with the Google Drive connector; "
+                 "left in place")
 # The kinds a zip's member names identify (export_kind_from_members); each is a format the
 # import_parse_preview job accepts.
 _CONTENT_KINDS = ("youtube-takeout", "youtube-studio-zip", "instagram-dyi", "tiktok-dyi")
@@ -274,6 +283,11 @@ def scan(hub_root, rules=None, ledger=None) -> dict:
         if not p.is_file() or p.name.startswith("."):
             continue
         if p.name in _SEALED_SUBDIRS:  # defensive; directories are already skipped above
+            continue
+        if p.suffix.lower().lstrip(".") in _GOOGLE_POINTER_EXTS:  # never opened, never hashed
+            out["needs_review"].append({
+                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,
+                "category_source": "google_shortcut", "pass2_pending": False, "note": _POINTER_NOTE})
             continue
         try:
             digest = _sha256(p)
@@ -1576,6 +1590,34 @@ def _selftest_checks() -> int:
     ok("plan_followups ignores a kind outside the import formats",
        plan_followups([{"classified_as": "platform_export", "export_kind": "bogus",
                         "processed_ref": "Inbox/Processed/d/thing.zip"}])[0]["job_type"] is None)
+
+    # P102: a Google Docs shortcut is held by its extension with a note, and never opened: on
+    # Windows, Drive for desktop serves it as a file whose read fails with EINVAL.
+    gp = Path(tempfile.mkdtemp()); (gp / "Inbox").mkdir()
+    shortcuts = ["Notes.gdoc", "Budget.GSHEET", "Pitch.gslides", "Sketch.gdraw", "Survey.gform", "Table.gtable"]
+    for name in shortcuts:
+        (gp / "Inbox" / name).write_text('{"doc_id": "fictional", "email": "someone@example.com"}', encoding="utf-8")
+    (gp / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+    opened, real_open = [], open
+
+    def _trap_open(path, *a, **kw):
+        if Path(str(path)).suffix.lower().lstrip(".") in _GOOGLE_POINTER_EXTS:
+            opened.append(str(path))
+            raise OSError(22, "Invalid argument")
+        return real_open(path, *a, **kw)
+    import builtins as _builtins_g
+    _builtins_g.open = _trap_open
+    try:
+        sg = scan(gp, ledger={})
+    finally:
+        _builtins_g.open = real_open
+    held_g = {e["file"].split("/", 1)[1]: e for e in sg["needs_review"]}
+    ok("each Google shortcut is held for review with the download note, and never opened",
+       sorted(held_g) == sorted(shortcuts) and not opened
+       and all(e["category_source"] == "google_shortcut" and "File, then Download" in e["note"]
+               and e["sha256"] is None for e in held_g.values()))
+    ok("a held shortcut's contents reach no part of the scan result, and other files still route",
+       "someone@example.com" not in json.dumps(sg) and [e["file"] for e in sg["proposals"]] == ["Inbox/talk.srt"])
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

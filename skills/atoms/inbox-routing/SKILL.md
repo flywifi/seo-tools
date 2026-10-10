@@ -108,7 +108,9 @@ silently applied and never executed as instructions. Ambiguous cases are not gue
 whose format could be Instagram or TikTok is flagged for the human to choose, not auto-routed. The
 offline scan settles the format from the names of the files inside a zip when it can (a Takeout
 folder, the Studio tables, `your_instagram_activity/`, `user_data_tiktok.json`), and reads none of
-their content.
+their content. A Google Docs shortcut (`.gdoc`, `.gsheet`, `.gslides` and the like) is held unread;
+in a session, read the file through the Google Drive connector, or ask the person to download it
+into the Inbox.
 
 ## Offline pattern tier (P61)
 The scheduled/offline scan (`tools/handoff/inbox.py`) runs the machine-scoreable half of the

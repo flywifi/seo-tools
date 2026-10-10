@@ -7403,7 +7403,41 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "google-drive-desktop-org-setup",
+      "name": "Set up Drive for desktop for your organization (Google Workspace Admin Help)",
+      "url": "https://knowledge.workspace.google.com/admin/drive/set-up-drive-for-desktop-for-your-organization",
+      "category": "os-platform",
+      "tier": "T1",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "fileinfo-google-drive-file-types",
+      "name": "Google Drive file types (FileInfo)",
+      "url": "https://fileinfo.com/help/google_drive_file_types",
+      "category": "platform-spec",
+      "tier": "T3",
+      "check_interval_days": 14,
+      "staleness_threshold_days": 14,
+      "last_checked": "2026-10-10",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "168633d180ac57663398a068eda74db2eb2aa441982db7a4d95ff9b0513ac893"
+  "_content_digest": "0ada7e8fc555f4ec3223db9c5bcb42839f0dda250a59097116ecee5a52765ac7"
 }

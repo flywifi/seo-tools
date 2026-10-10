@@ -170,7 +170,11 @@ YouTube Studio table beside its chart data or totals (English or Spanish file na
 whose file list is too large to check (more than 50,000 files, or a directory over 16 MB, read from
 its end record without listing it) is proposed by its name when the name says it is an export, and
 otherwise held for review with a pointer to the wizard's `/import` screen
-<!-- verify: tools/handoff/inbox.py::export_kind_from_members -->.
+<!-- verify: tools/handoff/inbox.py::export_kind_from_members -->. A Google Docs, Sheets, Slides,
+Drawings, Forms or Tables shortcut (`.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`, `.gtable`),
+which Drive for desktop shows for a file whose content stays in Google Drive, is held for review by
+its extension and never opened, with a note to download the file into the Inbox or read it with
+the Google Drive connector; on Windows such a shortcut cannot be read at all.
 Files that the injection guard quarantines are never routed. Approved files are recorded in the
 inbox ledger (`pipeline/inbox/`, template committed, real ledger local-only) so re-scans are
 idempotent.
@@ -280,6 +284,8 @@ declared below and registered in the source registry, so the currency system re-
   {"id": "google-drive-desktop-sync-modes", "name": "Google Drive Help - Stream and mirror files with Drive for desktop", "url": "https://support.google.com/drive/answer/13401938", "category": "os-platform", "tier": "T1", "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies."},
   {"id": "google-drive-desktop-macos", "name": "Google Drive Help - Use Drive for desktop on macOS", "url": "https://support.google.com/drive/answer/12178485", "category": "os-platform", "tier": "T1", "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later."},
   {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
-  {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"}
+  {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"},
+  {"id": "google-drive-desktop-org-setup", "name": "Set up Drive for desktop for your organization (Google Workspace Admin Help)", "url": "https://knowledge.workspace.google.com/admin/drive/set-up-drive-for-desktop-for-your-organization", "category": "os-platform", "tier": "T1"},
+  {"id": "fileinfo-google-drive-file-types", "name": "Google Drive file types (FileInfo)", "url": "https://fileinfo.com/help/google_drive_file_types", "category": "platform-spec", "tier": "T3"}
 ]
 ```

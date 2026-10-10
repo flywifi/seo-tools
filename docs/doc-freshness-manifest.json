@@ -11,7 +11,7 @@
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
         "tools/surface_workflow_check.py": "dffdf28644b2903d73d113bda8b7314520ec07a1b89c2862e3d6bab62b9c6828",
-        "skills/creator-core/evals/surface-workflows.json": "4a3bf8c497a5654b2d18cde8a84d00e07b1b5b2bf3e9bddd4984931425923372"
+        "skills/creator-core/evals/surface-workflows.json": "8f2a12501f9778d386be9eed62b0d68336ebf54f32c28d5414b9546936cdb5fc"
       }
     },
     "docs/AUDIT-PROTOCOL.md": {
@@ -136,7 +136,7 @@
         "tools/handoff/runner.py": "93ae40d2e4d04fd9c4be7b20be77289ab62eff114450fc31dc9a220183919340",
         "tools/handoff/watcher.py": "082802e32cf9ed111524e4fb91c147d8cd044858a2ce9fddbe9d0acc9e2c5de1",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "7bb22010a648f6fab7a72696bd8d59f027e19b3199c4287cb325ea8272b4adc4",
+        "tools/handoff/inbox.py": "3ae93f564a3a46947371af7bb9a4815934661a0f2ba5665039edd6e0ca34b98b",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15",
         "tools/project_docs.py": "15835534381e7ec3abaa57a03aebacb658a05887e75237e6f971f34184763069"
       }
@@ -147,7 +147,7 @@
         "tools/handoff/runner.py": "93ae40d2e4d04fd9c4be7b20be77289ab62eff114450fc31dc9a220183919340",
         "tools/handoff/watcher.py": "082802e32cf9ed111524e4fb91c147d8cd044858a2ce9fddbe9d0acc9e2c5de1",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "7bb22010a648f6fab7a72696bd8d59f027e19b3199c4287cb325ea8272b4adc4",
+        "tools/handoff/inbox.py": "3ae93f564a3a46947371af7bb9a4815934661a0f2ba5665039edd6e0ca34b98b",
         "shared/docintel/inbox_rules.json": "aba8c4d25ec1bb01339fbcaee1876bc5f24556a560031da594fa36cd6bd0fb15"
       }
     }

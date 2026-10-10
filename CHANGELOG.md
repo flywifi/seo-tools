@@ -13,6 +13,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (Google Docs shortcuts in the Inbox): a `.gdoc`, `.gsheet`, `.gslides`, `.gdraw`, `.gform`
+  or `.gtable` file (Drive for desktop's shortcut to a file whose content stays in Google Drive) is
+  held for review by its extension, before any read, with a note to download it into the Inbox or
+  read it through the Google Drive connector. On Windows such a shortcut cannot be read (EINVAL),
+  and the scan used to hold it as unreadable, telling the person to close it. The suite's W8 and
+  gap SW-G11 follow.
 - P102 (exports recognised by their contents): the inbox scan reads a zip's member names
   (`inbox.export_kind_from_members`; nothing is extracted) and proposes a YouTube Studio export
   (its table beside the chart data or totals, in English or Spanish file names), a Takeout, an

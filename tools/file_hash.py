@@ -1858,8 +1858,8 @@ _MUTANTS = (
      '    return TOOL_TIMEOUTS.get(rel, 900)\n'),
     # P102 push 2: the reviewer's second-pass rows, and the size hold for cut text files.
     ('B-IN1 the unreadable file is listed as unknown', 'handoff/inbox.py',
-     '            out["needs_review"].append({\n                "file": f"Inbox/{p.name}", "sha256": None,',
-     '            out["unknown"].append({\n                "file": f"Inbox/{p.name}", "sha256": None,'),
+     '            out["needs_review"].append({\n                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,\n                "category_source": "unreadable",',
+     '            out["unknown"].append({\n                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,\n                "category_source": "unreadable",'),
     ('B-IN2 the unreadable entry is tagged content_pending', 'handoff/inbox.py',
      '"category_source": "unreadable", "pass2_pending": True,',
      '"category_source": "content_pending", "pass2_pending": True,'),
@@ -2682,6 +2682,22 @@ _MUTANTS = (
     ('WI2 the import screen shows the generic line over a note', 'wizard.py',
      '        elif said:\n            notes.append(f"{plat}: {said[0]}")\n',
      '        elif False:\n            notes.append(f"{plat}: {said[0]}")\n'),
+    # P102 push 4b: Google Drive shortcut files are held by extension and never opened.
+    ('GP1 a Google shortcut is not held', 'handoff/inbox.py',
+     '        if p.suffix.lower().lstrip(".") in _GOOGLE_POINTER_EXTS:  # never opened, never hashed\n',
+     '        if False:\n'),
+    ('GP2 the shortcut extension is matched case-sensitively', 'handoff/inbox.py',
+     '        if p.suffix.lower().lstrip(".") in _GOOGLE_POINTER_EXTS:  # never opened, never hashed\n',
+     '        if p.suffix.lstrip(".") in _GOOGLE_POINTER_EXTS:  # never opened, never hashed\n'),
+    ('GP3 Slides shortcuts are not held', 'handoff/inbox.py',
+     '_GOOGLE_POINTER_EXTS = frozenset({"gdoc", "gsheet", "gslides", "gdraw", "gform", "gtable"})\n',
+     '_GOOGLE_POINTER_EXTS = frozenset({"gdoc", "gsheet", "gdraw", "gform", "gtable"})\n'),
+    ('GP4 the shortcut note gives the old advice', 'handoff/inbox.py',
+     '"not on this computer. Open it and use File, then Download (Word, Excel, PowerPoint or "',
+     '"not on this computer. Close the file if it is open in another program (Word, Excel, PowerPoint or "'),
+    ('GP5 the shortcut is hashed before it is held', 'handoff/inbox.py',
+     '                "file": f"Inbox/{p.name}", "sha256": None, "classified_as": None,\n                "category_source": "google_shortcut",',
+     '                "file": f"Inbox/{p.name}", "sha256": _sha256(p), "classified_as": None,\n                "category_source": "google_shortcut",'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
