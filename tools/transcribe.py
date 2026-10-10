@@ -987,6 +987,17 @@ def selftest():
            _det_w is None and _det_l == "main" and _d_cpl["backend"] != "whisper.cpp"
            and _d_cpl["next_action"] == vc_runtime_remedy() and _sb_cpl["backend"] != "whisper.cpp"
            and _sb_cpl["install"] == vc_runtime_remedy())
+        # The other direction, so a lookup that judges by the real system is caught on a Windows host
+        # too: on a simulated Mac, a whisper-cli outside a .exe is the engine the doctor and the
+        # selection pick.
+        shutil.which = lambda name, *a, **k: "/opt/homebrew/bin/whisper-cli" if name == "whisper-cli" else None
+        try:
+            _d_mac_cli = doctor(os_name="darwin", arch="arm64", fw_probe=_pr[0], brew_present=True)
+            _sb_mac_cli = select_backend(os_name="darwin", arch="arm64", cuda=False, fw_probe=_pr[0])
+        finally:
+            shutil.which = _real_which
+        ok("on a simulated Mac with whisper-cli on PATH, the doctor and the selection pick whisper.cpp",
+           _d_mac_cli["backend"] == "whisper.cpp" and _sb_mac_cli["backend"] == "whisper.cpp")
         ok("with msvcp140.dll present (an older runtime), a load failure points at a reinstall, not the runtime",
            _d_older["vc_runtime_missing"] == ["vcruntime140_1.dll"] and _d_older["vc_runtime_needed"] is False
            and "could not load" in _d_older["steps"][1]["what_it_is"]
