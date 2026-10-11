@@ -497,11 +497,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   a GitHub Windows runner took longer than 900 s, and the Windows CI job failed. The job's
   45-minute limit still bounds a hang.
 - P102 (file_hash child limit): `file_hash --selftest` gives a child process 600 s, up from
-  240 s (`file_hash._CHILD_TIMEOUT`), inside the sweep's 1800 s for that tool. A child of drift
-  guard rows runs `sync_check._selfproof` once per row, and that entry scans the live tree for
-  invariant 62; on a GitHub Windows runner such a child ran past 240 s and the Windows CI job
-  failed. Invariant 62's scan keeps a module's parsed tree and its walk for the rest of the scan;
-  its result on the live tree is unchanged and its self-proof passes as before.
+  240 s (`file_hash._CHILD_TIMEOUT`). A child of drift guard rows runs `sync_check._selfproof`
+  once per row, and that entry scans the live tree for invariant 62, so a child of 12 such rows
+  can need more than 240 s on a loaded Windows computer. The limit bounds one child; the
+  selftest sweep's cap for the tool bounds the whole run. Invariant 62's scan keeps a module's
+  parsed tree and its walk for the rest of the scan; its result on the live tree is unchanged
+  and its self-proof passes as before. The self-proof also reads a module in a `tools/`
+  subfolder that does not parse, and UTF-16 static files with upper-case `.JS` and `.css`
+  suffixes, each reported as unread.
 - P102 (file_hash cap and worker count): the selftest sweep's cap for `tools/file_hash.py` grows
   in proportion when its mutation run uses fewer than four child processes at a time
   (`selftest_sweep._tool_timeout`, which reads `file_hash.mutant_jobs()`): 3600 s with two, 7200 s

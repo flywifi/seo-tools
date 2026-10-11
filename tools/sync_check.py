@@ -5081,6 +5081,7 @@ def _ct_fixture(t, em, d):
         "shared/x/badprog.py": "x = (\n",
         "bad.json": '{"note": "not JSON',
         "tools/broken.py": "import http.server\nclass P(http.server.BaseHTTPRequestHandler):\n    x = (\n",
+        "tools/sub/broken2.py": "x = (\n",
         "tools/testdoc.py": ('"""Usage ' + em + ' read only by its selftest."""\n'
                              "def selftest():\n"
                              "    return __doc__\n"),
@@ -5091,6 +5092,8 @@ def _ct_fixture(t, em, d):
     (t / "tools" / "web" / "static" / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n\0\0\0" + em.encode("utf-8"))
     (t / "tools" / "web" / "static" / "legacy.html").write_bytes(b"<p>cp1252 \x97 text</p>\n")
     (t / "tools" / "web" / "static" / "u16.html").write_bytes(("<p>UTF-16 " + em + " text</p>\n").encode("utf-16"))
+    (t / "tools" / "web" / "static" / "U16.JS").write_bytes(("var s = 'UTF-16 " + em + "';\n").encode("utf-16"))
+    (t / "tools" / "web" / "static" / "u16.css").write_bytes(("p::after { content: '" + em + "'; }\n").encode("utf-16"))
     kinds = {"tools/web/page.py": "page", "tools/sock.py": "page", "tools/server.py": "mcp",
              "tools/web/static/app.js": "static", "tools/web/static/index.html": "static",
              "tools/web/static/style.css": "static", "tools/web/static/sub/x.js": "static",
@@ -5101,7 +5104,8 @@ def _ct_fixture(t, em, d):
              "impl/paste.md": "text", "impl/box.md": "text", "impl/box.txt": "text",
              "tools/fromlib.py": "program", "tools/pkg/__init__.py": "program", "tools/pkg/mod.py": "program",
              "tools/pkg2/__init__.py": "program", "tools/crmod.py": "program", "shared/x/badprog.py": "program",
-             "bad.json": "data", "tools/testdoc.py": "command", "tools/web/static/u16.html": "static"}
+             "bad.json": "data", "tools/testdoc.py": "command", "tools/web/static/u16.html": "static",
+             "tools/web/static/U16.JS": "static", "tools/web/static/u16.css": "static"}
     absent = {"tools/unreached.py", "shared/x/cache.local.json", "cache.local.json", "fixture.json",
               "impl/upload.md", "tools/testonly.py", "shared/x/hop2.py", "tools/testlib.py",
               "impl/testread.md", "impl/notes.local.md"}
@@ -5149,12 +5153,14 @@ def _creator_text_selfproof():
             return (f"creator-text: self-proof failed -- {sorted(absent & set(scanned))} was scanned (an "
                     f"unreached file, a .local. file, a path or a command named in test code, a file "
                     f"only copied, or a second import hop)")
-        want_unread = ["bad.json", "shared/x/badprog.py", "tools/broken.py", "tools/web/static/legacy.html",
-                       "tools/web/static/u16.html"]
+        want_unread = sorted(["bad.json", "shared/x/badprog.py", "tools/broken.py", "tools/sub/broken2.py",
+                              "tools/web/static/legacy.html", "tools/web/static/u16.html",
+                              "tools/web/static/U16.JS", "tools/web/static/u16.css"])
         if unread != want_unread:
             return (f"creator-text: self-proof failed -- unread files {unread}, expected {want_unread} (JSON "
-                    f"and Python that do not parse, a page module that does not parse, a cp1252 and a "
-                    f"UTF-16 static file)")
+                    f"and Python that do not parse, a page module and a module in a tools/ subfolder "
+                    f"that do not parse, a cp1252 static file, and UTF-16 static files with .html, "
+                    f"upper-case .JS and .css suffixes)")
         got, wrong = [], []
         for rel, line, frag in hits:
             m = _CREATOR_DASH_RE.search(frag)

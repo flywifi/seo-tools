@@ -4002,6 +4002,83 @@ _MUTANTS = (
     ('SWC-9 only an ImportError gives the four-worker cap', 'selftest_sweep.py',
      '    except Exception:  # noqa: BLE001 -- a file_hash that does not import fails its own target\n',
      '    except ImportError:  # noqa: BLE001 -- a file_hash that does not import fails its own target\n'),
+    # P102 Push 4d: the reviewer's rows for invariant 62's undiscovered report, its NUL branch, the
+    # parse cache and the shared walk, and for the model folder's home lookups.
+    ('IV62-UD1 a tools module that does not parse is not recorded', 'sync_check.py',
+     '            undiscovered.append(p.relative_to(root).as_posix())  # cannot tell whether it is a page\n',
+     '            pass  # cannot tell whether it is a page\n'),
+    ('IV62-UD2 undiscovered modules are not returned', 'sync_check.py',
+     '    return scanned, hits, sorted(set(unread) | set(undiscovered))\n',
+     '    return scanned, hits, sorted(set(unread))\n'),
+    ('IV62-UD3 an undiscovered module is recorded by its absolute path', 'sync_check.py',
+     '            undiscovered.append(p.relative_to(root).as_posix())  # cannot tell whether it is a page\n',
+     '            undiscovered.append(str(p))  # cannot tell whether it is a page\n'),
+    ('IV62-UD4 undiscovered only for top-level tools modules', 'sync_check.py',
+     '            undiscovered.append(p.relative_to(root).as_posix())  # cannot tell whether it is a page\n',
+     '            undiscovered.append(p.relative_to(root).as_posix()) if p.parent == root / "tools" else None  # cannot tell whether it is a page\n'),
+    ('IV62-NT1 a text file with a NUL is not reported', 'sync_check.py',
+     '                        unread.append(rel)  # text that is not UTF-8 (UTF-16, say)\n',
+     '                        pass  # text that is not UTF-8 (UTF-16, say)\n'),
+    ('IV62-NT2 .html dropped from the text suffixes', 'sync_check.py',
+     '_CT_TEXT_SUFFIXES = (".html", ".htm", ".js", ".mjs", ".css", ".svg", ".json", ".txt", ".md", ".xml")\n',
+     '_CT_TEXT_SUFFIXES = (".htm", ".js", ".mjs", ".css", ".svg", ".json", ".txt", ".md", ".xml")\n'),
+    ('IV62-NT3 the text suffix is compared case-sensitively', 'sync_check.py',
+     '                    if path.suffix.lower() in _CT_TEXT_SUFFIXES:\n',
+     '                    if path.suffix in _CT_TEXT_SUFFIXES:\n'),
+    ('IV62-NT4 only .html and .htm count as text', 'sync_check.py',
+     '_CT_TEXT_SUFFIXES = (".html", ".htm", ".js", ".mjs", ".css", ".svg", ".json", ".txt", ".md", ".xml")\n',
+     '_CT_TEXT_SUFFIXES = (".html", ".htm")\n'),
+    ('IV62-NT5 every static file with a NUL is reported', 'sync_check.py',
+     '                    if path.suffix.lower() in _CT_TEXT_SUFFIXES:\n',
+     '                    if True:\n'),
+    ('IV62-PC1 the parse cache returns the first tree for every path', 'sync_check.py',
+     '    if cache is not None and str(path) in cache:\n        return cache[str(path)]\n',
+     '    if cache:\n        return next(iter(cache.values()))\n'),
+    ('IV62-PC2 the parse cache stores None', 'sync_check.py',
+     '        cache[str(path)] = tree\n',
+     '        cache[str(path)] = None\n'),
+    ('IV62-PC3 the parse cache is keyed by file name', 'sync_check.py',
+     '    if cache is not None and str(path) in cache:\n        return cache[str(path)]\n    tree = None\n    src = _ct_source(path)\n    if src is not None:\n        try:\n            tree = ast.parse(src)\n        except (SyntaxError, ValueError):\n            tree = None\n    if cache is not None:\n        cache[str(path)] = tree\n',
+     '    if cache is not None and Path(path).name in cache:\n        return cache[Path(path).name]\n    tree = None\n    src = _ct_source(path)\n    if src is not None:\n        try:\n            tree = ast.parse(src)\n        except (SyntaxError, ValueError):\n            tree = None\n    if cache is not None:\n        cache[Path(path).name] = tree\n'),
+    ('IV62-PC4 a module cached as unparsable is skipped silently', 'sync_check.py',
+     '                tree = trees.get(str(path)) or ast.parse(src)  # a module parsed earlier in this scan\n',
+     '                tree = trees.get(str(path))\n                if tree is None:\n                    continue\n'),
+    ("IV62-SW1 a program's walk is cut to its first node", 'sync_check.py',
+     '        walked[str(prog)] = list(ast.walk(tree))\n',
+     '        walked[str(prog)] = list(ast.walk(tree))[:1]\n'),
+    ("IV62-SW2 every program reuses the first program's walk", 'sync_check.py',
+     '        walked[str(prog)] = list(ast.walk(tree))\n',
+     '        walked[str(prog)] = walked.get("first") or walked.setdefault("first", list(ast.walk(tree)))\n'),
+    ('IV62-SW3 the shared walk is not used for docstrings', 'sync_check.py',
+     '    docs = _ct_docstrings(tree, nodes)\n',
+     '    docs = _ct_docstrings(tree, nodes[:0])\n'),
+    ('IV62-SW4 the walk keeps every second node', 'sync_check.py',
+     '    nodes = list(ast.walk(tree)) if nodes is None else nodes  # walked once, read below four times\n',
+     '    nodes = list(ast.walk(tree))[::2] if nodes is None else nodes[::2]  # walked once, read below four times\n'),
+    ('MDIR-HS1 model_dir reads the home folder through expanduser', 'transcribe.py',
+     '    home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or str(HERE)\n',
+     '    home = os.path.expanduser("~")\n'),
+    ('MDIR-HS2 model_dir reads the home folder through Path.expanduser', 'transcribe.py',
+     '    home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or str(HERE)\n',
+     '    home = str(Path("~").expanduser())\n'),
+    ('MDIR-HS3 model_dir drops USERPROFILE for Path.home', 'transcribe.py',
+     '    home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or str(HERE)\n',
+     '    home = os.environ.get("HOME") or str(Path.home())\n'),
+    ('MDIR-HS4 fetch_model writes under Path.home', 'transcribe.py',
+     '    dest = model_dir(dest_dir)\n',
+     '    dest = Path(dest_dir) if dest_dir else Path.home() / ".creator-os" / "whisper-models"\n'),
+    ('MDIR-HS5 the model lookup reads expanduser', 'transcribe.py',
+     '    d = model_dir(explicit_dir)\n',
+     '    d = Path(explicit_dir) if explicit_dir else Path(os.path.expanduser("~")) / ".creator-os" / "whisper-models"\n'),
+    ('MDIR-HS6 fetch_model writes under Path.expanduser', 'transcribe.py',
+     '    dest = model_dir(dest_dir)\n',
+     '    dest = Path(dest_dir) if dest_dir else Path("~/.creator-os/whisper-models").expanduser()\n'),
+    ('MDIR-HS7 fetch_model drops USERPROFILE', 'transcribe.py',
+     '    dest = model_dir(dest_dir)\n',
+     '    dest = Path(dest_dir) if dest_dir else Path(os.environ.get("HOME") or Path.home()) / ".creator-os" / "whisper-models"\n'),
+    ('MDIR-HS8 the model lookup drops USERPROFILE', 'transcribe.py',
+     '    d = model_dir(explicit_dir)\n',
+     '    d = Path(explicit_dir) if explicit_dir else Path(os.environ.get("HOME") or Path.home()) / ".creator-os" / "whisper-models"\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -4201,10 +4278,11 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1) -
 
 
 # The parallel run: at most this many rows per child (a module with more is split, each part
-# scoring its own baseline), and the seconds a child may take. A child runs its module's entry once
-# per row plus its baseline, and sync_check's entry scans the live tree for invariant 62 each time,
-# so a child of sync_check rows on a loaded Windows runner needs more than 240 s (P102); 600 s stays
-# inside the selftest sweep's 1800-second limit for this tool (selftest_sweep.TOOL_TIMEOUTS).
+# scoring its own baseline), and the seconds one child may take. A child runs its module's entry
+# once per row plus its baseline, and sync_check's entry scans the live tree for invariant 62 each
+# time, so a child of 12 sync_check rows can need more than 240 s on a loaded Windows computer
+# (P102). The limit bounds one child; the selftest sweep's cap for this tool
+# (selftest_sweep._tool_timeout) bounds the whole run.
 _CHUNK_ROWS = 12
 _CHILD_TIMEOUT = 600
 
