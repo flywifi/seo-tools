@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""fetch_resilient.py — maintainer-grade resilient fetch for PUBLIC data, with the multi-prong
+"""fetch_resilient.py: maintainer-grade resilient fetch for PUBLIC data, with the multi-prong
 fallback chain kept gated from the conservative public crawler.
 
 PRONGS (first success wins; resilient_get(run_all=True) tries every one):
   1. browser_headers   stdlib urllib + full browser headers + gzip/deflate decode   (no deps)
   2. requests_session  requests.Session w/ browser headers (better TLS/redirects)   (needs requests)
-  3. playwright        real headless Chromium — runs JS, defeats most bot walls      (needs playwright)
+  3. playwright        real headless Chromium; runs JS, defeats most bot walls       (needs playwright)
   4. wayback           closest Internet Archive snapshot of the URL (archive.org)     (no deps)
 
 Importable: resilient_get(url) -> dict {ok,status,prong,final_url,content,note}.
@@ -105,7 +105,7 @@ def prong_playwright(url: str, timeout: float = 45.0) -> dict:
         from playwright.sync_api import sync_playwright
     except Exception:
         return {"ok": False, "status": None, "final_url": url, "content": b"",
-                "note": "playwright not installed — enable with: python3 tools/setup.py --install-deps "
+                "note": "playwright not installed; enable with: python3 tools/setup.py --install-deps "
                         "(user-only, into the repo's private .venv)"}
     try:
         with sync_playwright() as p:

@@ -50,8 +50,9 @@ all three; `py -3` and `python` run the same Python when both are installed.
   alternative (affects the whole computer): run as an administrator, it installs to
   `C:\Program Files\Git` and adds Git to the computer's PATH *(tested on Windows, in Windows
   Sandbox)*. What an administrator account sees with User Account Control on (the Windows prompt
-  that asks before a program changes the computer) is not yet tested on Windows. Open a new
-  terminal after the install, so it starts with the changed PATH.
+  that asks before a program changes the computer) is not yet tested on Windows. Afterwards, open
+  a new terminal from the Start menu, so it starts with the changed PATH; a terminal that was
+  already open may keep the old one *(not yet tested on Windows)*.
 - Or `scoop install git` (Scoop installs under your user folder). *(not yet tested on Windows)*
 - Line endings are set by the repository: `.gitattributes` checks text files out with LF and
   `.bat` files with CRLF, whatever `core.autocrlf` says. *(tested on Windows on a fresh clone)*

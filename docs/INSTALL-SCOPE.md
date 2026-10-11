@@ -78,7 +78,8 @@ can involve are listed under the table.
 | the repo's `.venv\` | the Python packages (`py -3 tools/setup.py --install-deps`) | `tools/setup.py::ensure_venv` |
 | the account's Python | the Python install manager's runtimes; its shortcuts go in `%LocalAppData%\Python\bin` | the Python documentation: the install manager "does not support installing runtimes per-machine" |
 | `%LOCALAPPDATA%\Programs\Git` | Git for Windows installed from a standard account | the installer's script falls back to the user's Programs folder when `C:\Program Files` is not writable; tested in Windows Sandbox |
-| `%USERPROFILE%\.creator-os\whisper-models` | downloaded whisper.cpp models | `tools/transcribe.py::model_dir` (HOME, else USERPROFILE) |
+| `%USERPROFILE%\scoop` | Scoop, and Node.js for the Microsoft 365 lane from it (`scoop install nodejs-lts`, the wizard's Windows Node.js step) | Scoop's README: run from a regular (non-admin) PowerShell, it installs to `C:\Users\<YOUR USERNAME>\scoop`; not yet tested on Windows |
+| `%USERPROFILE%\.creator-os\whisper-models` | downloaded whisper.cpp models | `tools/transcribe.py::model_dir` (HOME, else USERPROFILE); the folder choice tested on Windows, a download there not yet |
 | `%USERPROFILE%\AppData\Local\ms-playwright` | Playwright's browser, which `--install-deps` downloads | Playwright's documentation (Managing browser binaries) |
 | `%APPDATA%\Claude\`, or the packaged app's `%LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude\` | the Claude Desktop settings file the wizard writes | `tools/wizard.py::_claude_config_targets` |
 
@@ -88,19 +89,29 @@ Machine-wide on Windows, labeled where the guidance names it:
 - Machine-wide alternative (affects the whole computer): the Git for Windows installer run as an
   administrator installs to `C:\Program Files\Git` and adds Git to the computer's PATH
   (`docs/SETUP_WINDOWS.md`, Step 1).
+- Machine-wide alternative (affects the whole computer): the Node.js installer from nodejs.org,
+  which the wizard's Windows Node.js step names after the Scoop route, installs to a `nodejs`
+  folder under Program Files and adds it to the computer's PATH (its WiX source leaves the
+  package's install scope at the WiX default, per machine, and marks its PATH entry as a system
+  one).
 - The traditional python.org installer's machine-wide py launcher option and Anthropic's full
   Claude Desktop install, both labeled in `docs/SETUP_WINDOWS.md`.
 
-To check that an install stayed per-user on Windows, run these two lines in PowerShell before
+To check that an install stayed per-user on Windows, run these four lines in PowerShell before
 setup and again after it, and compare the output:
 
     Get-ChildItem $env:ProgramFiles | Select-Object -ExpandProperty Name
+    Get-ChildItem ${env:ProgramFiles(x86)} | Select-Object -ExpandProperty Name
     [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    Test-Path "$env:SystemRoot\py.exe"
 
-A per-user install changes the account's own PATH,
-`[Environment]::GetEnvironmentVariable('Path', 'User')`, and leaves both as they were. Installing
-the Visual C++ runtime from the wizard is a machine-wide change by design (the exceptions register
-above). *(not yet tested on Windows)*
+They list the folders at the top of Program Files and Program Files (x86), print the computer's
+PATH, and say whether the py launcher's machine-wide option put `py.exe` in the Windows folder. They
+do not show a change inside a folder that was already there, in ProgramData or in the registry. A
+per-user install changes the account's own PATH,
+`[Environment]::GetEnvironmentVariable('Path', 'User')`, and leaves the four as they were.
+Installing the Visual C++ runtime from the wizard is a machine-wide change by design (the
+exceptions register above). *(not yet tested on Windows)*
 
 ```sources
 [
@@ -119,6 +130,18 @@ above). *(not yet tested on Windows)*
    "category": "software-dependency", "tier": "T1"},
   {"id": "playwright-python-browsers", "name": "Playwright for Python - Browsers (Managing browser binaries)",
    "url": "https://playwright.dev/python/docs/browsers",
+   "category": "software-dependency", "tier": "T1"},
+  {"id": "nodejs-msi-product-wxs", "name": "Node.js Windows installer source (product.wxs, nodejs/node)",
+   "url": "https://github.com/nodejs/node/blob/main/tools/msvs/msi/nodemsi/product.wxs",
+   "category": "software-dependency", "tier": "T1"},
+  {"id": "wix-package-element", "name": "WiX Toolset schema - Package element (install scope)",
+   "url": "https://docs.firegiant.com/wix/schema/wxs/package/",
+   "category": "software-dependency", "tier": "T1"},
+  {"id": "scoop-readme", "name": "Scoop README (installs programs for the current Windows account)",
+   "url": "https://github.com/ScoopInstaller/Scoop",
+   "category": "software-dependency", "tier": "T1"},
+  {"id": "scoop-nodejs-lts-manifest", "name": "Scoop Main bucket - nodejs-lts manifest",
+   "url": "https://github.com/ScoopInstaller/Main/blob/master/bucket/nodejs-lts.json",
    "category": "software-dependency", "tier": "T1"}
 ]
 ```

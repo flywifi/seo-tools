@@ -1068,8 +1068,18 @@ nvm install --lts</pre>
             overflow-x:auto;margin-bottom:14px">brew install node</pre>"""
     elif os_name == "windows":
         node_install = """
-<p>Download and install Node.js from the official site:</p>
-<a class="btn btn-primary" href="https://nodejs.org/en/download"
+<p>User-only install (stays inside your account, no administrator rights) via Scoop, which installs
+programs into <code>C:\\Users\\&lt;you&gt;\\scoop</code>. In a regular PowerShell window (not one run as
+administrator), run these three lines, then close this wizard and start it again so it sees the
+new PATH <em>(not yet tested on Windows)</em>:</p>
+<pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.85rem;
+            overflow-x:auto;margin-bottom:14px">Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+scoop install nodejs-lts</pre>
+<p>Machine-wide alternative (affects the whole computer): the installer from nodejs.org puts Node.js
+in a <code>nodejs</code> folder under Program Files and adds it to the computer's PATH, for every
+account on this computer.</p>
+<a class="btn btn-outline" href="https://nodejs.org/en/download"
    target="_blank" style="margin-bottom:14px">Open nodejs.org downloads</a>
 <p>Choose the <strong>LTS</strong> version (20 or higher). Run the installer and accept the defaults
 (keep "Add to PATH" checked). If Windows SmartScreen warns, click <strong>More info</strong> then
@@ -6435,6 +6445,25 @@ def _selftest_p101() -> int:
     check(all(html.escape(_hostile_ib) in _pg and "<img src=x" not in _pg for _pg in _pages_ib)
           and "Found 1 video(s)" in _pages_ib[1] and "No videos found" in _pages_ib[0],
           "the import scan page shows a parser note without escaping it")
+    # P102: on Windows the Node.js step leads with Scoop, which installs for this account, and labels
+    # the nodejs.org installer machine-wide; the other systems keep their steps.
+    _saved_os_node = _OS_OVERRIDE
+    try:
+        _node_pages = {}
+        for _node_os in ("windows", "mac", "linux"):
+            _OS_OVERRIDE = _node_os
+            _node_pages[_node_os] = _screen_node_missing()
+    finally:
+        _OS_OVERRIDE = _saved_os_node
+    _node_w = _node_pages["windows"]
+    _node_label = "Machine-wide alternative (affects the whole computer): the installer from nodejs.org"
+    check(_node_label in _node_w and "scoop install nodejs-lts" in _node_w
+          and _node_w.index("scoop install nodejs-lts") < _node_w.index(_node_label)
+          < _node_w.index("https://nodejs.org/en/download")
+          and "scoop" not in _node_pages["mac"] + _node_pages["linux"]
+          and "nvm install --lts" in _node_pages["mac"] and "nvm install --lts" in _node_pages["linux"],
+          "the Windows Node.js step does not lead with the Scoop route and label the nodejs.org "
+          "installer machine-wide, or another system's step changed")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:
@@ -6738,8 +6767,10 @@ def _selftest() -> int:
 
     # P85-4a: render EVERY screen function with defaults (empty-string args where required),
     # enumerated from the module namespace so a new screen cannot dodge the sweep. A screen must
-    # return non-empty HTML with no traceback text.
+    # return non-empty HTML with no traceback text, and (P102) no em dash, as the character or as
+    # one of the HTML entities a browser shows as one, from its own text or a file it reads.
     import inspect as _inspect
+    _dash_forms = re.compile("\u2014|&" + "mdash;|&#0*8212(?![0-9])|&#[xX]0*2014(?![0-9a-fA-F])")
     rendered = 0
     for _name, _fn in sorted(globals().items()):
         if not (_name.startswith("_screen_") and callable(_fn)):
@@ -6753,6 +6784,9 @@ def _selftest() -> int:
             rendered += 1
             check(bool(_html_out) and "Traceback" not in _html_out,
                   f"screen {_name} rendered empty or with a traceback")
+            _dash = _dash_forms.search(_html_out or "")
+            check(_dash is None, f"screen {_name} shows an em dash: "
+                  + (repr(_html_out[max(0, _dash.start() - 30):_dash.end() + 30]) if _dash else ""))
         except Exception as exc:  # noqa: BLE001
             check(False, f"screen {_name} raised: {exc}")
 

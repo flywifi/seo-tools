@@ -162,10 +162,10 @@ def _advice(vendor, kind, captcha) -> str:
     if kind == "rate_limit":
         return ("Server is rate-limiting (honor Retry-After; the governor backs off). Slow down.")
     if kind == "captcha" or captcha:
-        return (f"Interactive {captcha or 'CAPTCHA'} challenge — prefer the site's official data "
+        return (f"Interactive {captcha or 'CAPTCHA'} challenge; prefer the site's official data "
                 "file / API, or a Wayback snapshot.")
     if kind == "challenge":
-        return (f"{vendor} managed challenge — a plain GET won't pass. The real-browser render "
+        return (f"{vendor} managed challenge: a plain GET won't pass. The real-browser render "
                 "prong may legitimately load it; otherwise prefer official API or Wayback.")
     if kind == "ip_block":
         return (f"{vendor or 'Server'} is refusing automated requests. Back off (breaker), use "

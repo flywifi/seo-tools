@@ -7244,7 +7244,8 @@
       "last_changed_detected": null,
       "extraction_hint": "The Python install manager as the recommended route (Store or python.org), the python, py and python3 commands it adds, py install <TAG>, and the traditional installer's deprecation from 3.14.",
       "used_by": [
-        "docs/SETUP_WINDOWS.md"
+        "docs/SETUP_WINDOWS.md",
+        "docs/INSTALL-SCOPE.md"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -7466,7 +7467,10 @@
       "last_checked": "2026-10-11",
       "last_changed_detected": null,
       "extraction_hint": "",
-      "used_by": [],
+      "used_by": [
+        "docs/INSTALL-SCOPE.md",
+        "docs/SETUP_WINDOWS.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -7483,7 +7487,9 @@
       "last_checked": "2026-10-11",
       "last_changed_detected": null,
       "extraction_hint": "",
-      "used_by": [],
+      "used_by": [
+        "docs/INSTALL-SCOPE.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -7500,12 +7506,90 @@
       "last_checked": "2026-10-11",
       "last_changed_detected": null,
       "extraction_hint": "",
-      "used_by": [],
+      "used_by": [
+        "docs/SETUP_WINDOWS.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "nodejs-msi-product-wxs",
+      "name": "Node.js Windows installer source (product.wxs, nodejs/node)",
+      "url": "https://github.com/nodejs/node/blob/main/tools/msvs/msi/nodemsi/product.wxs",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-11",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/INSTALL-SCOPE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "wix-package-element",
+      "name": "WiX Toolset schema - Package element (install scope)",
+      "url": "https://docs.firegiant.com/wix/schema/wxs/package/",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-11",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/INSTALL-SCOPE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "scoop-readme",
+      "name": "Scoop README (installs programs for the current Windows account)",
+      "url": "https://github.com/ScoopInstaller/Scoop",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-11",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/INSTALL-SCOPE.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "scoop-nodejs-lts-manifest",
+      "name": "Scoop Main bucket - nodejs-lts manifest",
+      "url": "https://github.com/ScoopInstaller/Main/blob/master/bucket/nodejs-lts.json",
+      "category": "software-dependency",
+      "tier": "T1",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": "2026-10-11",
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [
+        "docs/INSTALL-SCOPE.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
     }
   ],
-  "_content_digest": "69794ac1f6512e1684ea0a6e7c8e19bc86107340ece1ed11a8a6ba07b5504eb0"
+  "_content_digest": "0bdc0f48beed32c7581da3d56a8f1a86de03220614fd22c33d959906edd7814b"
 }

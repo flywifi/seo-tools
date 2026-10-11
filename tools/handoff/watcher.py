@@ -10,7 +10,7 @@ capability) ships in a later phase and is refused honestly until then.
 
 The hub root resolves in this order: --hub argument, then the drive_hub.local_mirror setting
 (creator-os-config.local.json over creator-os-config.json). Everything execution-side (gate,
-allowlist, idempotency, confinement, timeouts) lives in runner.run_pass — the watcher only decides
+allowlist, idempotency, confinement, timeouts) lives in runner.run_pass; the watcher only decides
 WHERE the queue directory is and WHEN to look.
 
 Usage:

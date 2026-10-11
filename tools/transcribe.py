@@ -1367,6 +1367,41 @@ def selftest():
                     "empty-home": Path("/h/profile") / _md_tail, "both": Path("/h/home") / _md_tail,
                     "neither": HERE / _md_tail, "override": Path("/h/models"),
                     "explicit": Path("/h/explicit")})
+    # P102: fetch_model and the doctor's model lookup use model_dir's folder when given none. HERE
+    # points at a temporary folder for the case, so a lookup that used it writes nothing in tools/.
+    import tempfile as _tf_mdc
+    _mdc = Path(_tf_mdc.mkdtemp(prefix="transcribe-model-dir-"))
+    _mdc_keys = ("WHISPER_MODEL_DIR", "WHISPER_CPP_MODEL", "HOME", "USERPROFILE")
+    _mdc_saved = {k: os.environ.get(k) for k in _mdc_keys}
+    _mdc_here = globals()["HERE"]
+    _mdc_seen = {}
+    try:
+        globals()["HERE"] = _mdc / "here"
+        for _mdc_case, _mdc_env in (("home", {"HOME": str(_mdc / "h")}),
+                                    ("userprofile", {"USERPROFILE": str(_mdc / "u")})):
+            for k in _mdc_keys:
+                os.environ.pop(k, None)
+            os.environ.update(_mdc_env)
+
+            def _mdc_dl(url, dest, expected_size=None, progress=None):
+                Path(dest).write_bytes(b"model bytes")
+                return None
+            _mdc_got = fetch_model("tiny", allowlist={"models": {"tiny": {"file": "ggml-tiny.bin"}},
+                                                      "url_prefix": "https://example.invalid/"},
+                                   downloader=_mdc_dl)
+            _mdc_seen[_mdc_case] = (_mdc_got.get("path"), _find_whisper_cpp_model())
+    finally:
+        globals()["HERE"] = _mdc_here
+        for k, v in _mdc_saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        import shutil as _sh_mdc
+        _sh_mdc.rmtree(_mdc, ignore_errors=True)
+    _mdc_want = {c: (str(_mdc / d / _md_tail / "ggml-tiny.bin"),) * 2 for c, d in (("home", "h"), ("userprofile", "u"))}
+    ok("fetch_model writes, and the doctor's lookup finds, a model in model_dir's folder when given none",
+       _mdc_seen == _mdc_want)
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

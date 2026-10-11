@@ -1,6 +1,6 @@
-_Data freshness: as of 2026-10-11 (Creator OS baseline 907b4c3c). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-10-11 (Creator OS baseline 77bb6d47). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
-# Creator OS — compact custom instructions (Free/Go tier)
+# Creator OS: compact custom instructions (Free/Go tier)
 
 ChatGPT's custom-instructions fields are capped at 1,500 characters on Free and Go plans
 (5,000 on Plus and above; per-field vs combined is not officially documented, so this variant

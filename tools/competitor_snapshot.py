@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""competitor_snapshot.py — deep competitive intelligence pipeline for Creator OS.
+"""competitor_snapshot.py: deep competitive intelligence pipeline for Creator OS.
 
 Orchestrates the full competitor research cycle:
   1. Staleness check (source_currency's report) to identify competitor pages needing re-fetch
-  2. HTML acquisition (via acquire.py) — offline-first with Playwright, web fallback
-  3. Metadata extraction (via parse_competitor_meta.py) — YouTube tags, TikTok hashtags, etc.
+  2. HTML acquisition (via acquire.py): offline-first with Playwright, web fallback
+  3. Metadata extraction (via parse_competitor_meta.py): YouTube tags, TikTok hashtags, etc.
   4. SQLite storage in pipeline/competitor-snapshots/index.local.db
   5. Summary export to canonical-sources/keyword-library/competitor-channels.json (no PII)
 
@@ -28,7 +28,7 @@ YOUR COMPETITOR LIST (P102)
 OFFLINE vs WEB-ONLY
   If Playwright is installed: full offline snapshot (HTML + rendered DOM + network capture).
   If Playwright is absent: fetch_resilient.py prongs 1-2 (browser headers + requests.Session).
-  Detection is automatic — acquire.py handles the fallback internally.
+  Detection is automatic; acquire.py handles the fallback internally.
 """
 from __future__ import annotations
 
