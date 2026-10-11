@@ -4531,7 +4531,13 @@ _CREATOR_DASH_RE = re.compile("\u2014|&" + "mdash;|&#0*8212(?![0-9])|&#[xX]0*201
 # set must reach and read each one, so a refactor that hides one from the derivation fails the build.
 _CREATOR_TEXT_FLOOR = ("tools/wizard.py", "tools/dashboard/server.py", "tools/dashboard/static/app.js",
                        "tools/mcp_server.py", "tools/setup.py", "tools/update.py",
-                       "creator-os-config.json", "shared/connectors/connectors.json")
+                       "creator-os-config.json", "shared/connectors/connectors.json",
+                       # the files the wizard stages for upload to a Project (_stage_bundle)
+                       "implementation/claude/project/knowledge/01-creator-core.md",
+                       "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
+                       "implementation/claude/project/creator-os-combined.md",
+                       "implementation/claude/project/system-prompt.md",
+                       "implementation/gpt/project/project-instructions.md")
 # Static files with these suffixes are text: one holding a NUL byte (UTF-16, say) is reported as a
 # file the check cannot read, where an image or a font with a NUL byte is skipped as binary.
 _CT_TEXT_SUFFIXES = (".html", ".htm", ".js", ".mjs", ".css", ".svg", ".json", ".txt", ".md", ".xml")
@@ -4656,6 +4662,81 @@ def _ct_read_paths(tree, skip_lines=()):
             built = _ct_path_parts(node.func.value)
             if built:
                 out.add(built)
+    return out
+
+
+_CT_COPY_FUNCS = ("copyfile", "copy", "copy2")
+
+
+def _ct_sources(tree, skip_lines=()):
+    """{(how, base, rel, pattern)} for the files a module copies or reads through a name, outside
+    the lines in skip_lines (test code): the source of each shutil.copyfile, copy or copy2 call
+    (how 'copied') and the receiver of each .read_text() call that is a name (how 'read'), when
+    it is a path built from ROOT or HERE, a name bound to one in the same function or at module
+    level, or a name a for loop takes from <path>.glob("<pattern>"), directly, through sorted()
+    or a slice, or through a function of the module that returns one of those. pattern is None
+    for a single file, else the glob pattern under the folder rel."""
+    shutil_names, copy_names = {"shutil"}, set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            shutil_names |= {a.asname or a.name for a in node.names if a.name == "shutil"}
+        elif isinstance(node, ast.ImportFrom) and node.module == "shutil":
+            copy_names |= {a.asname or a.name for a in node.names if a.name in _CT_COPY_FUNCS}
+    module_env, functions = {}, {}
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            functions[node.name] = node
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1 \
+                and isinstance(node.targets[0], ast.Name) and _ct_path_parts(node.value):
+            module_env.setdefault(node.targets[0].id, set()).add(_ct_path_parts(node.value) + (None,))
+
+    def specs(expr, env, depth=0):
+        if depth > 6:
+            return set()
+        built = _ct_path_parts(expr)
+        if built:
+            return {built + (None,)}
+        if isinstance(expr, ast.Name):
+            return set(env.get(expr.id, ())) or set(module_env.get(expr.id, ()))
+        if isinstance(expr, ast.Subscript):
+            return specs(expr.value, env, depth + 1)
+        if not isinstance(expr, ast.Call):
+            return set()
+        fn = expr.func
+        if isinstance(fn, ast.Attribute) and fn.attr == "glob" and expr.args \
+                and isinstance(expr.args[0], ast.Constant) and isinstance(expr.args[0].value, str):
+            return {(base, rel, expr.args[0].value) for base, rel, pat in specs(fn.value, env, depth + 1)
+                    if pat is None}
+        if isinstance(fn, ast.Name) and fn.id == "sorted" and expr.args:
+            return specs(expr.args[0], env, depth + 1)
+        if isinstance(fn, ast.Name) and fn.id in functions:
+            return set().union(*[specs(r.value, {}, depth + 1) for r in ast.walk(functions[fn.id])
+                                 if isinstance(r, ast.Return) and r.value is not None])
+        return set()
+
+    scopes = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    scopes.append(ast.Module(body=[n for n in tree.body if not isinstance(
+        n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))], type_ignores=[]))
+    out = set()
+    for scope in scopes:
+        nodes = list(ast.walk(scope))
+        env = {}
+        for node in nodes:  # a name's paths: each assignment and loop in this function counts
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                env.setdefault(node.targets[0].id, set()).update(specs(node.value, env))
+            elif isinstance(node, ast.For) and isinstance(node.target, ast.Name):
+                env.setdefault(node.target.id, set()).update(specs(node.iter, env))
+        for node in nodes:
+            if not isinstance(node, ast.Call) or node.lineno in skip_lines:
+                continue
+            fn = node.func
+            copying = (isinstance(fn, ast.Attribute) and fn.attr in _CT_COPY_FUNCS
+                       and isinstance(fn.value, ast.Name) and fn.value.id in shutil_names) \
+                or (isinstance(fn, ast.Name) and fn.id in copy_names)
+            if copying and node.args:
+                out |= {("copied",) + s for s in specs(node.args[0], env)}
+            elif isinstance(fn, ast.Attribute) and fn.attr == "read_text" and isinstance(fn.value, ast.Name):
+                out |= {("read",) + s for s in specs(fn.value, env)}
     return out
 
 
@@ -4818,12 +4899,15 @@ def _creator_text_scan(root):
                 a command builds from HERE (beside itself), when the name holds no '.local.' (an
                 ignored file);
       text      other files a page or mcp module reads into its text: read_text() on a path it
-                builds from ROOT or HERE, and the .md and .txt files named in another tools
-                module's literal table that it reads (_ct_table_paths); a file it only copies, such
-                as the knowledge files the wizard stages for upload, is not read here.
+                builds from ROOT or HERE, or on a name bound to such a path (_ct_sources), and
+                the .md and .txt files named in another tools module's literal table that it reads
+                (_ct_table_paths);
+      copied    the files a page or mcp module copies with shutil.copyfile, copy or copy2 from a
+                path it builds, a name bound to one, or a folder listing (_ct_sources), such as the
+                knowledge files the wizard stages for upload, when the name holds no '.local.'.
     Python files are read for their string literals outside docstrings and test code, with the
     tool functions' docstrings (their descriptions) and a module docstring the module prints
-    included; static and text files whole, comments included; JSON strings."""
+    included; static, text and copied files whole, comments included; JSON strings."""
     root = Path(root)
     pages, mcps, undiscovered = [], [], []
     trees, walked = {}, {}  # each module is parsed once per scan, and a program walked once
@@ -4874,6 +4958,20 @@ def _creator_text_scan(root):
             hit = resolve(base, rel, p)
             if hit and not hit.endswith((".py", ".json")) and ".local." not in Path(hit).name:
                 scanned.setdefault(hit, "text")
+        for how, base, rel, pattern in sorted(_ct_sources(tree, test), key=str):
+            if pattern is None:
+                found = [resolve(base, rel, p)]
+            else:
+                folder = (root / rel) if base == "ROOT" else (p.parent / rel)
+                listed = sorted(folder.glob(pattern)) if folder.is_dir() else []
+                found = [resolve("ROOT", os.path.relpath(f, root), p) for f in listed]
+            for hit in found:
+                if hit is None or ".local." in Path(hit).name:
+                    continue
+                if how == "copied":
+                    scanned.setdefault(hit, "copied")
+                elif not hit.endswith((".py", ".json")):
+                    scanned.setdefault(hit, "text")
         for hit in sorted(_ct_table_paths(tree, root, test, trees)):
             if ".local." not in Path(hit).name:
                 scanned.setdefault(hit, "text")
@@ -4916,7 +5014,7 @@ def _creator_text_scan(root):
         if src is None:
             unread.append(rel)
             continue
-        if kind in ("static", "text"):
+        if kind in ("static", "text", "copied"):
             for i, line in enumerate(_ct_lines(src), 1):
                 text = line.decode("utf-8")
                 m = _CREATOR_DASH_RE.search(text)
@@ -4942,7 +5040,7 @@ def _creator_text_scan(root):
 
 def _ct_fixture(t, em, d):
     """Write the self-proof's tree under t: a page module (with a static folder), a socketserver
-    page, an MCP module, programs, commands, an imported module, data and text files. Returns
+    page, an MCP module, programs, commands, an imported module, data, text and copied files. Returns
     (kinds, absent, tokens): the kind each file must be scanned as, the files that must stay out of
     the set, and the tokens (Tnn) whose em dash must be reported, one hit each."""
     amp = "&"
@@ -4951,13 +5049,18 @@ def _ct_fixture(t, em, d):
     (t / "tools" / "pkg").mkdir()
     (t / "tools" / "pkg2").mkdir()
     (t / "shared" / "x").mkdir(parents=True)
-    (t / "impl").mkdir()
+    (t / "impl" / "upload").mkdir(parents=True)
+    (t / "impl" / "direct").mkdir()
     files = {
         "tools/web/page.py": (
             '"""Page module ' + em + ' its docstring is maintainer text."""\n'
             "import http.server\n"
             "import shutil\n"
             "ROOT = None\n"
+            "from shutil import copyfile as _copy\n"
+            'UPLOAD_DIR = ROOT / "impl" / "upload"\n'
+            "def _upload_files(n=9):\n"
+            '    return sorted(UPLOAD_DIR.glob("[0-9][0-9]-*.md"))[:n]\n'
             "class H(http.server.BaseHTTPRequestHandler):\n"
             '    """A handler ' + em + ' docstring."""\n'
             "    def do_GET(self):\n"
@@ -4991,12 +5094,25 @@ def _ct_fixture(t, em, d):
             "        import tbl as _t\n"
             "        boxes = _t.FILES\n"
             '        shutil.copyfile(ROOT / "impl" / "upload.md", "staged.md")\n'
-            "        return body, paste, boxes\n"
+            "        for f in _upload_files():\n"
+            '            shutil.copyfile(f, "staged/" + f.name)\n'
+            '        comb = ROOT / "impl" / "combined.md"\n'
+            '        shutil.copy2(comb, "staged/combined.md")\n'
+            '        if self.path == "/a":\n'
+            '            src = ROOT / "impl" / "paste-a.md"\n'
+            "        else:\n"
+            '            src = ROOT / "impl" / "paste-b.md"\n'
+            '        pasted = src.read_text(encoding="utf-8")\n'
+            '        _copy(ROOT / "impl" / "fromcopy.md", "x.md")\n'
+            '        for g in sorted((ROOT / "impl" / "direct").glob("*.txt")):\n'
+            '            shutil.copy(g, "staged")\n'
+            "        return body, paste, boxes, pasted\n"
             "def selftest():\n"
             "    import testlib\n"
             '    test_read = (ROOT / "impl" / "testread.md").read_text(encoding="utf-8")\n'
             '    fixture = ROOT / "fixture.json"\n'
             '    named = "python3 tools/testonly.py"\n'
+            '    shutil.copyfile(ROOT / "impl" / "testcopy.md", "t.md")\n'
             '    return "test code ' + em + ' passes", fixture, named\n'
             "def _selftest_extra():\n"
             '    return "T09 test code ' + em + ' in a _selftest helper"\n'
@@ -5069,7 +5185,17 @@ def _ct_fixture(t, em, d):
         "fixture.json": json.dumps({"note": "test fixture " + em + " not read"}),
         "impl/paste.md": "T29 Paste this " + em + " into the chat.\n",
         "impl/box.md": "T30 Box text " + em + " shown on the page.\n",
-        "impl/upload.md": "Uploaded only " + em + " never shown.\n",
+        "impl/upload.md": "T39 Uploaded " + em + " to a Project.\n",
+        "impl/upload/01-a.md": "T40 First upload file " + em + "\n",
+        "impl/upload/02-b.md": "T41 Second upload file " + em + "\n",
+        "impl/upload/notes.md": "Not matched by the listing " + em + "\n",
+        "impl/upload/03-c.local.md": "Local upload file " + em + "\n",
+        "impl/combined.md": "T42 Combined file " + em + "\n",
+        "impl/paste-a.md": "T43 First paste " + em + "\n",
+        "impl/paste-b.md": "T44 Second paste " + em + "\n",
+        "impl/fromcopy.md": "T45 From-import copy " + em + "\n",
+        "impl/direct/one.txt": "T46 Direct listing " + em + "\n",
+        "impl/testcopy.md": "Copied only by test code " + em + "\n",
         "impl/box.txt": "T36 Box text file " + em + " shown.\n",
         "impl/testread.md": "Read only by test code " + em + "\n",
         "impl/notes.local.md": "Local notes " + em + "\n",
@@ -5105,11 +5231,15 @@ def _ct_fixture(t, em, d):
              "tools/fromlib.py": "program", "tools/pkg/__init__.py": "program", "tools/pkg/mod.py": "program",
              "tools/pkg2/__init__.py": "program", "tools/crmod.py": "program", "shared/x/badprog.py": "program",
              "bad.json": "data", "tools/testdoc.py": "command", "tools/web/static/u16.html": "static",
-             "tools/web/static/U16.JS": "static", "tools/web/static/u16.css": "static"}
+             "tools/web/static/U16.JS": "static", "tools/web/static/u16.css": "static",
+             "impl/upload.md": "copied", "impl/upload/01-a.md": "copied", "impl/upload/02-b.md": "copied",
+             "impl/combined.md": "copied", "impl/fromcopy.md": "copied", "impl/direct/one.txt": "copied",
+             "impl/paste-a.md": "text", "impl/paste-b.md": "text"}
     absent = {"tools/unreached.py", "shared/x/cache.local.json", "cache.local.json", "fixture.json",
-              "impl/upload.md", "tools/testonly.py", "shared/x/hop2.py", "tools/testlib.py",
-              "impl/testread.md", "impl/notes.local.md"}
-    tokens = {f"T{n:02d}" for n in range(1, 39)} - {"T05", "T09"}
+              "tools/testonly.py", "shared/x/hop2.py", "tools/testlib.py", "impl/testread.md",
+              "impl/notes.local.md", "impl/upload/notes.md", "impl/upload/03-c.local.md",
+              "impl/testcopy.md"}
+    tokens = {f"T{n:02d}" for n in range(1, 47)} - {"T05", "T09"}
     return kinds, absent, tokens
 
 
@@ -5123,7 +5253,8 @@ def _creator_text_findings(root, floor):
     if missing:
         out.append(f"creator-text: the derived scan set no longer reaches and reads {missing}; the "
                    f"derivation in _creator_text_scan must still find and read the local pages, the "
-                   f"MCP server, setup and update and the two settings files")
+                   f"MCP server, setup and update, the two settings files and the files the wizard "
+                   f"stages for upload")
     for rel in unread:
         out.append(f"creator-text: {rel}: could not be read (not UTF-8 text, or Python or JSON that "
                    f"does not parse); fix the file so the check can read it")
@@ -5152,7 +5283,7 @@ def _creator_text_selfproof():
         if absent & set(scanned):
             return (f"creator-text: self-proof failed -- {sorted(absent & set(scanned))} was scanned (an "
                     f"unreached file, a .local. file, a path or a command named in test code, a file "
-                    f"only copied, or a second import hop)")
+                    f"copied only by test code or not matched by its listing, or a second import hop)")
         want_unread = sorted(["bad.json", "shared/x/badprog.py", "tools/broken.py", "tools/sub/broken2.py",
                               "tools/web/static/legacy.html", "tools/web/static/u16.html",
                               "tools/web/static/U16.JS", "tools/web/static/u16.css"])
@@ -5173,7 +5304,7 @@ def _creator_text_selfproof():
         if sorted(got) != sorted(tokens) or wrong:
             return (f"creator-text: self-proof failed -- hits {sorted(got)}, expected {sorted(tokens)}"
                     f"{'; ' + '; '.join(wrong) if wrong else ''} (each entity form, a comment left "
-                    f"out, page, static, text, tool, program, command, import and data text, line "
+                    f"out, page, static, text, copied, tool, program, command, import and data text, line "
                     f"counting; not docstrings, test code, escapes or .local. files)")
         found = _creator_text_findings(t, floor=("tools/web/page.py", "tools/absent.py",
                                                  "tools/web/static/legacy.html"))

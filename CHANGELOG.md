@@ -265,6 +265,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (invariant 62 reads copied files): drift invariant 62 also scans the files a page or MCP
+  module copies with `shutil.copyfile`, `copy` or `copy2` from a path it builds from ROOT or HERE, a
+  name bound to one, or a folder listing a loop takes them from (`<path>.glob(...)`, directly,
+  through `sorted()` or a slice, or through a function of the module that returns one), and the
+  files it reads with `read_text()` through a name bound to such a path
+  (`sync_check._ct_sources`). The knowledge files and the combined file the wizard stages for upload,
+  and the two instruction files it pastes from, are in the scan set, and `_CREATOR_TEXT_FLOOR`
+  names five of them. The self-proof adds cases for these forms and for a copy in test code, a
+  `.local.` file and a file the listing does not match (ADR 0081).
 - P102 (knowledge files without em dashes): the em dashes in the knowledge files the setup wizard
   stages for upload to a Project (`02-brand-voice.md`, `03-platform-seo.md`, `07-pipeline-spokes.md`
   and `08-key-atoms.md` under `implementation/claude/project/knowledge/`) become colons, commas,

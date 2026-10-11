@@ -119,7 +119,7 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   The drift guard enforces this for `examples/` (invariant 4) and for the local tools'
   creator-facing text (invariant 62: the wizard's and the dashboard's pages, the MCP tools'
   descriptions and replies, the programs, modules and scripts those run, import or name, and the
-  JSON and text files they read).
+  JSON and text files they read or copy).
   See `protocols/formatting-metadata.md`.
 - Write ranges with "to" everywhere, including internal docs (`protocols/formatting-metadata.md`).
 - Never fabricate data, metrics, rates, brands, or sources (`protocols/no-fabrication.md`). Null and
