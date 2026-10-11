@@ -379,18 +379,35 @@ def selftest():
     buf = io.StringIO()
     # main() opens the video library before it reads the folder; point the library at a temporary
     # file, so this check leaves no library in the checkout (P102: a fresh clone gained one).
-    _saved_db = _vl.DB_PATH
+    # The connection is recorded, so the check also sees it closed after the error: Windows will not
+    # delete a database file that is still open, so a leaked one fails the folder's cleanup there.
+    import sqlite3
+    _saved_db, _saved_open, _opened = _vl.DB_PATH, _vl._open_db, []
+
+    def _open_recorded(*a, **k):
+        _opened.append(_saved_open(*a, **k))
+        return _opened[-1]
+
+    def _is_closed(con):
+        try:
+            con.execute("select 1")
+            return False
+        except sqlite3.ProgrammingError:
+            return True
     with _tf_db.TemporaryDirectory() as _td_db:
-        _vl.DB_PATH = Path(_td_db) / "index.local.db"
+        _vl.DB_PATH, _vl._open_db = Path(_td_db) / "index.local.db", _open_recorded
         try:
             with contextlib.redirect_stdout(buf):
                 rc = main(["match", "--export-dir", "x" * 300])
             _db_used = _vl.DB_PATH.is_file()
+            _closed = len(_opened) == 1 and _is_closed(_opened[0])
         finally:
-            _vl.DB_PATH = _saved_db
+            _vl.DB_PATH, _vl._open_db = _saved_db, _saved_open
+            for _con in _opened:
+                _con.close()
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary), with the library opened "
-       "in a temporary folder",
-       rc == 1 and "next_step" in buf.getvalue() and _db_used)
+       "in a temporary folder and closed after the error",
+       rc == 1 and "next_step" in buf.getvalue() and _db_used and _closed)
     import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
     with _fh_lp.long_paths_off():
         try:
@@ -428,10 +445,17 @@ def _main(argv):
         return 2
 
     con = _vl._open_db()
+    try:  # the library is closed on every way out, an error included (Windows keeps an open file)
+        return _run_command(args, con)
+    finally:
+        con.close()
+
+
+def _run_command(args, con):
+    """The match or complete command against the open library `con`; main closes it."""
     records = _load_records(con)
     if args.cmd == "match":
         print(json.dumps(match_media(args.export_dir, records), indent=2, ensure_ascii=False))
-        con.close()
         return 0
     # complete
     m = match_media(args.export_dir, records)
@@ -461,7 +485,6 @@ def _main(argv):
     print(json.dumps({"proposals": proposals, "videos_completed": videos_completed, "wrote": wrote,
                       "gaps": gaps, "unmatched_media": m["unmatched_media"], "no_media": m["no_media"]},
                      indent=2, ensure_ascii=False))
-    con.close()
     return 0
 
 

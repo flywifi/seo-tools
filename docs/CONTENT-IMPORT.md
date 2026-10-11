@@ -99,8 +99,9 @@ python3 tools/library_complete.py complete --export-dir <unzipped folder>
   incomplete. Re-download the `.zip` and point Creator OS at the fresh copy; the importer skips an
   unreadable file and tells you rather than stopping. Inside a zip that opens, a file that does not
   decompress (an interrupted download) is skipped with a `note:` naming it, and one larger than
-  256 MiB is not read (unzip the export and import the folder instead); the zip's other files are
-  still read (`import_parse._read_member` <!-- verify: tools/import_parse.py::_read_member -->).
+  256 MiB, or compressed with bzip2 or LZMA, is not read (unzip the export and import the folder
+  instead); the zip's other files are still read (`import_parse._read_member`
+  <!-- verify: tools/import_parse.py::_read_member -->).
 - **No transcription engine installed:** the library is still built metadata-only, and each transcript
   is flagged `run_local_stt` with the exact per-OS install command, never faked. Run the doctor to fix.
 - **A very large TikTok / YouTube / Instagram library:** the live importer stops at a safety page cap

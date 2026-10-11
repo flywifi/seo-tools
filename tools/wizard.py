@@ -5878,6 +5878,11 @@ def _selftest_p101() -> int:
     # P102: the engine probe takes a .exe on Windows, so the Mouse control panel (main.cpl, which
     # which() returns for "main" through PATHEXT) is not reported as whisper.cpp.
     _real_which_v, _real_os_v = env_paths.which, _OS_OVERRIDE
+    # faster-whisper is made to read as absent (None in sys.modules makes its import fail), so the
+    # first case means no engine on a computer whose .venv has it installed too (P102).
+    _fw_missing = object()
+    _real_fw_v = sys.modules.get("faster_whisper", _fw_missing)
+    sys.modules["faster_whisper"] = None
     _stt_v = {}
     try:
         for _os_v, _found_v in (("windows", {"main": "C:\\WINDOWS\\system32\\main.CPL"}),
@@ -5889,6 +5894,10 @@ def _selftest_p101() -> int:
             _stt_v[len(_stt_v)] = _stt_backend_present()[:2]
     finally:
         env_paths.which, _OS_OVERRIDE = _real_which_v, _real_os_v
+        if _real_fw_v is _fw_missing:
+            sys.modules.pop("faster_whisper", None)
+        else:
+            sys.modules["faster_whisper"] = _real_fw_v
     check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main")},
           f"the wizard's engine probe counts main.cpl as whisper.cpp on Windows, or misses a real engine ({_stt_v})")
     check(_quit_v[0] == "send" and "still running" in _quit_v[1] and _quit_shut_v is False,

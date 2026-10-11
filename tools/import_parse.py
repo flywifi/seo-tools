@@ -87,34 +87,56 @@ _ZIP_UNREAD_NOTE = ("this file's zip directory could not be read here (it may be
 # The largest zip member the importer reads (P102): the CSV and JSON files it reads are far smaller
 # in a normal export, so this stops only a pathological member, which is skipped with a note.
 MAX_MEMBER_BYTES = 256 * 1024 * 1024
-try:  # zipfile reads an LZMA member only when this module is present, and so is its error
-    import lzma as _lzma
-    _LZMA_ERRORS = (_lzma.LZMAError,)
-except ImportError:
-    _LZMA_ERRORS = ()
+# A member is read in pieces of this many bytes. zipfile stops a member at its directory entry's
+# size, but one plain read decompresses up to a gigabyte before it cuts the result to that size, so
+# a member whose entry understates a long stream would fill memory first; a bounded read does not.
+MEMBER_CHUNK_BYTES = 1024 * 1024
+# The compression methods zipfile decompresses no further than the size it is asked for. It
+# decompresses a bzip2 or LZMA piece whole, however far it expands, so a member compressed that way
+# is skipped with a note (exports are deflated; a re-zipped one can use another method).
+BOUNDED_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+_METHOD_NAMES = {zipfile.ZIP_BZIP2: "bzip2", zipfile.ZIP_LZMA: "LZMA", 9: "Deflate64"}
 # What reading a member that does not decompress raises: a CRC mismatch or a bad header
-# (BadZipFile), a corrupt deflate stream (zlib.error), a corrupt bzip2 stream or a failed read of the
-# zip file (OSError), a corrupt LZMA stream (lzma.LZMAError), a stream that ends early (EOFError), a
-# compression method this Python lacks (NotImplementedError), an encrypted member (RuntimeError).
+# (BadZipFile), a corrupt deflate stream (zlib.error), a failed read of the zip file (OSError), a
+# stream that ends early (EOFError), an encrypted member (RuntimeError); NotImplementedError is
+# kept for a method zipfile adds that this Python cannot read.
 MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, NotImplementedError,
-                      RuntimeError) + _LZMA_ERRORS
+                      RuntimeError)
 
 
 def _read_member(z, name):
-    """The bytes of one member of an open zip, or None with one note on stderr: a member whose
-    directory entry says it is over MAX_MEMBER_BYTES is not read (zipfile reads no more than that
-    entry's size, so the read is bounded), and one that does not decompress (MEMBER_READ_ERRORS,
-    an interrupted download) is skipped instead of stopping the import (P102)."""
+    """The bytes of one member of an open zip, or None with one note on stderr (P102): a member
+    whose directory entry says it is over MAX_MEMBER_BYTES is not read; one compressed with a method
+    outside BOUNDED_METHODS is not read; the rest is read MEMBER_CHUNK_BYTES at a time, so a read
+    decompresses no more than that whatever the entry says; and one that does not decompress
+    (MEMBER_READ_ERRORS, an interrupted download) is skipped instead of stopping the import."""
     shown = " ".join(str(name).split())[:200]  # one line, so a member name cannot add a note line
     info = z.getinfo(name)
     if info.file_size > MAX_MEMBER_BYTES:
         _note(f"{shown} inside this zip is larger than {MAX_MEMBER_BYTES // (1024 * 1024)} MiB, so it "
               f"was not read; unzip the export and import the folder")
         return None
+    if info.compress_type not in BOUNDED_METHODS:
+        method = _METHOD_NAMES.get(info.compress_type, f"compression method {info.compress_type}")
+        _note(f"{shown} inside this zip is compressed with {method}, which the importer does not "
+              f"read, so it was skipped; unzip the export and import the folder")
+        return None
     try:
-        return z.read(info)
+        parts = []
+        with z.open(info) as fh:
+            while True:
+                piece = fh.read(MEMBER_CHUNK_BYTES)
+                if not piece:
+                    break
+                parts.append(piece)
+        return b"".join(parts)
     except MEMBER_READ_ERRORS as exc:
-        kind = "zlib.error" if isinstance(exc, zlib.error) else type(exc).__name__
+        if isinstance(exc, zlib.error):
+            kind = "zlib.error"
+        elif isinstance(exc, OSError):  # a failing disk or share: its own words, on one line
+            kind = f"{type(exc).__name__}: {' '.join(str(exc).split())[:200]}"
+        else:
+            kind = type(exc).__name__
         _note(f"{shown} inside this zip could not be read ({kind}; it may be damaged or an incomplete "
               f"download), so it was skipped; download the export again")
         return None
@@ -768,17 +790,15 @@ def selftest():
     # P102 push 4c: a member that does not decompress, or whose directory entry is over
     # MAX_MEMBER_BYTES, is skipped with one note naming it on one line; the zip's other members are
     # read, and nothing raises.
-    def _zip_with(path, members, damaged=None, method=zipfile.ZIP_DEFLATED, block=False):
-        """Write a zip of members (name -> bytes) and damage `damaged`'s data: flip one byte in its
-        middle (a CRC mismatch), or with block, break the start of its compressed stream: a deflate
-        stream starts with the reserved block type, which zlib refuses; a bzip2 stream loses its
-        "BZh" mark, which bz2 refuses with OSError; an LZMA stream gets a properties byte over 224,
-        which lzma refuses with LZMAError."""
+    def _zip_with(path, members, damaged=None, method=zipfile.ZIP_DEFLATED, block=False, methods=None):
+        """Write a zip of members (name -> bytes), each compressed with method unless methods names
+        another for it, and damage `damaged`'s data: flip one byte in its middle (a CRC mismatch),
+        or with block, start its deflate stream with the reserved block type, which zlib refuses."""
         buf = _io_n.BytesIO()
         try:  # invariant 35: each ZipFile call sits inside a try
             with zipfile.ZipFile(buf, "w", method) as _zw:
                 for _n, _data in members.items():
-                    _zw.writestr(_n, _data)
+                    _zw.writestr(_n, _data, compress_type=(methods or {}).get(_n, method))
             raw = bytearray(buf.getvalue())
             if damaged is not None:
                 with zipfile.ZipFile(_io_n.BytesIO(bytes(raw))) as _zr:
@@ -786,11 +806,7 @@ def selftest():
                 _off = _info.header_offset
                 _start = (_off + 30 + int.from_bytes(raw[_off + 26:_off + 28], "little")
                           + int.from_bytes(raw[_off + 28:_off + 30], "little"))
-                if block and method == zipfile.ZIP_BZIP2:
-                    raw[_start] = 0x00  # the B of the BZh stream header
-                elif block and method == zipfile.ZIP_LZMA:
-                    raw[_start + 4] = 0xFF  # after zipfile's 4-byte LZMA header: the lc/lp/pb byte
-                elif block:
+                if block:
                     raw[_start] = 0x07  # BFINAL 1, BTYPE 11: a reserved deflate block type
                 else:
                     raw[_start + _info.compress_size // 2] ^= 0xFF
@@ -821,17 +837,17 @@ def selftest():
                   "Chart.csv", zipfile.ZIP_STORED)
         _fallback_got = _notes_of(parse_youtube_studio_zip, str(_dm / "fallback.zip"))
         _other_methods = {}
-        for _label, _method, _mod in (("bzip2", zipfile.ZIP_BZIP2, "bz2"), ("lzma", zipfile.ZIP_LZMA, "lzma")):
+        for _name, _method, _mod in (("bzip2", zipfile.ZIP_BZIP2, "bz2"), ("LZMA", zipfile.ZIP_LZMA, "lzma")):
             try:
                 __import__(_mod)
             except ImportError:  # this Python cannot write the member, so the case is skipped
-                print(f"  [skip] a damaged {_label} member: the {_mod} module is missing")
+                print(f"  [skip] a {_name} member: the {_mod} module is missing")
                 continue
-            _zip_with(_dm / f"takeout-{_label}.zip",
+            _zip_with(_dm / f"takeout-{_mod}.zip",
                       {"Takeout/YouTube/video metadata/videos.csv": _rows_csv,
                        "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
-                      "Takeout/YouTube/video metadata/videos.csv", _method, block=True)
-            _other_methods[_label] = _notes_of(parse_youtube_takeout, str(_dm / f"takeout-{_label}.zip"))
+                      methods={"Takeout/YouTube/video metadata/videos.csv": _method})
+            _other_methods[_name] = _notes_of(parse_youtube_takeout, str(_dm / f"takeout-{_mod}.zip"))
         _cap_saved = globals()["MAX_MEMBER_BYTES"]
         globals()["MAX_MEMBER_BYTES"] = 1000  # under posts_1.json's size, over its compressed size
         try:
@@ -848,12 +864,12 @@ def selftest():
     ok("a damaged member is skipped and the zip's other members are read",
        len(_takeout_got[0]) == 400 and len(_takeout_got[1]) == 1
        and "videos.csv inside this zip could not be read (zlib.error" in _takeout_got[1][0])
-    ok("a damaged bzip2 member (OSError) or LZMA member (LZMAError) is skipped with its note, and the "
-       "zip's other member is read",
-       all(len(_got[0]) == 400 and len(_got[1]) == 1
-           and f"videos.csv inside this zip could not be read ({_kind};" in _got[1][0]
-           for _label, _kind in (("bzip2", "OSError"), ("lzma", "LZMAError"))
-           for _got in [_other_methods.get(_label)] if _got is not None))  # a skipped case drops out
+    ok("a bzip2 or LZMA member is skipped with a note naming its method, and the zip's other member "
+       "is read",
+       all(len(_got[0]) == 400 and len(_got[1]) == 1 and "unzip the export" in _got[1][0]
+           and f"videos.csv inside this zip is compressed with {_name}, which the importer does not "
+               "read" in _got[1][0]
+           for _name, _got in _other_methods.items()))  # a skipped case drops out
     ok("a damaged CSV is passed over when the Studio parser looks for one with a Content column",
        _fallback_got[0] == yt and len(_fallback_got[1]) == 1 and "Chart.csv" in _fallback_got[1][0])
     ok("a member name with a line break stays on the one note line",
@@ -866,6 +882,62 @@ def selftest():
        and [ln for ln in _err_cli.getvalue().splitlines() if ln.startswith("note: ")] == _studio_got[1]
        and "Traceback" not in _err_cli.getvalue())
     ok("the member cap is 256 MiB", MAX_MEMBER_BYTES == 256 * 1024 * 1024)
+    # A member whose directory entry understates its stream (64 MiB of zeros, entry: 1000 bytes and
+    # the CRC of 1000 zeros) is read a piece at a time: the entry's 1000 bytes come back, and the
+    # read holds no more than a few pieces (one plain zipfile read holds the whole stream).
+    import tracemalloc as _tm_z
+    _big = _io_n.BytesIO()
+    try:  # invariant 35: each ZipFile call sits inside a try
+        with zipfile.ZipFile(_big, "w", zipfile.ZIP_DEFLATED) as _zw:
+            with _zw.open("Table data.csv", "w") as _wf:
+                _zeros = b"\0" * (1024 * 1024)
+                for _ in range(64):
+                    _wf.write(_zeros)
+        _raw_big = bytearray(_big.getvalue())
+        _cd = _raw_big.rfind(b"PK\x01\x02")
+        _raw_big[_cd + 16:_cd + 20] = zlib.crc32(b"\0" * 1000).to_bytes(4, "little")
+        _raw_big[_cd + 24:_cd + 28] = (1000).to_bytes(4, "little")
+        _zbig = zipfile.ZipFile(_io_n.BytesIO(bytes(_raw_big)))
+    except (OSError, zipfile.BadZipFile):
+        _zbig = None
+    _tracing = _tm_z.is_tracing()
+    if not _tracing:
+        _tm_z.start()
+    _tm_z.reset_peak()
+    _base_z = _tm_z.get_traced_memory()[0]
+    try:
+        _small = _read_member(_zbig, "Table data.csv") if _zbig is not None else None
+        _peak_z = _tm_z.get_traced_memory()[1] - _base_z
+    finally:
+        if not _tracing:
+            _tm_z.stop()
+    ok("a member whose directory entry understates its stream is read in pieces: the entry's 1000 "
+       f"bytes, with under 16 MiB held ({_peak_z // (1024 * 1024)} MiB)",
+       _small == b"\0" * 1000 and _peak_z < 16 * 1024 * 1024)
+
+    # A failed read of the zip file itself (a failing disk, a share that drops) is a note that
+    # carries the system's own words, on one line.
+    class _FailingRead(_io_n.BytesIO):
+        failing = False
+
+        def read(self, *args):
+            if self.failing:
+                raise OSError(errno.EIO, "Input/output error\nfrom the drive")
+            return super().read(*args)
+    _small_zip = _io_n.BytesIO()
+    try:  # invariant 35
+        with zipfile.ZipFile(_small_zip, "w", zipfile.ZIP_DEFLATED) as _zw:
+            _zw.writestr("Table data.csv", yt_csv)
+        _fio = _FailingRead(_small_zip.getvalue())
+        _zfail = zipfile.ZipFile(_fio)
+    except (OSError, zipfile.BadZipFile):
+        _fio = _zfail = None
+    if _fio is not None:
+        _fio.failing = True
+    _io_got = _notes_of(lambda _n: _read_member(_zfail, _n), "Table data.csv")
+    ok("a failed read of the zip file is skipped with one note naming the system's error",
+       _io_got[0] is None and len(_io_got[1]) == 1
+       and "could not be read (OSError: [Errno 5] Input/output error from the drive;" in _io_got[1][0])
 
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})

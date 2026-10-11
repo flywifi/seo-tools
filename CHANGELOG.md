@@ -368,14 +368,22 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `CREATOR_OS_FILE_HASH_JOBS` sets how many child processes `file_hash --selftest` runs at a time
   (`file_hash.mutant_jobs`; default min(8, the CPU count)); `install_hooks`' selftest finds MinGit's
   `usr\bin\sh.exe` (`install_hooks._shell`); and the Visual C++ steps take the Windows folder from
-  `GetSystemWindowsDirectoryW` before `%SystemRoot%` (`transcribe.windows_dir`).
+  `GetSystemWindowsDirectoryW` before `%SystemRoot%` (`transcribe.windows_dir`). The wizard's
+  engine-probe check makes faster-whisper read as absent, so it passes where the `.venv` has it
+  installed; and `library_complete` closes its video library when a command stops with an error,
+  as after success, so Windows can remove the file (its selftest's temporary folder could not be
+  removed there).
 - P102 (damaged or oversized export members): `import_parse` reads a zip member through
   `_read_member`: a member whose directory entry says it is over 256 MiB (`MAX_MEMBER_BYTES`) is not
-  read, and one that does not decompress (a CRC mismatch, a corrupt deflate, bzip2 or LZMA stream,
-  a stream that ends early, as an interrupted download leaves) is skipped. A skipped member gives one `note:` line
-  naming it on one line, the zip's other members are read, and the command prints the records it
-  found and exits 0. Before, a damaged `Table data.csv` stopped the import with a `BadZipFile`
-  traceback and exit 1, and a member was read whole at any size.
+  read, nor is one compressed with bzip2 or LZMA, which zipfile decompresses without a size bound;
+  the rest is read 1 MiB at a time (`MEMBER_CHUNK_BYTES`), so a member whose entry understates a
+  long deflate stream does not fill memory first (in the selftest, a 64 MiB stream whose entry
+  says 1000 bytes holds under 16 MiB); and one that does not decompress (a CRC mismatch, a corrupt
+  deflate stream, a stream that ends early, as an interrupted download leaves) or whose read fails
+  (the note carries the system's error) is skipped. A skipped member gives one `note:` line naming
+  it on one line, the zip's other members are read, and the command prints the records it found
+  and exits 0. Before, a damaged `Table data.csv` stopped the import with a `BadZipFile` traceback
+  and exit 1, and a member was read whole at any size.
 - P102 (wizard folder refusals, Drive export folders, one screen per page): the Drive hub screen
   refuses a folder with a sentence for its reason instead of the reason code, and now has sentences
   for an empty path, a missing folder and the home folder itself (`wizard._DRIVE_HUB_WHY`); on
