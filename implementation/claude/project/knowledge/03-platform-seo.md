@@ -40,7 +40,7 @@ Pinterest is the exception: its native shape is 2:3, not 9:16.
 - Specs: 9:16, 1080x1920, MP4 H.264, 30 or 60 fps. Up to 3 minutes (since Oct 15, 2024), but 15 to
   60 seconds performs best for Phase 1 distribution. Keep key content centered, away from UI.
   Optional custom thumbnail at 1280x720 for non-feed surfaces.
-- Algorithm rewards (2025 shift, ranked): session contribution (PRIMARY — does the Short keep the
+- Algorithm rewards (2025 shift, ranked): session contribution (PRIMARY: does the Short keep the
   viewer in the Shorts feed?), AVD threshold (~65% for sub-30s; ~50% for 30 to 60s), loop rate
   (rewatches within 2 seconds of video end count as partial views), comments (outrank likes since
   2025), user satisfaction / post-watch behavior, shares, original audio bonus for accounts under
@@ -49,7 +49,7 @@ Pinterest is the exception: its native shape is 2:3, not 9:16.
   impact but prioritize session contribution over first-impression hook.
 - Three-phase distribution model: cold seeding (50 to 500 viewers, ~70% non-subscribers) → watch
   time gate (clears on AVD threshold) → topic clustering (3 to 6 week distribution window).
-  Freshness decay: ~28 to 30 days. Shorts are not evergreen — plan cadence to sustain presence.
+  Freshness decay: ~28 to 30 days. Shorts are not evergreen, so plan cadence to sustain presence.
 - No dedicated Shorts API endpoint in YouTube Data API v3. Identification is heuristic:
   contentDetails.duration ≤ 60s + #Shorts in title/description + 9:16 aspect ratio.
 - YPP Shorts path: 1,000 subscribers + 10M valid Shorts views in 90 days. Revenue share: 45%
@@ -64,7 +64,7 @@ Pinterest is the exception: its native shape is 2:3, not 9:16.
   via the Graph API. Caption up to 2,200 characters. The feed crops Reels to 4:5 and the profile
   grid previews at 3:4, so keep faces, text, and the cover's focal point inside the central safe area.
 - Algorithm rewards (Mosseri official, January 2025): completion rate (15s watched 3x outranks 60s
-  watched once), sends per reach (DM shares — 3 to 5x weight of likes, UNIQUE PRIMARY SIGNAL for
+  watched once), sends per reach (DM shares, 3 to 5x weight of likes, UNIQUE PRIMARY SIGNAL for
   Reels), saves ("heavy" interaction), likes per reach, originality (10+ reposts in 30 days =
   excluded from Recommendations), topic consistency (last 9 to 12 posts determine category).
 - Critical threshold: the 3-second gate. `skip_rate` (added December 2025) measures viewers who
@@ -73,11 +73,11 @@ Pinterest is the exception: its native shape is 2:3, not 9:16.
 - Hashtags: 5-hashtag cap since December 2025. Hashtag follow was removed December 2024. Use 3
   to 5 specific niche hashtags as classification signals, not as traffic drivers. Keywords in
   captions now drive discovery more strongly than hashtags.
-- Do not repost TikTok-watermarked content — Meta detects watermarks and suppresses distribution.
+- Do not repost TikTok-watermarked content: Meta detects watermarks and suppresses distribution.
   Accounts with 10+ reposts in 30 days are excluded from Recommendations entirely.
-- Metrics: reach, views (note: "impressions" deprecated April 2025 — use "views"), avg_watch_time,
+- Metrics: reach, views (note: "impressions" deprecated April 2025; use "views"), avg_watch_time,
   completion rate, saves, shares, skip_rate (new December 2025), follows from post.
-- Graph API: v25.0 (February 18, 2026). Basic Display API shut down December 4, 2024 — use Graph
+- Graph API: v25.0 (February 18, 2026). Basic Display API shut down December 4, 2024; use Graph
   API via Facebook App for all integrations. See `shared/integrations-engine.md`.
 
 ## Instagram feed and carousels
@@ -99,7 +99,7 @@ Pinterest is the exception: its native shape is 2:3, not 9:16.
   or AI-generated visuals (required by TikTok; FTC disclosure also required verbally and in captions).
 - Algorithm rewards (2025 to 2026, ranked): rewatch rate (NOW #1 signal, surpasses completion rate),
   shares (2nd strongest), comments, video completion rate, watch time (15 to 20s AVD = 3x distribution
-  multiplier), saves/favorites, micro-community clustering (2025 — niche cluster of 3+ users with
+  multiplier), saves/favorites, micro-community clustering (2025: niche cluster of 3+ users with
   shared preferences receives relevant content from small accounts), TikTok SEO / search keywords in
   captions (84% of TikTok searches are exploration-phase). Explicit non-factors: follower count and
   prior video performance (every video starts from zero).
@@ -151,7 +151,7 @@ load: when any SEO research or keyword task is underway
 
 All data in this engine is sourced from the entries in `canonical-sources/source-registry.json`
 and checked on the schedules defined in `canonical-sources/traversal-config.json` (default: weekly).
-When a section contradicts a more recently verified source, the verified source wins — update this
+When a section contradicts a more recently verified source, the verified source wins; update this
 file via the source currency process and note the source id.
 
 ---
@@ -161,31 +161,31 @@ file via the source currency process and note the source id.
 Ranked by current impact on discovery. Source: youtube-help-recommendations, youtube-creator-blog
 (verify weekly; algorithm weights shift without public announcement).
 
-1. **Click-through rate (CTR)** — The primary Browse and Home feed signal. YouTube tests a video
+1. **Click-through rate (CTR)**: The primary Browse and Home feed signal. YouTube tests a video
    against a small audience first; strong CTR earns wider distribution. Target range: 4 to 10% for
    established channels. For a new channel in a competitive niche, anything above 5% is strong.
    Thumbnail and title are the only levers. Test both; never change both at once.
 
-2. **Absolute watch time** — Total minutes watched per video (not completion percentage). YouTube
+2. **Absolute watch time**: Total minutes watched per video (not completion percentage). YouTube
    is a session-time business; a 20-minute video watched 50% generates more signal than a 5-minute
    video watched 100%. This is why long-form content compounds over time even at lower completion
    rates.
 
-3. **Average view duration (AVD) and retention curve shape** — The shape of the curve matters more
+3. **Average view duration (AVD) and retention curve shape**: The shape of the curve matters more
    than the final percentage. A flat retention line at 40% signals consistent value. A sharp drop
    in the first 30 seconds signals a misleading thumbnail or slow hook. A bump in the middle signals
-   a high-value moment — note it and front-load similar content in the next video.
+   a high-value moment: note it and front-load similar content in the next video.
 
-4. **Engagement velocity in first 24 to 48 hours** — Likes, comments, saves, and shares in the
+4. **Engagement velocity in first 24 to 48 hours**: Likes, comments, saves, and shares in the
    first two days are the strongest signal that a video should be promoted further. Early
    engagement velocity drives Suggested placement, which drives the majority of views for most
    channels. Prioritize publishing at the time when the audience is most active.
 
-5. **Session starts** — Videos that open a YouTube session get a discovery bonus. High-CTR content
+5. **Session starts**: Videos that open a YouTube session get a discovery bonus. High-CTR content
    (thumbnails that stop scrolling) is more likely to be a session starter. New channels can
    disproportionately benefit from this signal by investing in thumbnail quality early.
 
-6. **End screen click-through and subscribe rate** — Signals satisfaction and intent to continue
+6. **End screen click-through and subscribe rate**: Signals satisfaction and intent to continue
    watching. Low end-screen CTR with high retention suggests content quality is fine but calls
    to action are weak. Strong subscribe rate from a video signals audience-fit and can earn the
    video ongoing recommendation on returning subscriber feeds.
@@ -195,63 +195,63 @@ Ranked by current impact on discovery. Source: youtube-help-recommendations, you
 ## YouTube Shorts algorithm
 
 The Shorts algorithm is entirely separate from the long-form YouTube algorithm. Behavioral signals
-dominate — metadata matters far less than on long-form. Source: youtube-creator-blog,
+dominate; metadata matters far less than on long-form. Source: youtube-creator-blog,
 youtube-help-recommendations (verify weekly; Shorts signals shifted materially in 2025).
 
 **As of 2025 to 2026, the signal stack from highest to lowest weight:**
 
-1. **Session contribution (PRIMARY — 2025 shift)** — Whether a Short keeps the viewer in the
+1. **Session contribution (PRIMARY, 2025 shift)**: Whether a Short keeps the viewer in the
    Shorts feed after it ends. A Short that holds a viewer in the feed for two or more subsequent
    Shorts earns outsized distribution. This is why loop design matters: end the Short cleanly
    so the viewer does not leave the feed to search for more.
 
-2. **Average view duration thresholds** — Behavioral gate before broader distribution.
+2. **Average view duration thresholds**: Behavioral gate before broader distribution.
    Approximate thresholds: ~65% AVD for sub-30-second Shorts; ~50% for 30 to 60 second Shorts.
    A Short that clears its threshold gets seeded to a wider pool (see three-phase model below).
 
-3. **Loop rate / replay rate** — A rewatch within 2 seconds of video end is counted as a
-   partial new view. Loopable Shorts — where the last frame flows naturally back to the first —
+3. **Loop rate / replay rate**: A rewatch within 2 seconds of video end is counted as a
+   partial new view. Loopable Shorts (where the last frame flows naturally back to the first)
    score measurably higher. Design the ending to be a natural loop point whenever the content
    permits.
 
-4. **Comments (outrank likes, 2025)** — As of 2025, comments carry more weight than raw likes
+4. **Comments (outrank likes, 2025)**: As of 2025, comments carry more weight than raw likes
    as a ranking signal. A Short that provokes a reply in the comments section is a stronger
    quality signal than one that collects passive likes.
 
-5. **User satisfaction / post-watch behavior (2025 shift)** — What the viewer does after the
+5. **User satisfaction / post-watch behavior (2025 shift)**: What the viewer does after the
    Short ends: do they subscribe, click to the channel, continue watching Shorts, or leave
    YouTube? Positive post-watch behavior is weighted over raw watch time.
 
-6. **Shares** — Content propagation signal. Weighted alongside replays.
+6. **Shares**: Content propagation signal. Weighted alongside replays.
 
-7. **Swipe-vs-watch ratio (first 1 to 3 seconds)** — Now a SECONDARY signal (was primary
+7. **Swipe-vs-watch ratio (first 1 to 3 seconds)**: Now a SECONDARY signal (was primary
    before 2025). The critical hook window is still important, but behavioral signals from
    viewers who stay have more weight than the number who swiped away.
 
-8. **Original audio bonus (March 2026)** — For accounts under 50,000 subscribers, Shorts
+8. **Original audio bonus (March 2026)**: For accounts under 50,000 subscribers, Shorts
    with original voiceovers outperform Shorts using trending audio in recommendation
    distribution. Trending audio may still be useful for discoverability within TikTok-style
    discovery; on Shorts, original voice wins.
 
-9. **Series and repeat viewing (2025)** — A consistent series format earns algorithmic
-   preference. Repeat viewing from the same creator is rewarded — a viewer who watches a
+9. **Series and repeat viewing (2025)**: A consistent series format earns algorithmic
+   preference. Repeat viewing from the same creator is rewarded: a viewer who watches a
    second Short from the same creator in one session signals strong audience-fit.
 
-10. **Metadata and keywords (lower weight)** — Shorts algorithm weights metadata far less than
+10. **Metadata and keywords (lower weight)**: Shorts algorithm weights metadata far less than
     long-form YouTube. Title keywords and descriptions still affect discoverability in search,
     but behavioral signals are 80%+ of the distribution decision.
 
 **Three-phase Shorts distribution model:**
 
-Phase 1 — Cold seeding: 50 to 500 viewer test pool (approximately 70% non-subscribers). The
+Phase 1 (cold seeding): 50 to 500 viewer test pool (approximately 70% non-subscribers). The
 Short is evaluated against AVD and swipe-through thresholds. Shorts that clear the threshold
 advance; those that do not are suppressed for wider distribution (but may persist in search).
 
-Phase 2 — Watch time gate: if retention thresholds are met, the Short is distributed to a
+Phase 2 (watch time gate): if retention thresholds are met, the Short is distributed to a
 broader audience in the same topic cluster. Comments, saves, and shares are measured here to
 determine the ceiling for Phase 3.
 
-Phase 3 — Topic clustering: long-tail distribution to high-intent topic audiences. A top-performing
+Phase 3 (topic clustering): long-tail distribution to high-intent topic audiences. A top-performing
 Short in the home decor topic cluster can extend its distribution window for 3 to 6 weeks, unlike
 feed-based platforms where content typically decays in 24 to 72 hours.
 
@@ -265,7 +265,7 @@ The Shorts path to YouTube Partner Program is separate from long-form:
 
 **Shorts content freshness:** Shorts have a documented freshness decay curve of approximately
 28 to 30 days (YouTube, September 2025). Unlike long-form evergreen content that accumulates
-views for months, Shorts peak and decline. Plan publishing cadence accordingly — 3 to 5 Shorts
+views for months, Shorts peak and decline. Plan publishing cadence accordingly: 3 to 5 Shorts
 per week sustains discovery across the decay window.
 
 **YouTube Data API note for Shorts:** There is no dedicated Shorts API endpoint in YouTube
@@ -282,70 +282,70 @@ Source: tiktok-newsroom (official transparency blog), tiktok-fyp-guide, tiktok-a
 
 **The 15 documented signals, ranked:**
 
-1. **Rewatch / replay rate** — As of 2025, TikTok's highest-weighted single signal. A video
+1. **Rewatch / replay rate**: As of 2025, TikTok's highest-weighted single signal. A video
    rewatched even once in the same session signals strong entertainment or utility value.
    Design content with a natural re-watch hook: a reveal that improves on second viewing, a
    detail that rewards closer attention. This signal has overtaken video completion rate.
    Source: tiktok-newsroom (official).
 
-2. **Shares** — Cross-platform DM shares and in-app shares. The second-strongest signal.
+2. **Shares**: Cross-platform DM shares and in-app shares. The second-strongest signal.
    Content designed to be shared (humor, transformation reveals, "show this to someone" moments)
    compounds quickly because shares pull new users into the session from outside the app.
    Source: tiktok-newsroom (official).
 
-3. **Comments** — Strong positive signal. Content that provokes questions or opinions performs
+3. **Comments**: Strong positive signal. Content that provokes questions or opinions performs
    best. The first hour of comments is weighted most heavily.
 
-4. **Video completion rate** — Still a primary signal but no longer the single most important
+4. **Video completion rate**: Still a primary signal but no longer the single most important
    one. A completion rate above 80% is strong. Roughly 70% is acceptable. Below 60% for videos
    under 30 seconds signals swipe-through and suppresses distribution.
 
-5. **Watch time (quantified threshold: 15 to 20 second AVD earns 3x distribution)** — Confirmed
+5. **Watch time (quantified threshold: 15 to 20 second AVD earns 3x distribution)**: Confirmed
    by multiple independent analyses of TikTok's distribution patterns. For longer videos
    (1 to 3+ minutes), proportionally high completion earns compounding reward as TikTok expands
    its long-form emphasis.
 
-6. **Saves / Favorites** — Strong signal. `favorites_count` field was added to the TikTok
+6. **Saves / Favorites**: Strong signal. `favorites_count` field was added to the TikTok
    Research API in May 2026 (see `canonical-sources/keyword-library/tiktok-api-registry.json`).
    Content designed to be saved (tutorials, reference guides, before-and-after) earns saves.
 
-7. **Longer video completion bonus (2026)** — Videos of 1 to 3+ minutes that achieve high
+7. **Longer video completion bonus (2026)**: Videos of 1 to 3+ minutes that achieve high
    completion receive outsized distribution reward as TikTok's algorithm shifts to reward
    long-form watch time alongside short-form.
 
-8. **TikTok SEO / search-driven discovery (2025 to 2026 expansion)** — Approximately 84% of
+8. **TikTok SEO / search-driven discovery (2025 to 2026 expansion)**: Approximately 84% of
    TikTok searches are exploration-phase (users discovering new creators, not searching for
    specific known content). Keywords in captions, voiceovers, and on-screen text feed FYP
    placement alongside search results. Treat caption keywords as SEO keywords, not just context.
 
-9. **Micro-community clustering (2025)** — A 2025 algorithm change shifted TikTok away from
+9. **Micro-community clustering (2025)**: A 2025 algorithm change shifted TikTok away from
    pure virality. Niche clusters of 3 or more users with shared preference signals now receive
    relevant niche content, even from small accounts. A home decor account with 500 followers
    can reach 5,000 home-decor-interested viewers through clustering. This reduces the "lottery
    mentality" of chasing mass virality and rewards consistent niche content.
 
-10. **Video information signals (captions, hashtags, sounds, effects)** — Official medium-weight
+10. **Video information signals (captions, hashtags, sounds, effects)**: Official medium-weight
     signals used for topic classification and audience matching. Captions are now a primary text
     signal. The TikTok 7-second pattern interrupt is documented across multiple creator analyses
     as a retention signal: a visual or audio change within the first 7 seconds re-hooks viewers
     who are about to swipe.
 
-11. **"Not Interested" / Skip signals** — Explicitly negative signal per TikTok's official
+11. **"Not Interested" / Skip signals**: Explicitly negative signal per TikTok's official
     documentation. A viewer who taps "Not Interested" or skips within the first 2 to 3 seconds
     actively suppresses distribution to similar audiences.
 
-12. **Device and account settings** — Official low-weight signals: language, country, device type.
+12. **Device and account settings**: Official low-weight signals: language, country, device type.
     These are relevance filters, not quality signals. Source: tiktok-newsroom (official).
 
-13. **Content ineligible for FYP** — Official: hate speech, misinformation, fake engagement,
+13. **Content ineligible for FYP**: Official: hate speech, misinformation, fake engagement,
     watermarked content (this includes TikTok watermarks on content repurposed to competitor
     platforms). Ineligible content is distributed only to existing followers, not to the FYP.
 
-14. **Follower count** — EXPLICITLY A NON-FACTOR. TikTok's official documentation states:
+14. **Follower count**: EXPLICITLY A NON-FACTOR. TikTok's official documentation states:
     "every video starts from zero." Follower count does not influence FYP distribution.
     A new account's first video competes on the same signal basis as an established creator's.
 
-15. **Prior video performance** — EXPLICITLY A NON-FACTOR. One poor-performing video does not
+15. **Prior video performance**: EXPLICITLY A NON-FACTOR. One poor-performing video does not
     suppress future content. Source: tiktok-newsroom (official). This is a meaningful difference
     from YouTube, where channel authority does accumulate over time.
 
@@ -355,51 +355,51 @@ Source: tiktok-newsroom (official transparency blog), tiktok-fyp-guide, tiktok-a
 
 Source: Adam Mosseri (official Instagram head) statements January 2025; Meta Graph API
 documentation v25.0 (February 2026). Reels signals are distinct from both TikTok and YouTube
-Shorts. Verify monthly — Meta makes frequent undocumented algorithm adjustments.
+Shorts. Verify monthly; Meta makes frequent undocumented algorithm adjustments.
 
 **The Reels signal stack (Mosseri official, January 2025):**
 
-1. **Watch time and completion rate** — Primary gate. A 15-second Reel watched 3 times
+1. **Watch time and completion rate**: Primary gate. A 15-second Reel watched 3 times
    outranks a 60-second Reel watched once. The 3-second mark is a critical engagement gate:
    `skip_rate` (the percentage of viewers who skip within 3 seconds) was added as an official
    metric in December 2025. Keep the first 3 seconds visually compelling and audio-on-assumption.
 
-2. **Sends per reach (DM shares)** — THIS IS THE UNIQUE PRIMARY SIGNAL FOR REELS. Approximately
+2. **Sends per reach (DM shares)**: THIS IS THE UNIQUE PRIMARY SIGNAL FOR REELS. Approximately
    694,000 Reels are shared per DM per minute (Meta, 2025). The ratio of DM shares to total
    reach is weighted 3 to 5 times more than likes. Content that makes a viewer want to send it
    directly to a specific friend or group performs dramatically better on Reels than on TikTok.
    For home decor content, this means before-and-after reveals, useful thrift finds, and
    "show this to your partner who says no to dark walls" moments.
 
-3. **Likes per reach** — Ratio to total views, not raw count. Weighted differently for
+3. **Likes per reach**: Ratio to total views, not raw count. Weighted differently for
    connected reach (followers) vs. non-follower reach. A Reel shown to followers that gets
    high likes per reach earns continued feed distribution to followers. A Reel shown to
    non-followers that gets high likes per reach earns Explore and Reels tab distribution.
 
-4. **Saves** — Classified as a "heavy" interaction. Benchmark: 50 saves plus 20 shares
+4. **Saves**: Classified as a "heavy" interaction. Benchmark: 50 saves plus 20 shares
    outperforms 200 likes plus 0 shares for distribution purposes. Tutorial content, reference
    guides, and step-by-step processes earn saves.
 
-5. **Two-way conversation (March 2026)** — DMs, comment replies, and Story reactions between
+5. **Two-way conversation (March 2026)**: DMs, comment replies, and Story reactions between
    two accounts now signal genuine relationship and influence feed distribution. Content that
    prompts actual conversations in DMs earns a distribution bonus beyond the DM-share metric.
 
-6. **Originality** — Critical threshold: accounts with 10 or more reposts in a 30-day period
+6. **Originality**: Critical threshold: accounts with 10 or more reposts in a 30-day period
    are excluded from Recommendations entirely (December 31, 2025 Mosseri memo). Original
    content receives 40 to 60% more distribution than re-shared content. Do not repost TikToks
-   with watermarks — this violates both the originality requirement and Meta's duplicate
+   with watermarks; this violates both the originality requirement and Meta's duplicate
    content detection.
 
-7. **Topic consistency** — The last 9 to 12 posts determine the account's topic categorization
+7. **Topic consistency**: The last 9 to 12 posts determine the account's topic categorization
    in Instagram's recommendation engine. Off-topic content (posting a food reel on a home decor
    account) reduces distribution to the home decor interest cluster. Maintain pillar consistency
    across the most recent 9 to 12 posts.
 
-8. **Audio track** — Video understanding including audio is classified as a ranking signal.
+8. **Audio track**: Video understanding including audio is classified as a ranking signal.
    Original audio is preferred for recommendation matching. Trending audio still provides
    discoverability via the audio page but does not boost algorithmic recommendation.
 
-9. **Captions** — Used for content categorization and recommendation matching. Keyword-rich
+9. **Captions**: Used for content categorization and recommendation matching. Keyword-rich
    captions improve topic classification accuracy.
 
 **Instagram hashtag mechanics (2025 to 2026):**
@@ -412,7 +412,7 @@ Shorts. Verify monthly — Meta makes frequent undocumented algorithm adjustment
   more effective than 10 generic hashtags
 - Keywords in captions now drive discovery more strongly than hashtags
 
-**Meta Graph API v25.0 — key publishing endpoints (current as of February 2026):**
+**Meta Graph API v25.0 key publishing endpoints (current as of February 2026):**
 
 Publishing flow (two-step):
 1. `POST /{ig-user-id}/media` with `media_type=REELS`, `video_url`, optional `trial_params`
@@ -439,45 +439,45 @@ catalog and `shared/integrations-engine.md` for the complete API endpoint refere
 
 Source: pinterest-creator-hub-seo, pinterest-business-specs (verify weekly).
 
-1. **Keyword placement** — Pinterest is a visual search engine first. Keyword-rich Pin title
+1. **Keyword placement**: Pinterest is a visual search engine first. Keyword-rich Pin title
    (first 40 characters weighted most), Pin description (first 100 characters weighted most),
    board name, board description, and profile bio all feed the search index. Treat every field
    as a keyword field, not a copywriting field.
 
-2. **Save rate (repins)** — A saved pin propagates through the follower graph of the saver. Saves
+2. **Save rate (repins)**: A saved pin propagates through the follower graph of the saver. Saves
    compound over months to years as the pin resurfaces in search results and related pins.
    Prioritize content designed to be saved: reference guides, before-and-after transformations,
    step-by-step tutorials, and seasonal inspiration boards.
 
-3. **Fresh content signal** — Pinterest boosts new pins from consistently active accounts.
+3. **Fresh content signal**: Pinterest boosts new pins from consistently active accounts.
    Pinning daily (5 to 10 pins, mixing fresh original content with curated topic-relevant repins)
    maintains the freshness signal. Scheduling tools (Later, Tailwind) are explicitly sanctioned
    by Pinterest for this purpose.
 
-4. **Link domain quality** — Pins that link to fast, trustworthy domains rank better. A YouTube
+4. **Link domain quality**: Pins that link to fast, trustworthy domains rank better. A YouTube
    video URL is a strong link destination because YouTube has high domain authority and fast load
    times.
 
-5. **Image quality signals** — Tall 2:3 format (1000x1500) consistently outperforms square and
+5. **Image quality signals**: Tall 2:3 format (1000x1500) consistently outperforms square and
    landscape. Text overlay on the image improves CTR in search results. High-contrast, warm-toned
-   images perform well in the home decor niche — consistent with the home decor aesthetic.
+   images perform well in the home decor niche, consistent with the home decor aesthetic.
 
-6. **Entity recognition (2026)** — Pinterest's algorithm added entity recognition in 2026.
+6. **Entity recognition (2026)**: Pinterest's algorithm added entity recognition in 2026.
    Named entities in pin titles and descriptions (specific brands, furniture terms, techniques)
    now influence recommendation matching alongside keyword signals. Use entity-rich descriptions:
    "Rust-Oleum Chalked Paint in Linen White on a vintage dresser" is processed differently from
    "painted vintage furniture."
 
-7. **Real-time engagement processing (2026)** — Interaction on one pin now immediately surfaces
+7. **Real-time engagement processing (2026)**: Interaction on one pin now immediately surfaces
    similar content from that account to the engaged user. This means a viewer who saves a "dark
    seasonal decor" pin will see the account's other dark or fall pins surfaced within the same
    session. Series and thematically consistent content compounds faster than it did before this
    change.
 
-8. **Longevity advantage** — Unlike TikTok (24 to 72 hour peak) and Instagram Reels (3 to 7 day
+8. **Longevity advantage**: Unlike TikTok (24 to 72 hour peak) and Instagram Reels (3 to 7 day
    peak), Pinterest pins can rank and drive traffic for months to years. A well-optimized seasonal
    pin republished or refreshed annually compounds across years. This makes Pinterest uniquely
-   valuable for evergreen DIY and decor content — the investment does not expire.
+   valuable for evergreen DIY and decor content: the investment does not expire.
 
 ---
 
@@ -496,7 +496,7 @@ on the subject, which earns better recommendation placement for all videos in th
 
 Each satellite video mentions and links to the hub in the description. The hub links to each
 satellite in cards and the description. YouTube's Suggested algorithm rewards the resulting
-watch-time chain — a viewer who watches the hub is likely to continue to satellites, increasing
+watch-time chain: a viewer who watches the hub is likely to continue to satellites, increasing
 session time and deepening the channel's authority signal.
 
 **Pillar-to-cluster mapping:**
@@ -542,7 +542,7 @@ search traffic for new channels. A new channel cannot out-compete established ch
 "seasonal decor ideas" but can rank on "seasonal home decor on a budget" or "thrift store finds
 for fall mantel decor."
 
-**Five-method expansion sequence — traverse 2 levels from each seed:**
+**Five-method expansion sequence (traverse 2 levels from each seed):**
 
 **1. YouTube autocomplete traversal**
 Type the seed keyword into YouTube search and capture every autocomplete suggestion. Then
@@ -552,7 +552,7 @@ Depth 1 from seed. Depth 2: treat the top 5 suggestions as new seeds and run aut
 
 **2. Google "People Also Ask" tree**
 Search the seed keyword on Google. Extract the first 5 PAA questions. Click each to expand
-nested PAA — each click reveals 4 more questions. This is a recursive PAA tree; traverse
+nested PAA; each click reveals 4 more questions. This is a recursive PAA tree; traverse
 2 levels deep (seed PAA → first-level expansion → second-level expansion). Each question is
 a real searcher intent that can become a video title, chapter heading, or description section.
 
@@ -600,7 +600,7 @@ Source: google-video-best-practices, google-structured-data-video, google-eeeat-
 | Recipe / DIY steps | How-to rich result (structured data) | Web content with HowTo schema; YouTube chapter markers approximate this | |
 
 **For video content:** the video carousel in Google SERP requires a YouTube video with:
-- `name` (title matching the keyword), `description`, `thumbnailUrl`, and `uploadDate` — these
+- `name` (title matching the keyword), `description`, `thumbnailUrl`, and `uploadDate`; these
   are set by YouTube automatically from the video metadata
 - Chapter markers in the description (format: `00:00 Title`) to enable key moments in SERP
 - The VideoObject schema is populated by YouTube; no additional markup is needed for YouTube-hosted videos
@@ -622,31 +622,31 @@ cite a specific chapter of a specific video, not just say "I found a video about
 
 **Bridge tactics: YouTube SEO to AI citation**
 
-1. **Chapter markers as AI citation anchors** — Chapter markers in YouTube descriptions (format:
+1. **Chapter markers as AI citation anchors**: Chapter markers in YouTube descriptions (format:
    `00:00 Title`, `01:30 Title`) create chapter-level structure that both YouTube "Key Moments"
    in Google Search and AI citation systems can reference. A chapter titled "How to layer moody
    textures on a budget mantel" creates a citable, findable content unit independent of the full
    video title.
 
-2. **Companion blog posts with YouTube embeds** — A blog post that embeds the YouTube video,
+2. **Companion blog posts with YouTube embeds**: A blog post that embeds the YouTube video,
    uses the same primary keyword in the title, and provides a written summary or transcript
    creates dual-ranking opportunity: the video ranks in YouTube Search and the blog post ranks
    in Google Search. BrightEdge (2025) documented a 53% improvement in Google ranking for blog
    posts that embed a corresponding YouTube video. The blog post is also the primary surface
    that AI search systems cite, because they prefer indexable text over video transcripts.
 
-3. **VideoObject structured data** — YouTube automatically applies VideoObject schema to hosted
+3. **VideoObject structured data**: YouTube automatically applies VideoObject schema to hosted
    videos. Creator-controlled fields: `name` (title), `description` (first 300 characters are
    most weighted), `thumbnailUrl`, `uploadDate`. The `hasPart` and `SeekToAction` markup in the
    description creates chapter links that both Google SERP and AI systems can use to surface
    specific segments.
 
-4. **Transcript density** — AI citation systems pull from transcripts. Speak entity names
+4. **Transcript density**: AI citation systems pull from transcripts. Speak entity names
    explicitly in the video (see Entity SEO section). A video where "Rust-Oleum Chalked Paint
    in Linen White" is spoken aloud is more citable on that entity than one where only on-screen
    text shows it.
 
-5. **SERP-URL-overlap clustering (GEO-relevant)** — When multiple videos from the same channel
+5. **SERP-URL-overlap clustering (GEO-relevant)**: When multiple videos from the same channel
    appear in the top-10 results for semantically related queries, AI systems are more likely
    to cite that channel as an authority rather than a one-off result. Building topical clusters
    (see Topical authority model section) is therefore both a traditional SEO strategy and an
@@ -662,7 +662,7 @@ For each hub video in a topical cluster, consider publishing a companion blog po
 - Links to related cluster videos with keyword-rich anchor text
 
 This approach captures three separate distribution surfaces: YouTube Search, Google Video
-Carousel, and Google Text Results — while building AI citation authority across all three.
+Carousel, and Google Text Results, while building AI citation authority across all three.
 
 **Tools for tracking AI citations (monitor at source_currency weekly check):**
 Goodie AI, HubSpot AI Search Grader, and Otterly AI track whether content is being cited
@@ -697,7 +697,7 @@ window as long-form content because Shorts distribution is driven by behavioral 
 by date-indexed search. Publish Shorts on or close to the date the topic is peak-relevant. A
 Shorts series during the peak season (for example, daily fall mantel Shorts in late September)
 compounds the session-contribution signal as viewers in the topic cluster discover the series.
-TikTok and Instagram Reels follow the same pattern — behavioral distribution is real-time,
+TikTok and Instagram Reels follow the same pattern: behavioral distribution is real-time,
 not advance-indexed.
 
 ---

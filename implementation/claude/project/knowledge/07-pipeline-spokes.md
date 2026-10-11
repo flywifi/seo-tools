@@ -563,7 +563,7 @@ deliverable requirement-coverage verification.
 Routes: `task_status`, `task_plan`, `coverage_check`, `shipment_update`, `milestone_bill`.
 
 Non-negotiables: every task cites a real source (a contract clause, an email Message-ID, a user statement, or
-a named rule + anchor event) — no phantom tasks. Nothing is sent, invoiced, or posted automatically; nudges,
+a named rule + anchor event); no phantom tasks. Nothing is sent, invoiced, or posted automatically; nudges,
 replies, and invoices are drafted for the human. Waiting-on items surface as aging follow-ups, not silent
 creator to-dos. Coverage cites the supporting sentence or abstains, never inferring.
 

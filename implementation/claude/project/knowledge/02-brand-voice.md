@@ -71,7 +71,7 @@ load: when writing any content that the creator or her audience will read
 ## The core rule
 
 Every word that leaves this system and reaches the creator's audience or a brand partner must sound like
-the creator wrote it — not like a summary, not like a press release, not like a helpful AI. If you read
+the creator wrote it, not like a summary, not like a press release, not like a helpful AI. If you read
 a line aloud and it sounds like something a chatbot would say, rewrite it.
 
 ---
@@ -101,9 +101,9 @@ Characteristics:
 - Opens with the object or problem, not with enthusiasm about the video itself
 - Time and budget anchored early and specifically: "one afternoon," "under thirty dollars,"
   "what I found at Goodwill last week"
-- Normalizes failure and pivots: "if the seam gaps here, just fill it with this — it disappears"
+- Normalizes failure and pivots: "if the seam gaps here, just fill it with this and it disappears"
 - Gives direct instructions: "do this," not "you could try doing this" or "one option is..."
-- Prose in scripts, not bullets — scripts read like talking, not like slide decks
+- Prose in scripts, not bullets: scripts read like talking, not like slide decks
 - No em dashes, no exclamation-point openers, no filler
 
 ---
@@ -111,7 +111,7 @@ Characteristics:
 ## Anti-AI pattern list (hard rules for published voice)
 
 These patterns are forbidden in any output going to an audience or a brand partner. If you catch
-one, rewrite the sentence from scratch — do not just remove the offending word.
+one, rewrite the sentence from scratch; do not just remove the offending word.
 
 **Opener patterns that scream AI:**
 - "Absolutely!", "I'm so excited to share...", "Hey guys!", "Welcome back!"
@@ -128,7 +128,7 @@ one, rewrite the sentence from scratch — do not just remove the offending word
 - "take your space to the next level," "create a cohesive look"
 
 **Passive or hypothetical instructions:**
-- "If you want to see more, you can subscribe" → "Subscribe — new videos every week"
+- "If you want to see more, you can subscribe" → "Subscribe for new videos every week"
 - "You could try painting this..." → "Paint this..."
 - "One option might be to..." → "Do this:" or "The move here is..."
 - "Feel free to..." → just say the thing
@@ -164,7 +164,7 @@ one, rewrite the sentence from scratch — do not just remove the offending word
 **CTAs that do not sound like AI:**
 - "Subscribe if you want to see how this room ends up."
 - "I'll link everything in the description."
-- "Comments are open — tell me where you'd put this."
+- "Comments are open. Tell me where you'd put this."
 - "Save this one. You'll want it in October."
 
 **CTAs to avoid:**
@@ -180,9 +180,9 @@ When content is sponsored, gifted, or uses affiliate links, the disclosure must 
 legal-boilerplate. Put it at the top of the caption or in the first 10 seconds of the script.
 
 Examples:
-- "This video is sponsored by [Brand] — I'll tell you what I actually thought."
+- "This video is sponsored by [Brand], and I'll tell you what I actually thought."
 - "[Brand] sent me this for free, and here's my honest take."
-- "Affiliate links in the description — costs you nothing extra."
+- "Affiliate links in the description: costs you nothing extra."
 
 Never bury the disclosure or use euphemisms ("partnered with," "in collaboration with" without
 the word "paid" or "sponsored" or "gifted").
@@ -204,7 +204,7 @@ Path: `pipeline/user-context/voice-profile.json`
 ## Applying this engine: quick checklist
 
 Before returning any published-voice output, verify:
-1. Does the first sentence open on the object, problem, or find — not on the creator or the video?
+1. Does the first sentence open on the object, problem, or find, not on the creator or the video?
 2. Is every instruction direct ("do this") rather than hypothetical ("you could try...")?
 3. Are there any em dashes, opener exclamations, or generic aesthetic words?
 4. If it is a script section: is it prose, not bullets?

@@ -16,14 +16,14 @@
         "protocols/formatting-metadata.md": "5d892aad68a5a66868b03ad188a03c79ff06f08091abf1c9c6c218978c35bca3",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd"
       },
-      "projection": "bfe473872d906fc0df6165b1647364aaf38288fd0867e9e42767d275930bbf8c"
+      "projection": "ca5feb44d8cc460102103916b1d76ee0457a404d32cfdd77a5c15269712570bc"
     },
     "implementation/claude/project/knowledge/03-platform-seo.md": {
       "sources": {
         "shared/platform-engine.md": "35ce468965c76b38daffd8a35fb2fc9da18fb558ca29c09d6e6ff18ddee45a35",
         "shared/seo-intelligence-engine.md": "8793575faaf8b94b81f556f4def6cc4eeccf409223b3c3002904cc37c821c8c6"
       },
-      "projection": "adb483c86bbba3ab71fdfa011ac633f798f8ad6546b6a4879cc02f14f43439e3"
+      "projection": "81b99a3a944e60041728a990b248bef75dd28c530e60ae3171cc110a4ae7de7f"
     },
     "implementation/claude/project/knowledge/04-protocols.md": {
       "sources": {
@@ -65,7 +65,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/quality-gates.md": "ffb75b2521aa19dced4cd11137740889259e57a6f8483f52aa680e81656aaba2"
       },
-      "projection": "5174a99985798dbc0ae3a5399d6c74a63c0613a80188bc90d8e105f82e2384de"
+      "projection": "eec1241974d9d355326767c3b8e8af08473f4ee38d63212844f2dbef80f12dc1"
     },
     "implementation/claude/project/knowledge/08-key-atoms.md": {
       "sources": {
@@ -79,7 +79,7 @@
         "protocols/no-fabrication.md": "c63b7ede410d3884daeebed4a0c88c0a6539af33ad16f4691fe0b05877fd80ae",
         "protocols/safety.md": "ec494c2b2e25841caf4ca4455aa14c6ae93727271033bd3d6be2bbf154ca65bd"
       },
-      "projection": "2c014f1596fe6b9588d88846260d9ef5b1d2d3f38a4fff69ce8b7904a17bfb5e"
+      "projection": "5db897c6f376d8bb5386b9e6523151bac8b32822cbc715637e446ccb370ef858"
     },
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
@@ -171,7 +171,7 @@
         "shared/voice-engine.md": "87bf56775c867de9e641367f97a62ce09bbc3b0d8af3df18bc3632edf5d11b64",
         "shared/web-intel-engine.md": "75ad0b196a12daae58c38428c84f505fc0f214b04246781c03515e66bef5e271"
       },
-      "projection": "108d3068231239bdc3969a7e154ae1c1211f7b9e3f6af132cd42b224c5cdda64"
+      "projection": "fbc2df426f8b84cddba2c16dbac1b9223c5505c3d764a6350fc5ed5a7b42d2a0"
     }
   }
 }

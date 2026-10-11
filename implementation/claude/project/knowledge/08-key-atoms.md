@@ -50,7 +50,7 @@ one structured output, using the SERP feature map and intent model from
 
 ```json
 {
-  "keywords": ["string — 1 to 10 items"],
+  "keywords": ["string (1 to 10 items)"],
   "platforms": ["youtube", "pinterest", "tiktok", "google"],
   "season": "fall | holiday | spring | summer | evergreen",
   "check_trend_momentum": false
@@ -123,7 +123,7 @@ one structured output, using the SERP feature map and intent model from
     "tiktok": ["string"],
     "google": ["string"]
   },
-  "seasonal_timing_summary": "string or null — only present when season_context is non-null",
+  "seasonal_timing_summary": "string or null (only present when season_context is non-null)",
   "retrieval_gaps": [],
   "fabrication_flags": []
 }

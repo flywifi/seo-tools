@@ -265,6 +265,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (knowledge files without em dashes): the em dashes in the knowledge files the setup wizard
+  stages for upload to a Project (`02-brand-voice.md`, `03-platform-seo.md`, `07-pipeline-spokes.md`
+  and `08-key-atoms.md` under `implementation/claude/project/knowledge/`) become colons, commas,
+  semicolons, parentheses or full stops, and `creator-os-combined.md` is rebuilt from them.
 - P102 (Windows install scope): `docs/INSTALL-SCOPE.md` gains a Windows section: where the repo's
   `.venv`, the Python install manager, Git for Windows from a standard account, Scoop and the
   Node.js it installs, whisper.cpp models, Playwright's browser and the Claude Desktop settings file

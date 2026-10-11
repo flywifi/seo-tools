@@ -9,11 +9,11 @@
     },
     {
       "file": "implementation/claude/project/knowledge/02-brand-voice.md",
-      "sha256": "bfe473872d906fc0df6165b1647364aaf38288fd0867e9e42767d275930bbf8c"
+      "sha256": "ca5feb44d8cc460102103916b1d76ee0457a404d32cfdd77a5c15269712570bc"
     },
     {
       "file": "implementation/claude/project/knowledge/03-platform-seo.md",
-      "sha256": "adb483c86bbba3ab71fdfa011ac633f798f8ad6546b6a4879cc02f14f43439e3"
+      "sha256": "81b99a3a944e60041728a990b248bef75dd28c530e60ae3171cc110a4ae7de7f"
     },
     {
       "file": "implementation/claude/project/knowledge/04-protocols.md",
@@ -29,11 +29,11 @@
     },
     {
       "file": "implementation/claude/project/knowledge/07-pipeline-spokes.md",
-      "sha256": "5174a99985798dbc0ae3a5399d6c74a63c0613a80188bc90d8e105f82e2384de"
+      "sha256": "eec1241974d9d355326767c3b8e8af08473f4ee38d63212844f2dbef80f12dc1"
     },
     {
       "file": "implementation/claude/project/knowledge/08-key-atoms.md",
-      "sha256": "2c014f1596fe6b9588d88846260d9ef5b1d2d3f38a4fff69ce8b7904a17bfb5e"
+      "sha256": "5db897c6f376d8bb5386b9e6523151bac8b32822cbc715637e446ccb370ef858"
     },
     {
       "file": "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
@@ -45,7 +45,7 @@
     },
     {
       "file": "implementation/claude/project/creator-os-combined.md",
-      "sha256": "108d3068231239bdc3969a7e154ae1c1211f7b9e3f6af132cd42b224c5cdda64"
+      "sha256": "fbc2df426f8b84cddba2c16dbac1b9223c5505c3d764a6350fc5ed5a7b42d2a0"
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",
