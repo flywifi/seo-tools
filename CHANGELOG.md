@@ -399,6 +399,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (competitor pages): `tools/parse_competitor_meta.py` reads a YouTube watch page's chapters
+  from `multiMarkersPlayerBarRenderer` (the `DESCRIPTION_CHAPTERS` entry of its `markersMap`) before
+  the older `chapteredPlayerBarRenderer`; a channel page's space-separated keywords become one tag per
+  word or quoted phrase, with the words after an unterminated quote (a truncated attribute) split on
+  spaces; and keyword and og values are HTML-unescaped once, so `&amp;` reads as `&`.
 - P102 (DuckDB connector): Claude Desktop's DuckDB entry
   (`implementation/claude/desktop/claude_desktop_config_snippet.json`) runs the PyPI package with
   `uvx mcp-server-motherduck --db-path :memory: --read-write`. It named

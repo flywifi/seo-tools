@@ -35,8 +35,10 @@ Never fabricates values; absent fields are returned as None.
 from __future__ import annotations
 
 import hashlib
+import html as _html
 import json
 import re
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -103,6 +105,51 @@ def _find_in_dict(obj: Any, target_key: str, results: list, max_depth: int = 20)
             _find_in_dict(item, target_key, results, max_depth - 1)
 
 
+def _player_bar_chapters(initial_data: Any) -> list:
+    """The chapter list under today's player bar: multiMarkersPlayerBarRenderer -> markersMap
+    [key DESCRIPTION_CHAPTERS, else the first entry with chapters] -> value -> chapters (P103).
+    [] when the page has no such bar, so the caller falls back to the older container."""
+    bars: list = []
+    _find_in_dict(initial_data, "multiMarkersPlayerBarRenderer", bars)
+    for bar in bars:
+        entries = bar.get("markersMap") if isinstance(bar, dict) else None
+        if not isinstance(entries, list):
+            continue
+        with_chapters = [e for e in entries if isinstance(e, dict)
+                         and isinstance(_try_get(e, "value", "chapters"), list)]
+        preferred = [e for e in with_chapters if e.get("key") == "DESCRIPTION_CHAPTERS"]
+        for entry in preferred or with_chapters:
+            return _try_get(entry, "value", "chapters") or []
+    return []
+
+
+def _chapter_rows(raw_chapters: list) -> list:
+    """[{timestamp_ms, title}] from chapterRenderer entries; an entry with neither is dropped."""
+    parsed = []
+    for ch in raw_chapters or []:
+        renderer = _try_get(ch, "chapterRenderer") or {}
+        title_obj = renderer.get("title") or {}
+        title = title_obj.get("simpleText") or ""
+        ts_ms = renderer.get("timeRangeStartMillis")
+        if title or ts_ms is not None:
+            parsed.append({"timestamp_ms": ts_ms, "title": title})
+    return parsed
+
+
+def _split_keywords(text: str) -> list:
+    """Keywords from a <meta name="keywords"> value: commas when present, else whitespace with
+    quoted phrases kept whole (shlex); after an unterminated quote (a truncated attribute) the
+    phrases before it are kept and only the tail is split on whitespace (P103)."""
+    if "," in text:
+        return [t.strip() for t in text.split(",") if t.strip()]
+    try:
+        parts = shlex.split(text)
+    except ValueError:  # an unterminated quote (a truncated attribute): keep the phrases before it
+        head, _, tail = text.rpartition('"')
+        parts = _split_keywords(head) + tail.split()
+    return [t.strip() for t in parts if t.strip()]
+
+
 def parse_youtube(html: str) -> dict:
     """Extract YouTube competitive metadata from raw HTML."""
     out: dict = {
@@ -154,10 +201,12 @@ def parse_youtube(html: str) -> dict:
         meta_match = re.search(r'<meta\s+content=["\']([^"\']+)["\'][^>]*name=["\']keywords["\']',
                                html, re.I)
     if meta_match:
-        out["meta_keywords"] = meta_match.group(1)
+        out["meta_keywords"] = _html.unescape(meta_match.group(1))
         if not out["video_tags"]:
-            # Use meta keywords as fallback for tags
-            tags_list = [t.strip() for t in meta_match.group(1).split(",") if t.strip()]
+            # Use meta keywords as fallback for tags. A channel page writes them space-separated
+            # with quoted phrases and escaped quotes ("diy &quot;how to&quot; ..."), so unescape
+            # first and split quoted phrases whole; a comma list still splits on commas (P103).
+            tags_list = _split_keywords(out["meta_keywords"])
             if tags_list:
                 out["video_tags"] = json.dumps(tags_list)
                 out["confidence"] = "medium"
@@ -168,20 +217,15 @@ def parse_youtube(html: str) -> dict:
         out["confidence"] = max(out["confidence"], "medium",
                                 key=lambda x: {"low": 0, "medium": 1, "high": 2}[x])
         # Chapter markers — try player overlay path first
-        chapters_found = []
-        _find_in_dict(initial_data, "chapteredPlayerBarRenderer", chapters_found)
-        if chapters_found:
-            raw_chapters = _try_get(chapters_found[0], "chapters") or []
-            parsed = []
-            for ch in raw_chapters:
-                renderer = _try_get(ch, "chapterRenderer") or {}
-                title_obj = renderer.get("title") or {}
-                title = title_obj.get("simpleText") or ""
-                ts_ms = renderer.get("timeRangeStartMillis")
-                if title or ts_ms is not None:
-                    parsed.append({"timestamp_ms": ts_ms, "title": title})
-            if parsed:
-                out["chapter_markers"] = json.dumps(parsed)
+        raw_chapters = _player_bar_chapters(initial_data)
+        if not raw_chapters:
+            chapters_found = []
+            _find_in_dict(initial_data, "chapteredPlayerBarRenderer", chapters_found)
+            if chapters_found:
+                raw_chapters = _try_get(chapters_found[0], "chapters") or []
+        parsed = _chapter_rows(raw_chapters)
+        if parsed:
+            out["chapter_markers"] = json.dumps(parsed)
         # Description-based chapters as fallback
         if not out["chapter_markers"]:
             desc_chapters = []
@@ -305,7 +349,7 @@ def _extract_og_tags(html: str) -> dict:
             m = re.search(rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\']{p}["\']',
                           html, re.I)
         if m:
-            og[key] = m.group(1)
+            og[key] = _html.unescape(m.group(1))  # "A &amp; B" -> "A & B" (P103)
     return og
 
 
@@ -473,6 +517,35 @@ def selftest() -> int:
        shallow == [])
     ok("_try_get returns None on a bad path", _try_get({"a": {"b": 1}}, "a", "zz") is None)
     ok("platform detected from url", _detect_platform("https://www.youtube.com/watch?v=1", "") == "youtube")
+
+    # P103: today's watch page keeps chapters under multiMarkersPlayerBarRenderer, not the older
+    # chapteredPlayerBarRenderer; channel pages quote multi-word keywords; og values carry entities.
+    bar = {"playerOverlays": {"playerBar": {"multiMarkersPlayerBarRenderer": {"markersMap": [
+        {"key": "AUTO_CHAPTERS", "value": {"chapters": [
+            {"chapterRenderer": {"title": {"simpleText": "auto"}, "timeRangeStartMillis": 0}}]}},
+        {"key": "DESCRIPTION_CHAPTERS", "value": {"chapters": [
+            {"chapterRenderer": {"title": {"simpleText": "Plan"}, "timeRangeStartMillis": 0}},
+            {"chapterRenderer": {"title": {"simpleText": "Paint & prep"}, "timeRangeStartMillis": 100000}},
+            {"chapterRenderer": {}}]}}]}}}}
+    rows = _chapter_rows(_player_bar_chapters(bar))
+    ok("chapters read from multiMarkersPlayerBarRenderer, the DESCRIPTION_CHAPTERS entry preferred",
+       rows == [{"timestamp_ms": 0, "title": "Plan"}, {"timestamp_ms": 100000, "title": "Paint & prep"}])
+    ok("a page without the new player bar yields [] so the older container is tried",
+       _player_bar_chapters({"a": {"chapteredPlayerBarRenderer": {}}}) == [])
+    yt = parse_youtube('<html><script>var ytInitialData = ' + json.dumps(bar) + ';</script></html>')
+    ok("parse_youtube stores the player-bar chapters",
+       json.loads(yt["chapter_markers"] or "[]") == rows)
+    ok("channel keywords: quoted phrases whole, single words kept",
+       _split_keywords('diy "how to" makeover "room makeover"') == ["diy", "how to", "makeover", "room makeover"])
+    ch = parse_youtube('<meta name="keywords" content="diy &quot;how to&quot; makeover">')
+    ok("the keywords fallback unescapes before splitting",
+       json.loads(ch["video_tags"]) == ["diy", "how to", "makeover"] and ch["meta_keywords"] == 'diy "how to" makeover')
+    ok("a comma list still splits on commas", _split_keywords("a, b c, d") == ["a", "b c", "d"])
+    ok("an unterminated quote keeps the phrases before it and splits only the tail",
+       _split_keywords('diy "how to" "room make') == ["diy", "how to", "room", "make"])
+    ok("og values are unescaped once",
+       _extract_og_tags('<meta property="og:title" content="SMALL &amp; AWKWARD &quot;entryway&quot;">').get("og_title")
+       == 'SMALL & AWKWARD "entryway"')
 
     print(f"parse_competitor_meta selftest: {'PASS' if not failures else 'FAIL'} "
           f"({len(failures)} failure(s))")
