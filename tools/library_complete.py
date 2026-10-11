@@ -22,6 +22,7 @@ Usage:
   python3 tools/library_complete.py complete --export-dir DIR [--write]
   python3 tools/library_complete.py --selftest
 """
+import errno
 import argparse
 import json
 import os
@@ -76,6 +77,10 @@ def match_media(export_dir, records, prober=_mp.probe):
     # clean-envelope guarantee became vacuous. Probe the directory explicitly so a bad path
     # raises OSError on every supported interpreter and main() wraps it in the envelope. A
     # MISSING directory stays an empty worklist (the 3.12 rglob semantics the selftests pin).
+    if any(len(part) > 255 for part in export.parts):
+        # A name part over 255 characters cannot exist; Windows with long paths off reports it as
+        # missing, so refuse it here, as ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(export))
     try:
         os.stat(export)
     except FileNotFoundError:
@@ -375,6 +380,15 @@ def selftest():
         rc = main(["match", "--export-dir", "x" * 300])
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
+    import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
+    with _fh_lp.long_paths_off():
+        try:
+            match_media("x" * 300, [])
+            _lp_errno = None
+        except OSError as exc:
+            _lp_errno = exc.errno
+    ok("a >255-character export folder is refused where the system reports it missing (P102)",
+       _lp_errno == errno.ENAMETOOLONG)
     ok("main switches a redirected stdout to UTF-8 (P102: titles with an emoji on Windows)",
        "utf8_stdio" in main.__code__.co_names)
 

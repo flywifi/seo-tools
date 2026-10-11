@@ -129,7 +129,8 @@ def _build_keyword_offline(params, inputs, hub_root):
         return None, "keyword_offline params.query must be a non-empty string"
     if len(query) > 500:
         return None, "keyword_offline params.query too long (max 500 chars)"
-    return [_tool("keyword_offline.py"), "report", "--query", query, "--json"], None
+    # One --query=<text> token, so a query that starts with "-" is not read as an option (P102).
+    return [_tool("keyword_offline.py"), "report", f"--query={query}", "--json"], None
 
 
 # job_type -> (argv builder, timeout seconds). Builders return (argv, error). A job type that is
@@ -528,6 +529,9 @@ def selftest() -> int:
     ok("keyword_offline builds the report argv",
        err_k is None and argv_k[0].endswith("keyword_offline.py") and
        argv_k[1] == "report" and "--json" in argv_k)
+    argv_dash, _ = _build_keyword_offline({"query": "-shorts"}, [], hub)
+    ok("keyword_offline passes a query that starts with - as one --query= token (P102)",
+       "--query=-shorts" in argv_dash and "-shorts" not in argv_dash)
     ok("keyword_offline refuses an empty query",
        _build_keyword_offline({}, [], hub)[1] is not None and
        _build_keyword_offline({"query": "  "}, [], hub)[1] is not None)

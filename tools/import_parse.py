@@ -24,6 +24,7 @@ Usage:
   python3 tools/import_parse.py pinterest <pin-analytics.json>
   python3 tools/import_parse.py --selftest
 """
+import errno
 import argparse
 import csv
 import io
@@ -206,6 +207,10 @@ def _probe_exists(p):
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError so the
     CLI envelope fires -- CPython 3.14 changed Path.exists()/is_file()/is_dir() to swallow
     those errors, which made an unreadable path parse to an empty [] instead."""
+    if any(len(part) > 255 for part in Path(p).parts):
+        # A name part over 255 characters cannot exist; Windows with long paths off reports it as
+        # missing, so refuse it here as unprobeable, as ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
         return True
@@ -739,6 +744,12 @@ def selftest():
         rc = main(["youtube-takeout", "x" * 300])
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
+    import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
+    buf = io.StringIO()
+    with _fh_lp.long_paths_off(), contextlib.redirect_stdout(buf):
+        rc_lp = main(["youtube-takeout", "x" * 300])
+    ok(">255-character path arg -> clean envelope where the system reports it missing (P102)",
+       rc_lp == 1 and "next_step" in buf.getvalue())
 
     # P102: a Studio export with an emoji title, piped under a cp1252 codec (what a Windows pipe
     # uses), is parsed with the title intact; main switches the redirected stdout to UTF-8.

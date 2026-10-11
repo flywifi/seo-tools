@@ -29,7 +29,8 @@ Use the `configure-stats-tool` atom to set up any tool:
 
 The atom detects your OS, checks prerequisites, generates the exact Claude Desktop config JSON,
 and enables the flag in `creator-os-config.local.json`. You can also use the `configure_tool`
-MCP tool directly to toggle flags.
+MCP tool directly to toggle flags. It refuses a flag name that `creator-os-config.json` does not
+declare and suggests the closest names, so a typo is not saved as a flag that switches nothing on.
 
 Or set up manually:
 

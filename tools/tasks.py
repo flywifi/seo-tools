@@ -15,6 +15,7 @@ Usage:
   python3 tools/tasks.py scan [--register PATH] [--today YYYY-MM-DD]
   python3 tools/tasks.py manifest
 """
+import errno
 import argparse
 import hashlib
 import json
@@ -318,6 +319,10 @@ def _probe_exists(p: Path) -> bool:
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError instead
     of reading absent -- CPython 3.14 changed Path.exists() to swallow those errors, which
     silently turned this boundary's documented refusal into an empty register."""
+    if any(len(part) > 255 for part in Path(p).parts):
+        # A name part over 255 characters cannot exist; Windows with long paths off reports it as
+        # missing, so refuse it here as unprobeable, as ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
         return True
@@ -1238,6 +1243,37 @@ def selftest() -> int:
          "responsible_party": "creator", "status": "done", "due_date": "2026-08-01"}]}
     r2 = register_to_ics(reg_ics)
     check("ics-skips-closed", r2.count("BEGIN:VEVENT") == 1 and "UID:deal_1-a@creator-os" in r2)
+    # P102: `tasks.py ics` keeps the calendar's CRLF line endings, to a file and to stdout. Windows
+    # text mode writes each "\n" as "\r\n", which gave "\r\r\n" before; both outputs run under a
+    # stand-in for that translation (newline="\r\n" where a text write leaves newline unset).
+    import contextlib
+    import io as _io_ics
+    import tempfile as _tf_ics
+    with _tf_ics.TemporaryDirectory() as _td_ics:
+        _reg_ics = Path(_td_ics) / "register.json"
+        _reg_ics.write_text(json.dumps(reg_ics), encoding="utf-8")
+        _cal_ics = Path(_td_ics) / "calendar.ics"
+        _real_write_text = Path.write_text
+
+        def _windows_write_text(self, data, encoding=None, errors=None, newline=None):
+            return _real_write_text(self, data, encoding=encoding, errors=errors,
+                                    newline="\r\n" if newline is None else newline)
+        _real_stdout = sys.stdout
+        _win_stdout = _io_ics.TextIOWrapper(_io_ics.BytesIO(), encoding="utf-8", newline="\r\n")
+        try:
+            Path.write_text = _windows_write_text
+            with contextlib.redirect_stdout(_io_ics.StringIO()):
+                _rc_file = main(["ics", "--register", str(_reg_ics), "--out", str(_cal_ics)])
+            sys.stdout = _win_stdout
+            _rc_out = main(["ics", "--register", str(_reg_ics)])
+            _win_stdout.flush()
+        finally:
+            Path.write_text = _real_write_text
+            sys.stdout = _real_stdout
+        _file_ics = _cal_ics.read_bytes() if _cal_ics.exists() else b""
+        _out_ics = _win_stdout.buffer.getvalue()
+    check("ics-crlf-not-doubled", _rc_file == 0 and _rc_out == 0
+          and all(b"BEGIN:VEVENT\r\n" in b and b"\r\r\n" not in b for b in (_file_ics, _out_ics)))
 
     # reminders digest surfaces overdue
     dig = reminders_digest({"tasks": [copy.deepcopy(t2)]}, date(2026, 7, 15))
@@ -1259,6 +1295,18 @@ def selftest() -> int:
         check("oversize-register-path-ValueError", True)
     except OSError:
         check("oversize-register-path-ValueError", False)
+    # P102: the same refusal where the system reports the long name as missing, as Windows does
+    # with long paths off (file_hash.long_paths_off stands that in on any system).
+    import file_hash as _fh_lp
+    with _fh_lp.long_paths_off():
+        try:
+            load_register("local_fs", "x" * 300)
+            _lp_refused = False
+        except ValueError:
+            _lp_refused = True
+        except OSError:
+            _lp_refused = False
+    check("oversize-register-path-ValueError-long-paths-off", _lp_refused)
 
     if not _IN_MUTANT and _MERGE_MUTANTS:
         survivors = _run_merge_mutants()
@@ -1344,14 +1392,23 @@ def main(argv):
         ics = register_to_ics(reg)
         if args.out:
             try:
-                Path(args.out).write_text(ics, encoding="utf-8")
+                # newline="": the calendar text already ends its lines with CRLF (RFC 5545), and
+                # Windows text mode would add a CR before each LF (P102)
+                Path(args.out).write_text(ics, encoding="utf-8", newline="")
             except OSError as exc:
                 print(json.dumps({"error": f"could not write the calendar file: {exc}",
                                   "next_step": "pass a writable --out path"}))
                 return 1
             print(json.dumps({"written": args.out, "events": ics.count("BEGIN:VEVENT")}))
         else:
-            sys.stdout.write(ics)
+            # the same CRLF text through the byte buffer, so a Windows text-mode stdout adds no CR
+            out = getattr(sys.stdout, "buffer", None)
+            if out is not None:
+                sys.stdout.flush()
+                out.write(ics.encode("utf-8"))
+                out.flush()
+            else:
+                sys.stdout.write(ics)
         return 0
     if args.cmd == "reminders":
         reg, rc = _reg_or_fail(args.register)

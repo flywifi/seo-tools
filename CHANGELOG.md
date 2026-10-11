@@ -355,6 +355,31 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (search words): the scoop cache quotes each word of a search as an FTS5 string
+  (`cache._match_query`), so a search with AND, OR, NOT or NEAR, or one ending in OR, answers
+  instead of returning an `fts5: syntax error` traceback through `cache_query`,
+  `construction_lookup` and `code_lookup`; a word with a letter beyond ASCII stays whole, and a
+  search for two words still finds a record that holds both. `video_library_query` keeps FTS5
+  operators, as its description says.
+- P102 (a search that starts with "-"): `cache_query`, `construction_lookup`, `code_lookup`, the
+  runner's keyword job and `keyword_offline` pass the query as one `--query=<text>` token, and
+  `video_library_query` passes it after `--`, so a query such as `-stairs` reaches its engine
+  instead of being read as a command-line option (`mcp_server._cache_query_argv`,
+  `_video_query_argv`).
+- P102 (unknown capability names): `configure_tool` refuses a name `creator-os-config.json` does
+  not declare, with the closest known names, and does not write the local config; before, a typo such as
+  `compute_handof_enabled` was saved and answered ok (`mcp_server._unknown_capability`).
+- P102 (missing FCPXML file, crop sizes): `edit_parse_fcpxml` and `import_edit_artifact` report a
+  path that is not there as `FCPXML file not found`, not as an XML parse error, and
+  `reframe.crop_geometry` refuses a zero or negative size and an aspect that is not N:M with
+  positive numbers with a message naming the field.
+- P102 (calendar line endings): `tasks.py ics` writes the calendar's CRLF line endings unchanged
+  to a file and to stdout; on Windows the lines ended in CR CR LF.
+- P102 (long names on Windows): the path checks in `tasks`, `import_parse`, `obligations`,
+  `source_currency` and `library_complete` refuse a name part over 255 characters as unprobeable
+  (`ENAMETOOLONG`); Windows with long paths off reports such a name as missing, which gave an
+  empty register or worklist instead of the clean error. `file_hash.long_paths_off()` stands that
+  Windows behavior in for the selftests.
 - P102 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 1800 s, up from 900 s
   (`selftest_sweep.TOOL_TIMEOUTS`). Its selftest runs the committed mutation rows; at 1,022 rows
   a GitHub Windows runner took longer than 900 s, and the Windows CI job failed. The job's

@@ -95,6 +95,26 @@ def windows_paths():
             del cls.relative_to
 
 
+@contextlib.contextmanager
+def long_paths_off():
+    """Test helper: while the block runs, os.stat (which Path.stat calls) raises FileNotFoundError
+    for a path with a part over 255 characters, as Windows does with long paths off (its default),
+    where POSIX systems raise ENAMETOOLONG (P102)."""
+    real = os.stat
+
+    def stat(path, *args, **kwargs):
+        if not isinstance(path, int) and any(len(part) > 255 for part in
+                                             pathlib.PurePath(os.fspath(path)).parts):
+            raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))
+        return real(path, *args, **kwargs)
+
+    os.stat = stat
+    try:
+        yield
+    finally:
+        os.stat = real
+
+
 # --- selftest: everything below is test code; the committed mutations apply above this line ---
 _SELFTEST_MARK = "# --- selftest: everything below is test code; the committed mutations apply above this line ---\n"
 _IN_MUTANT = False
@@ -3220,6 +3240,91 @@ _MUTANTS = (
     ('AU4-QE1 a missing path is checked like a zip file', 'import_parse.py',
      '    if Path(str(path)).is_file():\n',
      '    if not Path(str(path)).is_dir():\n'),
+    # P102 push 4c: search words, a leading "-", missing files, crop guards, CRLF, long names.
+    ('C4-A1 the search words go unquoted again', '../shared/cache/cache.py',
+     '    return " ".join(f\'"{t}"\' for t in tokens)\n',
+     '    return " ".join(tokens)\n'),
+    ('C4-A2 a letter beyond ASCII splits the word', '../shared/cache/cache.py',
+     '    tokens = re.findall(r"[^\\W_]+", q)\n',
+     '    tokens = re.findall(r"[A-Za-z0-9]+", q)\n'),
+    ('C4-A3 the words are joined with bare AND', '../shared/cache/cache.py',
+     '    return " ".join(f\'"{t}"\' for t in tokens)\n',
+     '    return " AND ".join(tokens)\n'),
+    ('C4-B1 the runner passes --query and the query apart', 'handoff/runner.py',
+     'return [_tool("keyword_offline.py"), "report", f"--query={query}", "--json"], None',
+     'return [_tool("keyword_offline.py"), "report", "--query", query, "--json"], None'),
+    ('C4-B2 keyword_offline passes --query and the query apart', 'keyword_offline.py',
+     '            f"--query={query}", "--limit", str(limit), "--json"]',
+     '            "--query", query, "--limit", str(limit), "--json"]'),
+    ('C4-B3 keyword_offline joins them with a space', 'keyword_offline.py',
+     '            f"--query={query}", "--limit", str(limit), "--json"]',
+     '            f"--query {query}", "--limit", str(limit), "--json"]'),
+    ('C4-E1 a missing FCPXML path is parsed as XML again', 'videoedit/fcpxml.py',
+     '    if p is not None and not p.exists() and "<" not in src:\n',
+     '    if False:\n'),
+    ('C4-E2 the XML test is inverted', 'videoedit/fcpxml.py',
+     '    if p is not None and not p.exists() and "<" not in src:\n',
+     '    if p is not None and not p.exists() and "<" in src:\n'),
+    ('C4-E3 a missing file raises ValueError', 'videoedit/fcpxml.py',
+     '        raise FileNotFoundError(f"FCPXML file not found: {src}")\n',
+     '        raise ValueError(f"FCPXML file not found: {src}")\n'),
+    ('C4-G1 a zero size reaches the arithmetic', 'videoedit/reframe.py',
+     '    if sw <= 0 or sh <= 0:\n',
+     '    if False:\n'),
+    ('C4-G2 one negative side passes', 'videoedit/reframe.py',
+     '    if sw <= 0 or sh <= 0:\n',
+     '    if sw <= 0 and sh <= 0:\n'),
+    ('C4-G3 a zero aspect part passes', 'videoedit/reframe.py',
+     '    if num <= 0 or den <= 0:\n',
+     '    if False:\n'),
+    ('C4-ICS1 the calendar file is written in text mode', 'tasks.py',
+     '                Path(args.out).write_text(ics, encoding="utf-8", newline="")\n',
+     '                Path(args.out).write_text(ics, encoding="utf-8")\n'),
+    ('C4-ICS2 the calendar goes through the text stdout', 'tasks.py',
+     '            out = getattr(sys.stdout, "buffer", None)\n',
+     '            out = None\n'),
+    ('C4-ICS3 the calendar bytes are not UTF-8', 'tasks.py',
+     '                out.write(ics.encode("utf-8"))\n',
+     '                out.write(ics.encode("utf-16"))\n'),
+    ('C4-I1 tasks reads a long name as absent', 'tasks.py',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I2 tasks takes 300 characters as the limit', 'tasks.py',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 300 for part in Path(p).parts):\n'),
+    ('C4-I3 import_parse reads a long name as absent', 'import_parse.py',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I4 import_parse calls a long name absent', 'import_parse.py',
+     '        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))\n',
+     '        return False\n'),
+    ('C4-I5 obligations reads a long name as absent', 'obligations.py',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I6 obligations takes 300 characters as the limit', 'obligations.py',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 300 for part in Path(p).parts):\n'),
+    ('C4-I7 source_currency reads a long name as absent', 'source_currency.py',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I8 source_currency calls a long name absent', 'source_currency.py',
+     '        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))\n',
+     '        return False\n'),
+    ('C4-I9 library_complete reads a long folder as missing', 'library_complete.py',
+     '    if any(len(part) > 255 for part in export.parts):\n',
+     '    if False:\n'),
+    ('C4-I10 library_complete takes 300 characters as the limit', 'library_complete.py',
+     '    if any(len(part) > 255 for part in export.parts):\n',
+     '    if any(len(part) > 300 for part in export.parts):\n'),
+    ('C4-LP1 the stand-in takes 300 characters as the limit', 'file_hash.py',
+     '        if not isinstance(path, int) and any(len(part) > 255 for part in\n',
+     '        if not isinstance(path, int) and any(len(part) > 300 for part in\n'),
+    ('C4-LP2 the stand-in raises ENAMETOOLONG', 'file_hash.py',
+     '            raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))\n',
+     '            raise OSError(36, "File name too long", os.fspath(path))\n'),
+    ('C4-LP3 the stand-in is not installed', 'file_hash.py',
+     '    os.stat = stat\n    try:\n        yield\n    finally:\n        os.stat = real\n',
+     '    try:\n        yield\n    finally:\n        os.stat = real\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -3761,6 +3866,20 @@ def selftest() -> int:
            ("relative_to" in vars(pathlib.PosixPath), vars(pathlib.PosixPath).get("relative_to")) == state
            and type(nested.relative_to(root)) is type(native)
            and str(nested.relative_to(root)) == str(native))
+        # P102: long_paths_off() reads a name part over 255 characters as missing (FileNotFoundError),
+        # as Windows does with long paths off, leaves a short path alone, and restores os.stat.
+        real_stat = os.stat
+        with long_paths_off():
+            try:
+                pathlib.Path("x" * 256).stat()
+                long_said = "found"
+            except FileNotFoundError:
+                long_said = "missing"
+            except OSError as exc:
+                long_said = f"errno {exc.errno}"
+            short_found = pathlib.Path(__file__).stat().st_size > 0
+        ok("long_paths_off() reads a 256-character name as missing and leaves a short path alone",
+           long_said == "missing" and short_found and os.stat is real_stat)
     if not _IN_MUTANT:
         for name, cond in _runner_controls():
             ok(f"runner control: {name}", cond)

@@ -23,7 +23,7 @@
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
-        "tools/source_currency.py": "8ad8c63c2a1510af234ed835118af9ea9590e5e4ca89c435b425945224bdae13",
+        "tools/source_currency.py": "d44fd741c486d5462556732dabfe036b40c06f7b5387198acc12fa017567e367",
         "tools/sync_check.py": "7d09f82447f47a0205c698b701be9d758a2ee586ac48eb8d5fe256294e2e3919"
       }
     },
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "c1a2ac4227140eab399a4a5211b4fb310f5c00ec6ac73dc3a3c066136632a400"
+        "tools/mcp_server.py": "9439b7fc0bea339b188d7158ffd20b3e1ca0712bfa4dde885bc66eebcdc7651e"
       }
     },
     "docs/TRANSITIONS.md": {
@@ -133,7 +133,7 @@
       "sources": {
         "shared/schemas/compute-job.json": "30d19c83cf5cf5911beda6201c65a6e70b4631bce8c5856c5fadcb8ad9cfbcb0",
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
-        "tools/handoff/runner.py": "4c96ce933b8cd666e0941916872ab1cbe7a87ccf2a589e10a9e14276eaba6e04",
+        "tools/handoff/runner.py": "6d2124b721e70c47171a4eccc02b0e041552aba465f31f579d8449d9e7d2f041",
         "tools/handoff/watcher.py": "dd2faf4b7d410d5fe76fe0787ade50f2d80938e2e69d8451aa2e56952dcaab42",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "b7e62f31f5832eedc8e14564dbca2823ff601e21a254465ce97c6466e3d76a6e",
@@ -144,7 +144,7 @@
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
-        "tools/handoff/runner.py": "4c96ce933b8cd666e0941916872ab1cbe7a87ccf2a589e10a9e14276eaba6e04",
+        "tools/handoff/runner.py": "6d2124b721e70c47171a4eccc02b0e041552aba465f31f579d8449d9e7d2f041",
         "tools/handoff/watcher.py": "dd2faf4b7d410d5fe76fe0787ade50f2d80938e2e69d8451aa2e56952dcaab42",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "b7e62f31f5832eedc8e14564dbca2823ff601e21a254465ce97c6466e3d76a6e",

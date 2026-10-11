@@ -23,6 +23,7 @@ Modes:
                 that already exist. Used to add new canonical sources without hand-editing.
 """
 
+import errno
 import argparse
 import hashlib
 import json
@@ -59,6 +60,10 @@ def _probe_exists(p):
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError so the
     CLI boundary's clean envelope fires -- CPython 3.14 changed Path.exists() to swallow
     those errors, which turned the refusal into a misleading 'file not found'."""
+    if any(len(part) > 255 for part in Path(p).parts):
+        # A name part over 255 characters cannot exist; Windows with long paths off reports it as
+        # missing, so refuse it here as unprobeable, as ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
         return True
@@ -1039,6 +1044,16 @@ def selftest_detect():
         sys.argv = old_argv
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
+    import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
+    buf = io.StringIO()
+    sys.argv = ["source_currency.py", "seed-sources", "x" * 300]
+    try:
+        with _fh_lp.long_paths_off(), contextlib.redirect_stdout(buf):
+            rc_lp = main()
+    finally:
+        sys.argv = old_argv
+    ok(">255-character path arg -> clean envelope where the system reports it missing (P102)",
+       rc_lp == 1 and "next_step" in buf.getvalue())
 
     # P81: a --url change nulls the six content stamps; a same-URL call changes nothing.
     import types as _types

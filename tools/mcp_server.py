@@ -267,6 +267,39 @@ def _read_local_config_for_write(path) -> tuple:
 
 
 _CACHE_REBUILD_HINT = env_paths.local_commands("Run: python3 shared/cache/cache.py --build")
+
+
+def _cache_query_argv(query, limit) -> list:
+    """The cache.py command for one search: the query as a single --query=<text> token, so a search
+    that starts with "-" reaches the cache instead of being read as an option (P102)."""
+    return [sys.executable, str(ROOT / "shared" / "cache" / "cache.py"), f"--query={query}",
+            "--limit", str(limit), "--json"]
+
+
+def _video_query_argv(fts_query, limit) -> list:
+    """The video_library.py query command: the FTS query after "--", so a query that starts with
+    "-" is the query, not an option (P102)."""
+    return [sys.executable, str(ROOT / "tools" / "video_library.py"), "query", "--limit", str(limit),
+            "--", fts_query]
+
+
+def _unknown_capability(capability, config_path=None):
+    """The refusal configure_tool returns for a capability name the committed config does not
+    declare, or None when it declares it (P102): a typo such as compute_handof_enabled was written
+    to the local config and answered ok while switching nothing on. When the committed config
+    cannot be read, nothing is refused, since a real name cannot be told from a typo then."""
+    try:
+        caps = json.loads(Path(config_path or CONFIG_PATH).read_text(encoding="utf-8")).get("capabilities")
+    except (OSError, ValueError, AttributeError):
+        return None
+    if not isinstance(caps, dict) or not caps or capability in caps:
+        return None
+    import difflib
+    return {"error": f"unknown capability {capability!r}; nothing was written", "refused": True,
+            "did_you_mean": difflib.get_close_matches(str(capability), sorted(caps), n=3),
+            "known_capabilities": sorted(caps)}
+
+
 _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
                        "databaseerror", "file is encrypted or is not a database")
 
@@ -1096,6 +1129,30 @@ def _selftest_static() -> tuple:
     ok(f"each printed or returned python3 command goes through env_paths.local_commands (bare at lines {_bare_lc})",
        _bare_lc == [] and src.count('"manual": env_paths.' + 'local_commands("Run: ' + _needles_lc[0] + 'wizard.py")') == 1)
 
+    # P102: a search that starts with "-" reaches its engine as one token, and configure_tool
+    # refuses a capability name the committed config does not declare before it writes anything.
+    import ast as _ast_p102
+    import tempfile as _tf_p102
+    _q_argv, _v_argv = _cache_query_argv("-stairs", 5), _video_query_argv("-armoire", 5)
+    ok("a search that starts with - is passed as one --query=<text> token, and a video query after --",
+       "--query=-stairs" in _q_argv and "-stairs" not in _q_argv and _v_argv[-2:] == ["--", "-armoire"]
+       and src.count("_run(_cache_query" + "_argv(") == 2 and src.count("_run(_video_query" + "_argv(") == 1)
+    _unk_cap, _known_cap = _unknown_capability("wolfram_alpah"), _unknown_capability("wolfram_alpha")
+    with _tf_p102.TemporaryDirectory() as _td_p102:
+        _unread_cap = _unknown_capability("anything", pathlib_Path(_td_p102) / "absent.json")
+    ok("configure_tool's check refuses an undeclared name with suggestions, passes a declared one, "
+       "and refuses nothing when the committed config cannot be read",
+       isinstance(_unk_cap, dict) and _unk_cap.get("refused") is True
+       and "wolfram_alpha" in _unk_cap.get("did_you_mean", []) and _known_cap is None and _unread_cap is None)
+    _ct = next(n for n in _ast_p102.walk(_ast_p102.parse(src))
+               if isinstance(n, _ast_p102.FunctionDef) and n.name == "configure_tool")
+    _ct_body = [s for s in _ct.body if not (isinstance(s, _ast_p102.Expr)
+                                            and isinstance(s.value, _ast_p102.Constant))]
+    ok("configure_tool checks the capability name before it takes the write lock",
+       len(_ct_body) > 2 and _ast_p102.unparse(_ct_body[0]) == "refusal = _unknown_capability(capability)"
+       and _ast_p102.unparse(_ct_body[1]).startswith("if refusal:\n    return json.dumps(refusal)")
+       and isinstance(_ct_body[2], _ast_p102.With))
+
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
 
@@ -1162,18 +1219,12 @@ def cache_query(query: str, limit: int = 5) -> str:
         query: Full-text search query (e.g. "seasonal home decor" or "entity armoire").
         limit: Maximum number of results to return (default 5).
     """
-    cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
         return json.dumps({
             "error": "Cache index not found.",
             "hint": _CACHE_REBUILD_HINT,
         })
-    rc, out, err = _run([
-        sys.executable, str(cache_script),
-        "--query", query,
-        "--limit", str(limit),
-        "--json",
-    ])
+    rc, out, err = _run(_cache_query_argv(query, limit))
     if rc != 0:
         return json.dumps(_cache_failure(err))
     return out.strip() or json.dumps([])
@@ -1181,11 +1232,9 @@ def cache_query(query: str, limit: int = 5) -> str:
 
 def _construction_query(query, limit):
     """Run the offline cache query and keep only construction-dictionary results."""
-    cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
         return None, {"error": "Cache index not found.", "hint": _CACHE_REBUILD_HINT}
-    rc, out, err = _run([sys.executable, str(cache_script), "--query", query,
-                         "--limit", str(max(limit * 5, 20)), "--json"])
+    rc, out, err = _run(_cache_query_argv(query, max(limit * 5, 20)))
     if rc != 0:
         return None, _cache_failure(err)
     try:
@@ -1429,8 +1478,7 @@ def video_library_query(fts_query: str, limit: int = 20) -> str:
     """
     if not fts_query:
         return json.dumps({"error": "fts_query is required"})
-    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "video_library.py"),
-                         "query", fts_query, "--limit", str(limit)])
+    rc, out, err = _run(_video_query_argv(fts_query, limit))
     if rc != 0:
         return json.dumps({"error": (err or out or "video_library query failed").strip()[:300]})
     return out.strip() or "[]"
@@ -1800,7 +1848,13 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
                     "duckdb_analytics", "stats_compass", "jupyter_notebook",
                     "r_statistics", "monte_carlo", "scikit_learn").
         enabled: True to enable the capability, False to disable it.
+
+    A name creator-os-config.json does not declare is refused with the closest known names, and
+    nothing is written.
     """
+    refusal = _unknown_capability(capability)
+    if refusal:
+        return json.dumps(refusal)
     with _WRITE_LOCK, _locked(CONFIG_LOCAL_PATH):   # P80 in-process, P81 cross-process (the wizard writes this file too)
         local, backup, err = _read_local_config_for_write(CONFIG_LOCAL_PATH)
         if err:
@@ -2892,13 +2946,14 @@ if __name__ == "__main__":
                 def _toggle(name):
                     for i in range(25):
                         configure_tool(name, bool(i % 2))
-                _ts = [_th3.Thread(target=_toggle, args=("cap_a",)), _th3.Thread(target=_toggle, args=("cap_b",))]
+                _ts = [_th3.Thread(target=_toggle, args=("wolfram_alpha",)),
+                       _th3.Thread(target=_toggle, args=("duckdb_analytics",))]
                 for _x in _ts:
                     _x.start()
                 for _x in _ts:
                     _x.join()
                 _data = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
-                _conc_ok = (set(_data.get("capabilities", {})) == {"cap_a", "cap_b"}
+                _conc_ok = (set(_data.get("capabilities", {})) == {"wolfram_alpha", "duckdb_analytics"}
                             and not list(pathlib_Path(_td3).glob("*.tmp*")))
             except Exception as _exc:  # noqa: BLE001
                 print(f"FAIL concurrent configure_tool raised: {_exc}")
