@@ -44,8 +44,15 @@ all three; `py -3` and `python` run the same Python when both are installed.
 
 ### Step 1: Git and line endings
 
-- Git: Git for Windows, or `scoop install git` (Scoop installs under your user folder).
-  *(Git for Windows tested; Scoop not yet tested on Windows)*
+- Git: Git for Windows, which needs no administrator account. Run from a standard account, its
+  installer puts Git in `%LOCALAPPDATA%\Programs\Git` and adds it to that account's PATH
+  *(tested on Windows, in Windows Sandbox with the installer run silently)*. Machine-wide
+  alternative (affects the whole computer): run as an administrator, it installs to
+  `C:\Program Files\Git` and adds Git to the computer's PATH *(tested on Windows, in Windows
+  Sandbox)*. What an administrator account sees with User Account Control on (the Windows prompt
+  that asks before a program changes the computer) is not yet tested on Windows. Open a new
+  terminal after the install, so it starts with the changed PATH.
+- Or `scoop install git` (Scoop installs under your user folder). *(not yet tested on Windows)*
 - Line endings are set by the repository: `.gitattributes` checks text files out with LF and
   `.bat` files with CRLF, whatever `core.autocrlf` says. *(tested on Windows on a fresh clone)*
 - A clone made before that rule may report hash drift. On a clean tree (nothing uncommitted), run
@@ -199,6 +206,8 @@ Every id below must exist in `canonical-sources/source-registry.json` with the s
 [
   {"id": "claude-desktop-windows-deploy", "name": "Deploy Claude Desktop for Windows (help center)", "url": "https://support.claude.com/en/articles/12622703-deploy-claude-desktop-for-windows", "category": "ai-surface-spec", "tier": "T1"},
   {"id": "claude-desktop-msix-config-path", "name": "Claude Desktop MSIX build reads a different claude_desktop_config.json (claude-code issue 26073)", "url": "https://github.com/anthropics/claude-code/issues/26073", "category": "ai-surface-spec", "tier": "T2"},
-  {"id": "python-using-on-windows", "name": "Python docs - Using Python on Windows", "url": "https://docs.python.org/3/using/windows.html", "category": "os-platform", "tier": "T1"}
+  {"id": "python-using-on-windows", "name": "Python docs - Using Python on Windows", "url": "https://docs.python.org/3/using/windows.html", "category": "os-platform", "tier": "T1"},
+  {"id": "git-for-windows-installer-script", "name": "Git for Windows installer script (install.iss, git-for-windows/build-extra)", "url": "https://github.com/git-for-windows/build-extra/blob/main/installer/install.iss", "category": "software-dependency", "tier": "T1"},
+  {"id": "inno-setup-changesenvironment", "name": "Inno Setup help - [Setup]: ChangesEnvironment", "url": "https://jrsoftware.org/ishelp/topic_setup_changesenvironment.htm", "category": "software-dependency", "tier": "T1"}
 ]
 ```

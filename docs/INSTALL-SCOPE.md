@@ -68,6 +68,40 @@ page names are `~/.local`, `~/.nvm`, `~/Applications`, `~/Library`, `~/projects/
 from the Apple Command Line Tools is machine-level (see the exceptions register above), so that
 account finds it.
 
+## On Windows
+
+On Windows the defaults stay inside the user's account too; the machine-wide installs the path
+can involve are listed under the table.
+
+| Location | What goes there | Evidence |
+|---|---|---|
+| the repo's `.venv\` | the Python packages (`py -3 tools/setup.py --install-deps`) | `tools/setup.py::ensure_venv` |
+| the account's Python | the Python install manager's runtimes; its shortcuts go in `%LocalAppData%\Python\bin` | the Python documentation: the install manager "does not support installing runtimes per-machine" |
+| `%LOCALAPPDATA%\Programs\Git` | Git for Windows installed from a standard account | the installer's script falls back to the user's Programs folder when `C:\Program Files` is not writable; tested in Windows Sandbox |
+| `%USERPROFILE%\.creator-os\whisper-models` | downloaded whisper.cpp models | `tools/transcribe.py::model_dir` (HOME, else USERPROFILE) |
+| `%USERPROFILE%\AppData\Local\ms-playwright` | Playwright's browser, which `--install-deps` downloads | Playwright's documentation (Managing browser binaries) |
+| `%APPDATA%\Claude\`, or the packaged app's `%LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude\` | the Claude Desktop settings file the wizard writes | `tools/wizard.py::_claude_config_targets` |
+
+Machine-wide on Windows, labeled where the guidance names it:
+
+- The Microsoft Visual C++ Redistributable (the exceptions register above).
+- Machine-wide alternative (affects the whole computer): the Git for Windows installer run as an
+  administrator installs to `C:\Program Files\Git` and adds Git to the computer's PATH
+  (`docs/SETUP_WINDOWS.md`, Step 1).
+- The traditional python.org installer's machine-wide py launcher option and Anthropic's full
+  Claude Desktop install, both labeled in `docs/SETUP_WINDOWS.md`.
+
+To check that an install stayed per-user on Windows, run these two lines in PowerShell before
+setup and again after it, and compare the output:
+
+    Get-ChildItem $env:ProgramFiles | Select-Object -ExpandProperty Name
+    [Environment]::GetEnvironmentVariable('Path', 'Machine')
+
+A per-user install changes the account's own PATH,
+`[Environment]::GetEnvironmentVariable('Path', 'User')`, and leaves both as they were. Installing
+the Visual C++ runtime from the wizard is a machine-wide change by design (the exceptions register
+above). *(not yet tested on Windows)*
+
 ```sources
 [
   {"id": "uv-installer-docs", "name": "uv installation (Astral docs)",
@@ -75,6 +109,16 @@ account finds it.
    "category": "software-dependency", "tier": "T1"},
   {"id": "nvm-readme", "name": "nvm README (per-user Node version manager)",
    "url": "https://github.com/nvm-sh/nvm",
+   "category": "software-dependency", "tier": "T1"},
+  {"id": "python-using-on-windows", "name": "Python docs - Using Python on Windows",
+   "url": "https://docs.python.org/3/using/windows.html",
+   "category": "os-platform", "tier": "T1"},
+  {"id": "git-for-windows-installer-script",
+   "name": "Git for Windows installer script (install.iss, git-for-windows/build-extra)",
+   "url": "https://github.com/git-for-windows/build-extra/blob/main/installer/install.iss",
+   "category": "software-dependency", "tier": "T1"},
+  {"id": "playwright-python-browsers", "name": "Playwright for Python - Browsers (Managing browser binaries)",
+   "url": "https://playwright.dev/python/docs/browsers",
    "category": "software-dependency", "tier": "T1"}
 ]
 ```

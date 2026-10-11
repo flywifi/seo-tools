@@ -257,6 +257,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (Windows install scope): `docs/INSTALL-SCOPE.md` gains a Windows section: where the repo's
+  `.venv`, the Python install manager, Git for Windows from a standard account, whisper.cpp models,
+  Playwright's browser and the Claude Desktop settings file go, the machine-wide installs on Windows
+  with their labels, and two PowerShell lines to compare before and after setup.
+  `docs/SETUP_WINDOWS.md` says that Git for Windows needs no administrator account: from a standard
+  account it installs to `%LOCALAPPDATA%\Programs\Git` and that account's PATH, run as an
+  administrator it installs to `C:\Program Files\Git` (labeled machine-wide), and a new terminal
+  opened after the install sees the changed PATH. Three sources are registered for these lines.
 - P102 (em dashes in creator-facing text): the wizard's pages, `setup.py` and `update.py` output,
   the MCP tools' descriptions and replies, the messages the drift guard and the connector resolver
   return through them, the dashboard's static files, and the string values of
