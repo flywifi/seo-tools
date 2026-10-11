@@ -18,7 +18,7 @@
     "canonical-sources/operational-url-allowlist.json": "a4b9c0310691c466f5b9a52ec228d3d71f94f6199ac56863c76b6e13d38b40d3",
     "canonical-sources/volatile-corrections.2026-07-14.json": "94c3216314225ce2ece91a6f901072b5a25bbca926844134d6286656da64cb82",
     "canonical-sources/whisper-models.json": "647626cf65ce018558f8394dc3e6cd9bdffd972b47c6a80d6db0ebfa3a7f012e",
-    "creator-os-config.json": "9a041c8c801dbc17cdc83f8f8ffdfe829a577e89886575901d150414ad89b81f",
+    "creator-os-config.json": "f7f674c86a3c0242da6f4b6d806548b12aa4effb029dde2b35990f32d49fd1bd",
     "docs/ARCHITECTURE.md": "8432c6d0c58006b7c402c42cfc272382580502468f02988f8205ccb19869643e",
     "docs/AUDIT-PROTOCOL.md": "afd0ea7b92d0eb0aafb2d77ef617df199bb9aec220b734efe761f00887bb13f3",
     "docs/CONTENT-IMPORT.md": "50fba36b0b6e7818c8d44ab847b3d1a8ff022ef60129ec36c7d4ce510a9886cb",
@@ -75,7 +75,7 @@
     "implementation/claude/desktop/claude_desktop_config_snippet.json": "fec92b647702538def1e9078f955ecad9853422b90e9678a5a4a3af2d34fee7c",
     "requirements-transcribe.txt": "0826a1011fe9ce9b1859da90b5017deefd4d4683dbfc76b18240151418cb09c1",
     "requirements-videoedit.txt": "87c8f1aa2bcb85afaac60ada26b05e8999d4f4ecf1fafc758bcb05404fd27868",
-    "shared/connectors/connectors.json": "12d46920add2a2bc032814476f06ccd60d7527d67ff7e77f96cfb2352ac5514e",
+    "shared/connectors/connectors.json": "431736b3482645656a9826516863fd1da726f591fca996e39489c0927e38e939",
     "shared/content-import-engine.md": "d8443c87bbdace91c19cf01291b14f353bee7ec99b762adbe31295a5472b43a0",
     "shared/cross-modality/transitions.json": "4a188ede942a9bbcdef4cc166533acbc3ead09e956c729367d8f665c3de954d3",
     "shared/transcription-engine.md": "ed32b71241f28ea19fefa3de466724d3d79e30bdcf8c9e266590a74e0422b4a2",
@@ -106,7 +106,7 @@
     "tools/profile_mirror.py": "d6297bde987097313a808c40140ac97a3850ab87b0efce324c70d8dbce564435",
     "tools/readonly_bash_guard.py": "5e66aa0147f1ffa0f62d60b77c13b2f6fd5e676a2a2fbc5e55f9634edb533690",
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
-    "tools/setup.py": "94e1ed1b2efbb267852a80512138a0d5a6de7add80e81c1bb6ec1edd03101c01",
+    "tools/setup.py": "c501ad3b2b97fa38856130b1279cb52a4cd436d9546dcc7b78820be5080badf3",
     "tools/surface_workflow_check.py": "7b4939bb7258b93f7bc92ebfb97b15a0d48ccc65df125d60d4bb5f52f0fe9a36",
     "tools/transcribe.py": "ca990e2a9b37078e8c00f343e8afa29225860c50344344c9c14bb5a01ffc316c",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
@@ -115,7 +115,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "b8b3d381c74c5e3c965dbb36c7caea72d537ead01e8d46e3bc8198b111bdb5bd"
+    "tools/wizard.py": "8719dbafcaeff470d533854cd42b90a1acce11df0ca8b629d1e4431757f8f0e7"
   },
   "excluded": {}
 }

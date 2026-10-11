@@ -193,7 +193,7 @@ def resolve(flags: dict, registry: dict | None = None) -> dict:
         "restricted_notes": restricted_notes,
         "blocked": sorted(blocked),
         "allowed": sorted(allowed),
-        "deployment": flags.get("deployment", "(default — no flags file)"),
+        "deployment": flags.get("deployment", "(default: no flags file)"),
     }
 
 

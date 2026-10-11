@@ -310,7 +310,7 @@
     "mcp_server_disabled": "All MCP tools (cache_query, competitor_scan, etc.) are unavailable. Use knowledge-only spokes. Competition estimates remain [estimated]. Source staleness cannot be checked automatically.",
     "competitor_snapshots_disabled": "deep-competitor-scan falls back to live web-intel-engine mode. No ytInitialPlayerResponse tag extraction. Output labeled [web-mode: no snapshot saved].",
     "keyword_cache_disabled": "keyword lookups use in-context knowledge from canonical-sources/ loaded into the system. Slower and token-intensive. Build the cache for faster results.",
-    "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null — not provided]. Never fabricated.",
+    "api_disabled": "Platform API data (view counts, engagement rates, analytics) is unavailable. All metrics are [estimated] or [null: not provided]. Never fabricated.",
     "voice_profile_disabled": "Scripts and captions use seed vocabulary from voice-engine.md. Personalized phrases from actual content are not available yet.",
     "channel_context_disabled": "Rate recommendations use industry benchmark ranges from canonical-sources/rate-benchmarks. Not grounded in actual channel performance.",
     "wolfram_disabled": "Exact computation unavailable. Arithmetic results are best-effort estimates labeled [estimated]. Never present unverified arithmetic as precise.",
@@ -367,7 +367,7 @@
       "nightly": "main"
     }
   },
-  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 22 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance — without any local tools.",
+  "web_app_note": "If you are using Claude Projects on claude.ai or ChatGPT custom instructions, all mcp_server, competitor_snapshots, keyword_cache, and API capabilities are unavailable. The system automatically operates in knowledge-only mode. You still get: full hub routing, all 22 spokes, all atoms, voice-engine rules, protocol enforcement, and seasonal SEO guidance, without any local tools.",
   "drive_hub": {
     "_comment": "P60. The Google Drive hub: one folder every surface shares. folder_name is the folder Creator OS creates/expects in My Drive; local_mirror is the ABSOLUTE path of that folder as synced by Google Drive for desktop on this machine (set by the wizard /drive-hub screen, stored in creator-os-config.local.json, never committed). Subfolders are fixed by convention: Inbox, Store, Jobs/{queue,results,archive}, Knowledge, Profile, Outbox. See docs/DRIVE-HUB.md.",
     "folder_name": "Creator OS",

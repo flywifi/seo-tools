@@ -282,7 +282,7 @@ def check_skills():
             problem(f"{rel.parent}: missing MAINTAINER_README.md")
 
 
-EM_DASH = "—"
+EM_DASH = "\u2014"
 EN_DASH = "–"
 FORBIDDEN_TOKENS = ["TODO", "FIXME", "PLACEHOLDER", "<<<<<<<", "=======", ">>>>>>>"]
 CONTENT_DIRS = ["shared", "protocols", "skills", "docs", "examples", "canonical-sources"]
@@ -3940,7 +3940,7 @@ def check_registry_content_digest():
         return
     if stamped != content_digest(data):
         problem("registry-digest: source-registry.json content does not match its "
-                 "_content_digest stamp — an out-of-band edit bypassed registry_io.save_registry; "
+                 "_content_digest stamp; an out-of-band edit bypassed registry_io.save_registry; "
                  "revert the hand edit or re-apply it through the sanctioned writer")
 
 

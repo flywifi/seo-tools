@@ -393,7 +393,7 @@ def _add_to_local(url, platform, custom_id) -> int:
         "last_changed_detected": None,
         "staleness_threshold_days": 7,
         "extraction_hint": (
-            f"Competitor {platform} page — extract video tags (ytInitialPlayerResponse.videoDetails.keywords "
+            f"Competitor {platform} page: extract video tags (ytInitialPlayerResponse.videoDetails.keywords "
             "for YouTube), hashtags, description chapters, OG tags, and JSON-LD."
         ),
         "used_by": ["deep-competitor-scan", "competitor-analysis"],

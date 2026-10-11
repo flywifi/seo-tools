@@ -247,6 +247,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (em dashes in creator-facing text): the wizard's pages, `setup.py` and `update.py` output,
+  the MCP tools' descriptions and replies, the messages the drift guard and the connector resolver
+  return through them, the dashboard's static files, and the string values of
+  `creator-os-config.json` and `shared/connectors/connectors.json` use a colon, semicolon, comma,
+  parentheses or a full stop where they had an em dash (`protocols/formatting-metadata.md`).
+  Docstrings and comments, which only maintainers read, keep theirs. Two values that hold the
+  character as data, the drift guard's detector constant and an import placeholder some exports
+  write for "no value", are written as the escape `\u2014`. The crawl connector's note names the
+  `.venv` route (`tools/setup.py --install-deps`) for its two requirement sets.
 - P102 (custom GPT and Gems retired): custom GPTs retire on 2026-12-11 (help article 20001519)
   and Gemini Gems become skills from November 2026 (support.google.com/gemini/answer/18560919), so
   the `chatgpt_custom_gpt` and `gemini_gems` surfaces and their five pair overrides leave

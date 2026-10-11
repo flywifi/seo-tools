@@ -1,5 +1,5 @@
 {
-  "_comment": "Creator OS connector registry + feature-flag contract. Each connector declares the normalized EVIDENCE it can provide so an atom can use whatever is available and DEGRADE via alternates when one is off. Offline contract only — we build NO provider auth/API clients here. Live retrieval is realized by the host AI's native integration (Claude / OpenAI / Gemini) when the deployment has connected it, or via manual_paste / uploaded_file. A deployment may RESTRICT specific evidence even when a connector is active (see per-deployment 'restricted_evidence' + reason); atoms then take what they can get and look elsewhere. Prose: connectors.md. Per-deployment flags: feature-flags.example.json.",
+  "_comment": "Creator OS connector registry + feature-flag contract. Each connector declares the normalized EVIDENCE it can provide so an atom can use whatever is available and DEGRADE via alternates when one is off. Offline contract only: we build NO provider auth/API clients here. Live retrieval is realized by the host AI's native integration (Claude / OpenAI / Gemini) when the deployment has connected it, or via manual_paste / uploaded_file. A deployment may RESTRICT specific evidence even when a connector is active (see per-deployment 'restricted_evidence' + reason); atoms then take what they can get and look elsewhere. Prose: connectors.md. Per-deployment flags: feature-flags.example.json.",
   "version": "0.2.0",
   "updated": "2026-07-16",
   "states": [
@@ -137,7 +137,7 @@
         "content_calendar"
       ],
       "privacy_sensitivity": "depends_on_content",
-      "auth_note": "none — creator pastes data directly into the conversation",
+      "auth_note": "none: creator pastes data directly into the conversation",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
         "option_b_claude_projects",
@@ -159,7 +159,7 @@
         "rate_benchmarks"
       ],
       "privacy_sensitivity": "depends_on_content",
-      "auth_note": "none — creator uploads .pdf/.docx/.csv/.xlsx; read via docintel-engine and parse_text.py",
+      "auth_note": "none: creator uploads .pdf/.docx/.csv/.xlsx; read via docintel-engine and parse_text.py",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
         "option_b_claude_projects",
@@ -181,7 +181,7 @@
         "rate_benchmarks"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — reads pipeline/user-context/*.local.json; gitignored, never committed. Created by tools/setup.py.",
+      "auth_note": "none: reads pipeline/user-context/*.local.json; gitignored, never committed. Created by tools/setup.py.",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
       ],
@@ -494,7 +494,7 @@
         "competitor_data"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — reads shared/cache/index.local.db (FTS5 keyword cache) and pipeline/competitor-snapshots/index.local.db (competitor metadata). Both gitignored. Built by tools/setup.py and tools/competitor_snapshot.py.",
+      "auth_note": "none: reads shared/cache/index.local.db (FTS5 keyword cache) and pipeline/competitor-snapshots/index.local.db (competitor metadata). Both gitignored. Built by tools/setup.py and tools/competitor_snapshot.py.",
       "requires_capability": "keyword_cache",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -512,7 +512,7 @@
         "analytics"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes the full tool set (count_truth.py mcp_tools; every tool carries readOnlyHint/destructiveHint annotations). Runs on the mcp 2.x SDK and still starts on an existing 1.x install; the remote transport validates its allow-list at startup (P81). Enable by setting mcp_server: true in creator-os-config.local.json.",
+      "auth_note": "none: stdio transport. Requires pip install mcp + claude_desktop_config.json entry. Exposes the full tool set (count_truth.py mcp_tools; every tool carries readOnlyHint/destructiveHint annotations). Runs on the mcp 2.x SDK and still starts on an existing 1.x install; the remote transport validates its allow-list at startup (P81). Enable by setting mcp_server: true in creator-os-config.local.json.",
       "requires_capability": "mcp_server",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -546,7 +546,7 @@
         "trend_data"
       ],
       "privacy_sensitivity": "low",
-      "auth_note": "none — pip install -r requirements-crawl.txt + requirements-scraper.txt. Rate governor respects robots.txt and Crawl-delay. No API key required for basic crawl. Always available if requirements-crawl.txt is installed.",
+      "auth_note": "none: requirements-crawl.txt and requirements-scraper.txt, installed into the repo's .venv by tools/setup.py --install-deps. Rate governor respects robots.txt and Crawl-delay. No API key required for basic crawl. Always available if requirements-crawl.txt is installed.",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
       ],
@@ -580,7 +580,7 @@
         "content_calendar"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as gmail — both are enabled together by the google_workspace capability flag. The workspace-mcp server exposes Calendar read/write alongside Gmail and Drive.",
+      "auth_note": "Same auth as gmail; both are enabled together by the google_workspace capability flag. The workspace-mcp server exposes Calendar read/write alongside Gmail and Drive.",
       "requires_capability": "google_workspace",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
@@ -599,7 +599,7 @@
         "analytics"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as gmail — Drive covers Docs and Sheets. Analytics tracking sheets and brand brief documents flow in as document_source and spreadsheet_data. Enabled via google_workspace capability flag.",
+      "auth_note": "Same auth as gmail; Drive covers Docs and Sheets. Analytics tracking sheets and brand brief documents flow in as document_source and spreadsheet_data. Enabled via google_workspace capability flag.",
       "requires_capability": "google_workspace",
       "deployment_support": [
         "option_a_claude_desktop_mcp",
@@ -617,7 +617,7 @@
         "document_source"
       ],
       "privacy_sensitivity": "high",
-      "auth_note": "Enabled via the wizard (tools/wizard.py) for Claude Desktop. Uses Softeria ms-365-mcp-server (npx -y @softeria/ms-365-mcp-server). Device Code Flow: user visits microsoft.com/devicelogin and enters a short code — no redirect server or credentials to manage. Requires Node.js 20+. Set microsoft_365: true in creator-os-config.local.json after connecting.",
+      "auth_note": "Enabled via the wizard (tools/wizard.py) for Claude Desktop. Uses Softeria ms-365-mcp-server (npx -y @softeria/ms-365-mcp-server). Device Code Flow: user visits microsoft.com/devicelogin and enters a short code; no redirect server or credentials to manage. Requires Node.js 20+. Set microsoft_365: true in creator-os-config.local.json after connecting.",
       "requires_capability": "microsoft_365",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -634,7 +634,7 @@
         "content_calendar"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as microsoft_outlook_email — all Microsoft 365 services are enabled together by the microsoft_365 capability flag via the Softeria MCP server.",
+      "auth_note": "Same auth as microsoft_outlook_email; all Microsoft 365 services are enabled together by the microsoft_365 capability flag via the Softeria MCP server.",
       "requires_capability": "microsoft_365",
       "deployment_support": [
         "option_a_claude_desktop_mcp"
@@ -652,7 +652,7 @@
         "analytics"
       ],
       "privacy_sensitivity": "medium",
-      "auth_note": "Same auth as microsoft_outlook_email — the Softeria ms-365-mcp-server covers Excel, OneDrive, Outlook, Calendar, and 200+ Microsoft 365 tools from a single connection.",
+      "auth_note": "Same auth as microsoft_outlook_email; the Softeria ms-365-mcp-server covers Excel, OneDrive, Outlook, Calendar, and 200+ Microsoft 365 tools from a single connection.",
       "requires_capability": "microsoft_365",
       "deployment_support": [
         "option_a_claude_desktop_mcp"

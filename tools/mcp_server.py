@@ -1403,7 +1403,7 @@ def source_staleness(category: str = "") -> str:
     major SEO or competitor analysis to know which knowledge may be outdated.
 
     Args:
-        category: Optional filter — one of: seo-authority, platform-spec,
+        category: Optional filter, one of: seo-authority, platform-spec,
                   api-changelog, rate-benchmark, tool-mcp, partner-site,
                   niche-authority, competitor-page. Leave empty for all. competitor-page
                   also lists the pages add_competitor saved to your local competitor list.
@@ -1806,7 +1806,7 @@ def get_connectors(flags_path: str = "") -> str:
     """Return the full connector evidence plan for this deployment.
 
     Resolves which connectors are active, the provider chain per evidence type
-    (primary -> fallbacks), and any evidence gaps — using shared/connectors/
+    (primary -> fallbacks), and any evidence gaps, using shared/connectors/
     connectors.py with the current creator-os-config.local.json. Reads both the
     connector registry and the capability flags and merges them automatically.
 
@@ -1948,7 +1948,7 @@ def schedule_post(
     Checks which content_publishing connector is active (per-platform direct API >
     manual fallback), enforces FTC disclosure and AIGC flag rules, then returns a
     confirmation summary. Human confirmation is ALWAYS required before the connector
-    actually queues the post — this tool returns the plan, not a completed action.
+    actually queues the post; this tool returns the plan, not a completed action.
     When no connector is active, returns a manual posting package.
 
     Args:
@@ -1990,7 +1990,7 @@ def post_status(
     `include_engagement_snapshot` is accepted and currently has NO effect: no connector call is
     made, so no engagement numbers exist to return. It is not silently zero-filled.
 
-    Never fabricates status, permalink, or engagement numbers — all unavailable
+    Never fabricates status, permalink, or engagement numbers; all unavailable
     fields are returned as null, not zero-filled.
 
     Args:
@@ -2014,10 +2014,10 @@ def post_status(
 
     # Manual check URL patterns per platform
     manual_urls = {
-        "instagram": "https://www.instagram.com/ — open app or web, check your profile.",
-        "tiktok": "https://www.tiktok.com/@{your_username} — check in TikTok Studio.",
-        "pinterest": "https://www.pinterest.com/{your_username}/ — check in Pinterest Analytics.",
-        "youtube": "https://studio.youtube.com/ — check Content tab.",
+        "instagram": "https://www.instagram.com/ (open the app or the web, check your profile).",
+        "tiktok": "https://www.tiktok.com/@{your_username} (check in TikTok Studio).",
+        "pinterest": "https://www.pinterest.com/{your_username}/ (check in Pinterest Analytics).",
+        "youtube": "https://studio.youtube.com/ (check the Content tab).",
     }
 
     if connector == "none":
@@ -2720,7 +2720,7 @@ def launch_setup() -> str:
     Spawns tools/wizard.py as a local background process; it serves a guided setup at
     http://127.0.0.1:8765/ (or 8775, then 8785, when the computer reserves 8765) and opens the
     browser automatically, and this reports the address it bound. This works ONLY where Creator OS runs
-    as a LOCAL tool (Claude Desktop with the local MCP server, or Claude Code) — a hosted/remote
+    as a LOCAL tool (Claude Desktop with the local MCP server, or Claude Code); a hosted/remote
     connector runs in the vendor's cloud and cannot open a browser or reach the user's computer.
     Nothing is installed or changed by this call itself; the wizard asks for consent at each step."""
     wizard = HERE / "wizard.py"
@@ -2758,7 +2758,7 @@ def submit_compute_job(job_type: str, params_json: str = "{}", input_refs_json: 
     Creates a validated ticket in the Drive hub's Jobs/queue via the local queue writer; the
     scheduled watcher/runner executes it and writes a result to Jobs/results. Only the job types in
     shared/schemas/compute-job.json can run (transcription, library analysis, import previews,
-    read-only finance reports, offline competitor parse, projections, inbox scan) — nothing can
+    read-only finance reports, offline competitor parse, projections, inbox scan); nothing can
     post, publish, send, or read credentials from a job, and every result carries
     human_review_required. Refuses unless BOTH remote_compute_endpoint and compute_handoff_enabled
     are on and the Drive hub is configured (wizard /drive-hub). Returns the ticket JSON or a plain
