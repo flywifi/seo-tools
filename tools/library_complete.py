@@ -375,11 +375,22 @@ def selftest():
 
     import contextlib
     import io
+    import tempfile as _tf_db
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        rc = main(["match", "--export-dir", "x" * 300])
-    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
-       rc == 1 and "next_step" in buf.getvalue())
+    # main() opens the video library before it reads the folder; point the library at a temporary
+    # file, so this check leaves no library in the checkout (P102: a fresh clone gained one).
+    _saved_db = _vl.DB_PATH
+    with _tf_db.TemporaryDirectory() as _td_db:
+        _vl.DB_PATH = Path(_td_db) / "index.local.db"
+        try:
+            with contextlib.redirect_stdout(buf):
+                rc = main(["match", "--export-dir", "x" * 300])
+            _db_used = _vl.DB_PATH.is_file()
+        finally:
+            _vl.DB_PATH = _saved_db
+    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary), with the library opened "
+       "in a temporary folder",
+       rc == 1 and "next_step" in buf.getvalue() and _db_used)
     import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
     with _fh_lp.long_paths_off():
         try:

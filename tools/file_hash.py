@@ -36,8 +36,9 @@ already yields backslashes, so the same selftests run there unchanged.
   python3 tools/file_hash.py --selftest    # the properties above, plus the committed mutations
 
 The selftest runs the committed mutation rows in child processes (`--run-rows`, rows as JSON on
-stdin), at most 12 rows of one module per child and up to 8 children at a time, to keep the run
-under the selftest sweep's per-tool limit.
+stdin), at most 12 rows of one module per child and up to 8 children at a time
+(`CREATOR_OS_FILE_HASH_JOBS` sets another number, for a computer with little memory), to keep the
+run under the selftest sweep's per-tool limit.
 """
 from __future__ import annotations
 
@@ -113,6 +114,18 @@ def long_paths_off():
         yield
     finally:
         os.stat = real
+
+
+def mutant_jobs(env=None, cpu_count=None) -> int:
+    """How many child processes the selftest's mutation run uses at a time: CREATOR_OS_FILE_HASH_JOBS
+    when it is a whole number of 1 or more, else min(8, the CPU count). On a computer with little
+    memory, 8 children can be stopped by the system and their rows read as survivors (P102); a value
+    that is not a whole number of 1 or more (a superscript digit, a sign, a fraction) is ignored. env
+    and cpu_count stand in for the system's."""
+    raw = str((os.environ if env is None else env).get("CREATOR_OS_FILE_HASH_JOBS", "")).strip()
+    if raw.isdecimal() and int(raw) >= 1:
+        return int(raw)
+    return min(8, (os.cpu_count() if cpu_count is None else cpu_count) or 1)
 
 
 # --- selftest: everything below is test code; the committed mutations apply above this line ---
@@ -3457,6 +3470,43 @@ _MUTANTS = (
     ('C4-Z10 Instagram keeps a skipped member', 'import_parse.py',
      ' or "reels" in b):\n                        t = _member_text(z, n)\n                        if t is not None:\n',
      ' or "reels" in b):\n                        t = _member_text(z, n)\n                        if True:\n'),
+    # P102 push 4c: the mutation run's child count, MinGit's sh for the hooks selftest, and the Windows folder from the system call.
+    ('C4-H1 the worker override is ignored', 'file_hash.py',
+     '    if raw.isdecimal() and int(raw) >= 1:\n        return int(raw)\n',
+     '    if False:\n        return int(raw)\n'),
+    ('C4-H2 zero workers are taken', 'file_hash.py',
+     '    if raw.isdecimal() and int(raw) >= 1:\n',
+     '    if raw.isdecimal() and int(raw) >= 0:\n'),
+    ('C4-H7 a superscript digit stops the run', 'file_hash.py',
+     '    if raw.isdecimal() and int(raw) >= 1:\n',
+     '    if raw.isdigit() and int(raw) >= 1:\n'),
+    ('C4-H3 the CPU count is used without the cap of 8', 'file_hash.py',
+     '    return min(8, (os.cpu_count() if cpu_count is None else cpu_count) or 1)\n',
+     '    return (os.cpu_count() if cpu_count is None else cpu_count) or 1\n'),
+    ("C4-H4 MinGit's sh.exe is not looked for", 'install_hooks.py',
+     '        if git_sh.is_file():\n            return str(git_sh)\n',
+     '        if False:\n            return str(git_sh)\n'),
+    ('C4-H5 the sh.exe is looked for outside usr', 'install_hooks.py',
+     'git_sh = Path(out.stdout.strip()).parent.parent.parent / "usr" / "bin" / "sh.exe"',
+     'git_sh = Path(out.stdout.strip()).parent.parent.parent / "bin" / "sh.exe"'),
+    ('C4-H6 the bash lookup ignores the stand-ins', 'install_hooks.py',
+     '        bash = battery.bash_for_syntax(which=which, run=run, os_name=os_name)\n',
+     '        bash = battery.bash_for_syntax()\n'),
+    ('C4-T1 SystemRoot wins over the system call', 'transcribe.py',
+     '            if 0 < n < 260 and buf.value:\n                return buf.value\n',
+     '            if False:\n                return buf.value\n'),
+    ('C4-T2 a cut-off answer is used', 'transcribe.py',
+     '            if 0 < n < 260 and buf.value:\n',
+     '            if 0 < n and buf.value:\n'),
+    ('C4-T3 the DLL check reads SystemRoot', 'transcribe.py',
+     '    root = system_root or windows_dir()\n    exists = os.path.exists if exists is None else exists\n',
+     '    root = system_root or os.environ.get("SystemRoot") or "C:\\\\Windows"\n    exists = os.path.exists if exists is None else exists\n'),
+    ('C4-T4 the signature check reads SystemRoot', 'transcribe.py',
+     '    root = system_root or windows_dir()\n    ps = ntpath.join(',
+     '    root = system_root or os.environ.get("SystemRoot") or "C:\\\\Windows"\n    ps = ntpath.join('),
+    ('C4-T5 a failing system call stops the lookup', 'transcribe.py',
+     '        except Exception:  # noqa: BLE001 -- an unusable call falls back to the environment\n            pass\n',
+     '        except ValueError:  # noqa: BLE001 -- an unusable call falls back to the environment\n            pass\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -4012,10 +4062,16 @@ def selftest() -> int:
             short_found = pathlib.Path(__file__).stat().st_size > 0
         ok("long_paths_off() reads a 256-character name as missing and leaves a short path alone",
            long_said == "missing" and short_found and os.stat is real_stat)
+    _jobs_cases = {("", 4): 4, ("", 16): 8, ("", 0): 1, ("2", 16): 2, (" 3 ", 4): 3, ("12", 4): 12,
+                   ("0", 4): 4, ("-2", 4): 4, ("two", 4): 4, ("1.5", 4): 4, ("\u00b2", 4): 4}
+    _jobs_got = {k: mutant_jobs({"CREATOR_OS_FILE_HASH_JOBS": k[0]} if k[0] else {}, cpu_count=k[1])
+                 for k in _jobs_cases}
+    ok("the mutation run's child count is CREATOR_OS_FILE_HASH_JOBS when it is a whole number of 1 or "
+       "more, else min(8, the CPU count)", _jobs_got == _jobs_cases)
     if not _IN_MUTANT:
         for name, cond in _runner_controls():
             ok(f"runner control: {name}", cond)
-        survivors = _run_mutants(jobs=min(8, os.cpu_count() or 1))
+        survivors = _run_mutants(jobs=mutant_jobs())
         skipped = len(_POSIX_ONLY & {r[0] for r in _MUTANTS}) if os.name == "nt" else 0
         ok(f"each of {len(_MUTANTS) - skipped} committed mutations is caught by the selftest it targets"
            + (f" ({skipped} POSIX-only not run on Windows)" if skipped else "")

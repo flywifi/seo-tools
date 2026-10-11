@@ -6075,6 +6075,11 @@ def _selftest_p101() -> int:
             return _sp_u.CompletedProcess(argv, 0, "[]\n", _err)
         return _sp_u.CompletedProcess(argv, 1, "", _err)
     _real_run_u, _real_targets_u = _sp_u.run, globals()["_import_targets"]
+    # With a .venv present (each computer after setup), env_paths.app_python checks the venv's version
+    # by running "<venv python> -c ...", which would reach the fake as one more tool run; pin the
+    # interpreter so only the wizard's own tool runs are recorded (P102).
+    _real_app_py_u = env_paths.app_python
+    env_paths.app_python = lambda *a, **k: sys.executable
     _sp_u.run = _fake_run_u
     globals()["_import_targets"] = lambda folder, kind: ["Table data.csv"] if kind == "csv" else []
     try:
@@ -6093,6 +6098,7 @@ def _selftest_p101() -> int:
         _expected_tool_count()
     finally:
         _sp_u.run, globals()["_import_targets"] = _real_run_u, _real_targets_u
+        env_paths.app_python = _real_app_py_u
     check(_notes_crash == ["youtube: import_parse stopped with an error: UnicodeEncodeError: 'charmap' codec "
                            "can't encode character"]
           and _notes_plain == ["youtube: no readable export found in this folder"],

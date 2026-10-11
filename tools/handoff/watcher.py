@@ -200,10 +200,18 @@ def selftest() -> int:
     st = status(hub)
     ok("status counts one pending job", st["pending"] == 1 and st["results"] == 0)
 
-    # The production once() path honors the master gate (off by default in this repo).
-    res = once(hub)
+    # The production once() path honors the master gate. The gate is stood in for, off, so the check
+    # holds on a computer whose own local config switches the hand-off on (P102); the stand-in is
+    # asked, and the real gate is put back.
+    gate_asked, real_gate = [], runner.handoff_enabled
+    runner.handoff_enabled = lambda *a, **k: gate_asked.append(a) or False
+    try:
+        res = once(hub)
+    finally:
+        runner.handoff_enabled = real_gate
     ok("once() with the gate off stays gated and leaves the queue alone",
-       res and res[0]["status"] == "gated" and status(hub)["pending"] == 1)
+       res and res[0]["status"] == "gated" and status(hub)["pending"] == 1 and gate_asked
+       and runner.handoff_enabled is real_gate)
 
     # And a gated-open pass drains it (runner already covers execution; this pins the wiring).
     calls = []

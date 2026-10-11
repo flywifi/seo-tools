@@ -1600,6 +1600,10 @@ def _pins_isolation(m):
     contract = m.load_json(m.CONTRACT)
     box = m.Box("selftest-iso", contract["pinned_today"])
     out = []
+    # A computer without HOME (Windows usually has none) takes only the "unset" restore branch, so a
+    # restore that skips HOME or saves it as None would pass; give HOME a value for this pin (P102).
+    host_home = os.environ.get("HOME")
+    os.environ["HOME"] = host_home or str(box.root / "host-home")
     try:
         real = {k: getattr(m.pm, k) for k in ("STATE_PATH", "CONTEXT_DIR", "LOG_DIR")}
         real_ledger, real_home = m.ib.LEDGER_PATH, os.environ.get("HOME")
@@ -1633,6 +1637,10 @@ def _pins_isolation(m):
                     and all(getattr(m.ib, f).__defaults__ == d for f, d in real_defaults.items())))
     finally:
         box.close()
+        if host_home is not None:
+            os.environ["HOME"] = host_home
+        elif "HOME" in os.environ:
+            del os.environ["HOME"]
     out.append(("box-removed", not box.root.exists()))
     return out
 
@@ -2699,7 +2707,10 @@ def _guard_real_import_under_prefix_check(m):
     """A real first import with a missing three-level bytecode prefix creates the prefix and its
     parents and writes the cache file there, all inside the guard without a refusal."""
     import importlib.util
-    tmp = _temp_folder("creator-os-surface-pin-pfximport-")
+    # A short folder name: the cache file's path holds this folder's path twice (prefix + source),
+    # and with Windows' long paths off (its default) a path past 260 characters is not written, so a
+    # long user name would fail this pin for a reason it does not test (P102).
+    tmp = _temp_folder("cos-pfx-")
     src = tmp / "src"
     src.mkdir()
     (tmp / "allowed").mkdir()

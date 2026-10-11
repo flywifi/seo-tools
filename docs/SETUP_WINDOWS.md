@@ -182,6 +182,11 @@ round-trips through the default cp1252 console.
   `.github/workflows/ci.yml`).
 - The auditor agent's hook in `.claude/settings.json` runs under Git Bash; it tries `python3`,
   `python` and `py -3`, and refuses the auditor's call when none works.
+- With MinGit, which puts no `sh` or `bash` on PATH, the hooks selftest runs the hooks with the
+  `usr\bin\sh.exe` of that Git <!-- verify: tools/install_hooks.py::_shell -->. On a computer with
+  little memory, set `CREATOR_OS_FILE_HASH_JOBS` (for example to 2) so the mutation run in
+  `tools/file_hash.py --selftest` starts fewer child processes at a time
+  <!-- verify: tools/file_hash.py::mutant_jobs -->. *(not yet tested on Windows)*
 
 ## Declared sources (maintainers)
 

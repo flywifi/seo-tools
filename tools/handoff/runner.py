@@ -353,6 +353,7 @@ def run_pass(hub_root, *, spawn=subprocess.run, allow=None) -> list:
 
 
 def selftest() -> int:
+    import shutil
     import tempfile
     import types
     checks = []
@@ -508,9 +509,18 @@ def selftest() -> int:
     export_dir = tempfile.mkdtemp()
     argv_lc, err_lc = _build_library_complete({"command": "match"}, [export_dir], hub)
     ok("library_complete builds --export-dir argv", err_lc is None and "--export-dir" in argv_lc)
+    # The tool opens its video library first; CREATOR_OS_ROOT points that at a temporary folder, so
+    # the run leaves no library in this checkout (P102: a fresh clone gained one).
+    lc_root = Path(tempfile.mkdtemp(prefix="runner-lc-root-"))
+    real_lib = ROOT / "pipeline" / "video-library" / "index.local.db"
+    real_lib_before = real_lib.exists()
     proc_lc = subprocess.run([env_paths.app_python(str(ROOT))] + argv_lc,
-                             capture_output=True, timeout=60, cwd=str(ROOT), **env_paths.tool_io())
-    ok("library_complete argv is argparse-accepted", proc_lc.returncode == 0)
+                             capture_output=True, timeout=60, cwd=str(ROOT),
+                             **env_paths.tool_io(dict(os.environ, CREATOR_OS_ROOT=str(lc_root))))
+    ok("library_complete argv is argparse-accepted, and its library is opened under CREATOR_OS_ROOT",
+       proc_lc.returncode == 0 and (lc_root / "pipeline" / "video-library" / "index.local.db").is_file()
+       and real_lib.exists() == real_lib_before)
+    shutil.rmtree(lc_root, ignore_errors=True)
 
     # P61 (decision WRITE-OPTIN): --write appears only when the ticket asks AND the local capability is on.
     _orig_cap = globals()["capability_enabled"]
@@ -537,13 +547,19 @@ def selftest() -> int:
        _build_keyword_offline({"query": "  "}, [], hub)[1] is not None)
     ok("keyword_offline refuses an oversize query",
        _build_keyword_offline({"query": "x" * 501}, [], hub)[1] is not None)
-    # and the built argv actually runs clean against the committed library (zero network).
-    proc_k = subprocess.run([env_paths.app_python(str(ROOT))] + argv_k,
+    # and the built argv's arguments run clean against the committed library (zero network), with
+    # the scoop cache query stood in for: the real one builds the cache index when it is missing,
+    # which left index files in a fresh clone (P102).
+    stub_k = ("import sys; sys.path.insert(0, sys.argv[1]); import keyword_offline as k; "
+              "k._run_cache = lambda query, limit: {'results': [], 'fts5': None, 'stand_in': True}; "
+              "sys.exit(k.main(sys.argv[2:]))")
+    proc_k = subprocess.run([env_paths.app_python(str(ROOT)), "-c", stub_k, str(ROOT / "tools")] + argv_k[1:],
                             capture_output=True, timeout=120, cwd=str(ROOT), **env_paths.tool_io())
     rep_k = json.loads(proc_k.stdout) if proc_k.returncode == 0 else {}
-    ok("keyword_offline argv runs clean with the honesty envelope",
+    ok("keyword_offline argv runs clean with the honesty envelope, its cache query stood in for",
        proc_k.returncode == 0 and rep_k.get("search_volumes") is None and
-       rep_k.get("data_basis", "").startswith("local keyword library"))
+       rep_k.get("data_basis", "").startswith("local keyword library")
+       and rep_k.get("query") == "dresser makeover" and rep_k.get("cache_hits", {}).get("stand_in") is True)
 
     # P101: an Outbox name carries the system of the computer that ran the job.
     ok("platform tag maps system names to mac, windows and linux",

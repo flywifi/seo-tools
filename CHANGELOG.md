@@ -355,6 +355,20 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (selftests on real setups and fresh clones): the watcher's selftest stands in for the
+  compute hand-off gate, so it passes on a computer whose local config switches the hand-off on; the
+  wizard's selftest pins the interpreter while it records tool runs, so a `.venv` adds no run; the
+  `env_paths` checks link the base interpreter and put its folder on PATH, the surface pin uses a
+  short temporary folder name, and the isolation pin gives HOME a value, so they pass with the
+  Python install manager, with Windows long paths off and with no HOME. The hand-off runner's
+  selftest opens `library_complete`'s video library under a temporary `CREATOR_OS_ROOT` and stands in
+  for `keyword_offline`'s cache query, and `library_complete`'s selftest points its library at a
+  temporary file; in a fresh clone the two selftests left `pipeline/video-library/index.local.db`,
+  `shared/cache/index.local.db` and `shared/cache/cache-baseline.local.json` behind.
+  `CREATOR_OS_FILE_HASH_JOBS` sets how many child processes `file_hash --selftest` runs at a time
+  (`file_hash.mutant_jobs`; default min(8, the CPU count)); `install_hooks`' selftest finds MinGit's
+  `usr\bin\sh.exe` (`install_hooks._shell`); and the Visual C++ steps take the Windows folder from
+  `GetSystemWindowsDirectoryW` before `%SystemRoot%` (`transcribe.windows_dir`).
 - P102 (damaged or oversized export members): `import_parse` reads a zip member through
   `_read_member`: a member whose directory entry says it is over 256 MiB (`MAX_MEMBER_BYTES`) is not
   read, and one that does not decompress (a CRC mismatch, a corrupt deflate, bzip2 or LZMA stream,
