@@ -23,6 +23,7 @@ Modes:
                 that already exist. Used to add new canonical sources without hand-editing.
 """
 
+import errno
 import argparse
 import hashlib
 import json
@@ -59,6 +60,11 @@ def _probe_exists(p):
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError so the
     CLI boundary's clean envelope fires -- CPython 3.14 changed Path.exists() to swallow
     those errors, which turned the refusal into a misleading 'file not found'."""
+    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):
+        # A name part over 255 UTF-16 code units (Windows' measure; an emoji counts two) cannot
+        # exist; Windows with long paths off reports it as missing, so refuse it here as
+        # unprobeable, as ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
         return True
@@ -1039,6 +1045,19 @@ def selftest_detect():
         sys.argv = old_argv
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
+    import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
+    _lp_got = []
+    for _lp_name in ("x" * 300, "x" * 300 + "/inner.json", "\U0001F600" * 200):
+        buf = io.StringIO()
+        sys.argv = ["source_currency.py", "seed-sources", _lp_name]
+        try:
+            with _fh_lp.long_paths_off(), contextlib.redirect_stdout(buf):
+                rc_lp = main()
+        finally:
+            sys.argv = old_argv
+        _lp_got.append(rc_lp == 1 and "next_step" in buf.getvalue())
+    ok(">255-unit path arg (a long name, as a parent folder, or 200 emoji) -> clean envelope where the "
+       "system reports it missing (P102)", _lp_got == [True, True, True])
 
     # P81: a --url change nulls the six content stamps; a same-URL call changes nothing.
     import types as _types

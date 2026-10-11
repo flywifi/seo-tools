@@ -92,11 +92,33 @@ def probe_faster_whisper(find_spec=None, importer=None):
     return {"installed": True, "loads": True, "error": ""}
 
 
+def windows_dir(kernel32=None, env=None) -> str:
+    """The Windows folder (C:\\Windows on most computers): GetSystemWindowsDirectoryW first, since a
+    process can be started with any SystemRoot in its environment, then %SystemRoot%, then
+    C:\\Windows (P102). Off Windows there is no kernel32 and the environment answers. kernel32 and
+    env stand in for the system's in the selftest."""
+    import ctypes
+    if kernel32 is None:
+        try:
+            kernel32 = ctypes.windll.kernel32
+        except (AttributeError, OSError):  # not Windows
+            kernel32 = None
+    if kernel32 is not None:
+        try:
+            buf = ctypes.create_unicode_buffer(260)
+            n = kernel32.GetSystemWindowsDirectoryW(buf, 260)
+            if 0 < n < 260 and buf.value:
+                return buf.value
+        except Exception:  # noqa: BLE001 -- an unusable call falls back to the environment
+            pass
+    return (os.environ if env is None else env).get("SystemRoot") or "C:\\Windows"
+
+
 def vc_runtime_missing(system_root=None, exists=None):
-    """The VC_RUNTIME_DLLS absent from %SystemRoot%\\System32. Callers ask on Windows only;
+    """The VC_RUNTIME_DLLS absent from System32 under windows_dir(). Callers ask on Windows only;
     system_root and exists stand in for the system's in the selftest."""
     import ntpath
-    root = system_root or os.environ.get("SystemRoot") or "C:\\Windows"
+    root = system_root or windows_dir()
     exists = os.path.exists if exists is None else exists
     return [d for d in VC_RUNTIME_DLLS if not exists(ntpath.join(root, "System32", d))]
 
@@ -234,13 +256,13 @@ def vc_signature_verdict(info):
 
 
 def vc_signature_info(path, run=None, system_root=None):
-    """The signature facts for `path` from Windows PowerShell (by its full path under %SystemRoot%), as
+    """The signature facts for `path` from Windows PowerShell (by its full path under windows_dir()), as
     a dict, or {"error": ...}. The file path travels in an environment variable and the script as
     -EncodedCommand, so neither is parsed by a shell. `run` stands in for subprocess.run."""
     import base64
     import ntpath
     run = subprocess.run if run is None else run
-    root = system_root or os.environ.get("SystemRoot") or "C:\\Windows"
+    root = system_root or windows_dir()
     ps = ntpath.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
     script = base64.b64encode(_VC_SIGNATURE_PS.encode("utf-16-le")).decode("ascii")
     # PSModulePath is left out so Windows PowerShell builds its own: one inherited from PowerShell 7
@@ -924,6 +946,38 @@ def selftest():
            _missing == ["vcruntime140.dll", "vcruntime140_1.dll"]
            and _seen_dll[0] == "C:\\Windows\\System32\\msvcp140.dll"
            and vc_runtime_missing("C:\\Windows", exists=lambda p: True) == [])
+        # P102: the Windows folder comes from GetSystemWindowsDirectoryW before %SystemRoot%.
+        class _K32:
+            def __init__(self, value, n=None):
+                self.value, self.n = value, n
+
+            def GetSystemWindowsDirectoryW(self, buf, size):
+                buf.value = self.value
+                return len(self.value) if self.n is None else self.n
+
+        class _K32Raise:
+            def GetSystemWindowsDirectoryW(self, buf, size):
+                raise OSError("no such call")
+        _env_w = {"SystemRoot": "X:\\Elsewhere"}
+        _wd = {"kernel": windows_dir(_K32("D:\\WINDOWS"), _env_w), "zero": windows_dir(_K32("", 0), _env_w),
+               "too long": windows_dir(_K32("D:\\WINDOWS", 300), _env_w),
+               "raises": windows_dir(_K32Raise(), _env_w), "no env": windows_dir(_K32("", 0), {})}
+        _wd_real = windows_dir(env=_env_w)
+        # The DLL check and the PowerShell path both start from windows_dir() when not told a folder.
+        _real_wd, _wd_seen = windows_dir, []
+        globals()["windows_dir"] = lambda *a, **k: "D:\\WinFromApi"
+        try:
+            vc_runtime_missing(exists=lambda p: _wd_seen.append(p) or True)
+            vc_signature_info("C:\\x.exe", run=lambda argv, **kw: _wd_seen.append(argv[0]) or
+                              type("_Done", (), {"stdout": "{}\n", "stderr": "", "returncode": 0})())
+        finally:
+            globals()["windows_dir"] = _real_wd
+        ok("the Windows folder comes from GetSystemWindowsDirectoryW, then SystemRoot, then C:\\Windows",
+           _wd == {"kernel": "D:\\WINDOWS", "zero": "X:\\Elsewhere", "too long": "X:\\Elsewhere",
+                   "raises": "X:\\Elsewhere", "no env": "C:\\Windows"}
+           and len(_wd_seen) == 4 and all(str(x).startswith("D:\\WinFromApi\\System32\\") for x in _wd_seen)
+           and ((_wd_real != "X:\\Elsewhere" and Path(_wd_real).is_dir()) if os.name == "nt"
+                else _wd_real == "X:\\Elsewhere"))
         _none = {"whisper_cpp": False, "faster_whisper": False}
         _d_vc = doctor(os_name="win32", arch="amd64", have=_none, fw_probe=_pr[1],
                        system_root="C:\\Windows", dll_exists=lambda p: False)
@@ -1086,7 +1140,7 @@ def selftest():
             _unsigned = tmp / "unsigned-stand-in.exe"
             _unsigned.write_bytes(b"MZ" + b"\0" * 510)
             _real_un = vc_signature_info(str(_unsigned))
-            _ps_exe = Path(os.environ.get("SystemRoot") or "C:\\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+            _ps_exe = Path(windows_dir()) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
             _real_ms = vc_signature_info(str(_ps_exe))
             ok("on Windows the real signature check refuses an unsigned file and reads powershell.exe as Valid "
                "from Microsoft Corporation",

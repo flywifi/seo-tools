@@ -22,6 +22,7 @@ CLI:
 """
 from __future__ import annotations
 
+import errno
 import argparse
 import hashlib
 import json
@@ -51,6 +52,11 @@ def _probe_exists(p: Path) -> bool:
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError instead
     of reading absent -- CPython 3.14 changed Path.exists() to swallow those errors, which
     silently bypassed this boundary's PayloadError envelope."""
+    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):
+        # A name part over 255 UTF-16 code units (Windows' measure; an emoji counts two) cannot
+        # exist; Windows with long paths off reports it as missing, so refuse it here as
+        # unprobeable, as ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
         return True
@@ -418,6 +424,21 @@ def selftest() -> int:
         except json.JSONDecodeError:
             err_obj = {}
         expect(name, rc_long == 1 and "error" in err_obj and "next_step" in err_obj)
+    # P102: the same envelope where the system reports the long name as missing, as Windows does
+    # with long paths off (file_hash.long_paths_off stands that in on any system).
+    import file_hash as _fh_lp
+    _lp_got = []
+    for _lp_name in (long_arg, long_arg + "/inner.json", "\U0001F600" * 200):
+        buf = io.StringIO()
+        with _fh_lp.long_paths_off(), contextlib.redirect_stdout(buf):
+            rc_lp = main(["--scan", _lp_name, "--today", "2026-07-18"])
+        try:
+            err_lp = json.loads(buf.getvalue().strip())
+        except json.JSONDecodeError:
+            err_lp = {}
+        _lp_got.append(rc_lp == 1 and "error" in err_lp and "next_step" in err_lp)
+    expect("oversize --scan arg (a long name, as a parent folder, or 200 emoji) -> clean envelope "
+           "where the system reports it missing", _lp_got == [True, True, True])
 
     print(f"selftest: {'PASS' if not failures else 'FAIL'} "
           f"({ran[0] - len(failures)} of {ran[0]} checks)")

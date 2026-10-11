@@ -45,9 +45,10 @@ If you edit a macOS-relevant file, re-bless it: `python3 tools/mac_surface_manif
   21); a name, a postal address, or a phone number written as one digit run, with slashes, or
   with spaced dashes is not detected.
 - `canonical-sources/source-registry.json` is written ONLY through `tools/registry_io.py`
-  (`load_registry`/`save_registry`), the single shared write implementation. Five tools funnel
-  through it (`source_currency`, `dependency_currency`, `traversal_engine accept`,
-  `update_check apply_stamp`, `competitor_snapshot register-competitor`) — see CLAUDE.md for
+  (`load_registry`/`save_registry`), the single shared write implementation. Four tools write it
+  (`source_currency`, `dependency_currency`, `traversal_engine accept`,
+  `update_check apply_stamp`); `competitor_snapshot` uses the same writer for the creator's local
+  competitor list (`pipeline/competitor-snapshots/competitors.local.json`) — see CLAUDE.md for
   which verb covers which case. Never hand-edit the registry.
 - `tools/traversal_engine.py` is the only writer of `traversal-candidates.json` and
   `traversal-visited.json`. Do not edit `shared/connectors/connectors.json` for

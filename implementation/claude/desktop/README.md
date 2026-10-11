@@ -10,7 +10,7 @@ knowledge-only setup can match:
 | Source staleness detection | `source_staleness` tool reads source-registry.json intervals |
 | Deterministic quality scoring | `quality_score` tool runs score.py with your dimension ratings |
 | Drift guard on demand | `drift_check` tool runs sync_check.py live |
-| Add competitors to tracker | `add_competitor` tool upserts into source-registry.json |
+| Add competitors to tracker | `add_competitor` tool saves to your competitor list (`pipeline/competitor-snapshots/competitors.local.json`) |
 
 ---
 
@@ -135,8 +135,9 @@ returned by the YouTube Data API for competitor videos.
 - `competitor_scan` is read-only from the MCP side. The `--fetch` step must be
   run manually or via the weekly GitHub Actions cron. This is intentional: live
   fetches use rate governor politeness delays that would block a conversation.
-- `add_competitor` writes to `source-registry.json` only via `source_currency.py`,
-  preserving the write-isolation guarantee in CLAUDE.md.
+- `add_competitor` saves to your own competitor list,
+  `pipeline/competitor-snapshots/competitors.local.json` (kept out of git); the tracked
+  `source-registry.json` is not changed.
 - `quality_score` accepts the 9 dimension scores you supply; it does not judge
   the artifact itself. Run it after a quality-review spoke output to get the
   deterministic release verdict.

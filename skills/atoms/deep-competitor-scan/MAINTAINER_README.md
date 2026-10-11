@@ -152,7 +152,10 @@ When TikTok changes the `SIGI_STATE` structure:
 ## Source registry entries this atom depends on
 
 - `tiktok-sigi-state-structure` (category: api-changelog) — track when TikTok changes SIGI_STATE
-- All `competitor-page` category entries — managed via `competitor_snapshot.py --add-competitor`
+- `competitor-page` entries: a creator's pages live in their own list,
+  `pipeline/competitor-snapshots/competitors.local.json`, written by
+  `competitor_snapshot.py --add-competitor`; the registry's competitor-page entries, if any, are
+  read beside it
 - `youtube-creator-blog` (category: seo-authority) — algorithm changes may affect tag weighting
 
 ## Fabrication rule

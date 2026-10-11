@@ -149,10 +149,16 @@ It binds `8766`, then `8776`, then `8786`. *(tested on Windows)*
   the letter is the one Drive for desktop shows in its Preferences (often `G:`).
 - Make the `Creator OS` folder inside `My Drive`, then open the wizard's **Drive hub** screen
   (`/drive-hub`). It offers that folder when it finds one on a drive; otherwise paste its path
-  (Explorer's "Copy as path" works, quotes included). The wizard accepts a folder inside a Drive
-  `My Drive` or `Shared drives` folder, and refuses `My Drive` itself, a `My Drive` folder on the
+  (Explorer's "Copy as path" works, quotes included). The wizard accepts a folder inside a
+  `My Drive` or `Shared drives` folder at the root of a drive, the layout Drive for desktop mounts
+  (it does not check that Drive for desktop made the drive), and refuses `My Drive` itself, a
+  `My Drive` folder on the
   system drive, and a network share (`\\server\share`), which it refuses without opening
   <!-- verify: tools/wizard.py::on_google_drive -->.
+- The wizard's **Import** screen accepts an unzipped export inside those Drive folders by the same
+  rule, so an export saved under `G:\My Drive` can be scanned where it is; the **Choose my Creator
+  OS folder** step keeps to your user folder. A path written with the long-path prefix
+  (`\\?\G:\My Drive\...`) is read as `G:\My Drive\...`. *(not yet tested on Windows)*
 - Stream files mode *(tested on Windows)*. Mirror files mode *(not yet tested on Windows)*.
 - Keep the repository itself out of the Drive folder (Quick start step 2).
 - Update Creator OS on every computer that shares the hub before queuing work from Windows: a
@@ -178,6 +184,11 @@ round-trips through the default cp1252 console.
   `.github/workflows/ci.yml`).
 - The auditor agent's hook in `.claude/settings.json` runs under Git Bash; it tries `python3`,
   `python` and `py -3`, and refuses the auditor's call when none works.
+- With MinGit, which puts no `sh` or `bash` on PATH, the hooks selftest runs the hooks with the
+  `usr\bin\sh.exe` of that Git <!-- verify: tools/install_hooks.py::_shell -->. On a computer with
+  little memory, set `CREATOR_OS_FILE_HASH_JOBS` (for example to 2) so the mutation run in
+  `tools/file_hash.py --selftest` starts fewer child processes at a time
+  <!-- verify: tools/file_hash.py::mutant_jobs -->. *(not yet tested on Windows)*
 
 ## Declared sources (maintainers)
 

@@ -323,7 +323,9 @@ def _selftest() -> int:
 
         def link_interpreter():
             try:
-                vpy.symlink_to(sys.executable)     # a real interpreter
+                # The base interpreter, not sys.executable: under a venv on Windows that is the venv's
+                # launcher, which will not start without a pyvenv.cfg beside the link (P102).
+                vpy.symlink_to(getattr(sys, "_base_executable", None) or sys.executable)
                 return True
             except OSError:   # P101: Windows without Developer Mode or admin rights refuses a symlink
                 return False
@@ -343,8 +345,16 @@ def _selftest() -> int:
             print("  [skip] venv selection: this system cannot create a symlink to the interpreter")
         ok(linked or os.name == "nt", "the symlink to the interpreter is made (skipped on Windows only)")
         if linked and sys.version_info[:2] >= PYTHON_FLOOR:
-            ok(venv_python(root) == vpy, "venv_python finds a floor-meeting .venv interpreter")
-            ok(app_python(root) == str(vpy), "app_python returns .venv interpreter when present")
+            # Windows looks for the linked interpreter's DLL next to the link, then on PATH. A Python
+            # from the Python install manager is not on PATH, so the link could not start there; put
+            # the base install folder on PATH for these two checks (P102).
+            _old_path = os.environ.get("PATH", "")
+            os.environ["PATH"] = sys.base_prefix + os.pathsep + _old_path
+            try:
+                ok(venv_python(root) == vpy, "venv_python finds a floor-meeting .venv interpreter")
+                ok(app_python(root) == str(vpy), "app_python returns .venv interpreter when present")
+            finally:
+                os.environ["PATH"] = _old_path
         elif linked:
             ok(venv_python(root) is None, "a below-floor venv interpreter is rejected (P81 B-5)")
             ok(app_python(root) == sys.executable, "app_python falls back below the floor")

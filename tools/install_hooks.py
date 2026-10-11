@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import os
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
@@ -153,18 +154,35 @@ def install(dry_run=False, hooks_dir=None, python=None):
     return 0
 
 
-def _shell():
-    """A POSIX sh for running a hook: sh on PATH, else Git for Windows' bash (battery.bash_for_syntax)."""
+def _shell(which=None, run=None, os_name=None):
+    """A POSIX sh for running a hook: sh on PATH; on Windows, Git for Windows' bash
+    (battery.bash_for_syntax), else the usr\\bin\\sh.exe of the Git that `git --exec-path` names
+    (MinGit ships that sh and no bash, and puts neither on PATH, P102), else the sh on PATH. which,
+    run and os_name stand in for the system's in the selftest."""
     import shutil
-    found = shutil.which("sh")
-    if found and os.name != "nt":
+    which = which or shutil.which
+    run = run or subprocess.run
+    os_name = os_name or os.name
+    found = which("sh")
+    if found and os_name != "nt":
         return found
     try:
         sys.path.insert(0, str(ROOT / "tools"))
         import battery
-        return battery.bash_for_syntax() or found
+        bash = battery.bash_for_syntax(which=which, run=run, os_name=os_name)
     except Exception:  # noqa: BLE001
+        bash = None
+    if bash:
+        return bash
+    try:
+        out = run(["git", "--exec-path"], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
         return found
+    if out.returncode == 0 and out.stdout.strip():
+        git_sh = Path(out.stdout.strip()).parent.parent.parent / "usr" / "bin" / "sh.exe"
+        if git_sh.is_file():
+            return str(git_sh)
+    return found
 
 
 def selftest() -> int:
@@ -302,6 +320,41 @@ def selftest() -> int:
             ok("with only stand-ins on PATH the hook refuses and says to reinstall",
                nothing.returncode == 1 and "run tools/install_hooks.py again" in nothing.stderr.lower()
                .replace("run tools/install_hooks.py again with", "run tools/install_hooks.py again"))
+    # P102: on Windows with MinGit (no sh or bash on PATH, and no bash in the Git folder) the hooks
+    # run with the sh.exe in Git's usr\bin; with a full Git for Windows (bash.exe and sh.exe in
+    # usr\bin) with its bash, also when an sh is on PATH; elsewhere, and when Git does not answer,
+    # as before.
+    with tempfile.TemporaryDirectory() as td_git:
+        git_root = Path(td_git) / "MinGit"
+        exec_path = git_root / "mingw64" / "libexec" / "git-core"
+        exec_path.mkdir(parents=True)
+        (git_root / "usr" / "bin").mkdir(parents=True)
+        (git_root / "usr" / "bin" / "sh.exe").write_bytes(b"MZ")
+
+        class _Done:
+            def __init__(self, out, code=0):
+                self.stdout, self.stderr, self.returncode = out, "", code
+        git_run = lambda argv, **kw: _Done(str(exec_path) + "\n")  # noqa: E731
+        no_path = lambda name: None  # noqa: E731
+        (git_root / "usr" / "bin" / "bash.exe").write_bytes(b"MZ")
+        got_full = _shell(which=no_path, run=git_run, os_name="nt")
+        got_full_sh = _shell(which=lambda n: "C:\\x\\sh.exe" if n == "sh" else None, run=git_run,
+                             os_name="nt")
+        (git_root / "usr" / "bin" / "bash.exe").unlink()
+        got_min = _shell(which=no_path, run=git_run, os_name="nt")
+        (git_root / "usr" / "bin" / "sh.exe").unlink()
+        got_none = _shell(which=no_path, run=git_run, os_name="nt")
+        got_posix = _shell(which=lambda n: "/bin/sh" if n == "sh" else None, run=git_run, os_name="posix")
+        got_failed = _shell(which=lambda n: "C:\\x\\sh.exe" if n == "sh" else None,
+                            run=lambda argv, **kw: _Done("", 1), os_name="nt")
+    ok("on Windows with MinGit the hooks run with Git's usr\\bin\\sh.exe; with none there, the sh on "
+       "PATH, as off Windows",
+       got_min == str(git_root / "usr" / "bin" / "sh.exe") and got_none is None
+       and got_posix == "/bin/sh" and got_failed == "C:\\x\\sh.exe")
+    ok("on Windows with a full Git for Windows the hooks run with its bash.exe, not its sh.exe, also "
+       "when an sh is on PATH",
+       got_full == str(git_root / "usr" / "bin" / "bash.exe")
+       and got_full_sh == str(git_root / "usr" / "bin" / "bash.exe"))
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)

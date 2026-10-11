@@ -22,6 +22,7 @@ Usage:
   python3 tools/library_complete.py complete --export-dir DIR [--write]
   python3 tools/library_complete.py --selftest
 """
+import errno
 import argparse
 import json
 import os
@@ -76,6 +77,11 @@ def match_media(export_dir, records, prober=_mp.probe):
     # clean-envelope guarantee became vacuous. Probe the directory explicitly so a bad path
     # raises OSError on every supported interpreter and main() wraps it in the envelope. A
     # MISSING directory stays an empty worklist (the 3.12 rglob semantics the selftests pin).
+    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):
+        # A name part over 255 UTF-16 code units (Windows' measure; an emoji counts two) cannot
+        # exist; Windows with long paths off reports it as missing, so refuse it here, as
+        # ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(export))
     try:
         os.stat(export)
     except FileNotFoundError:
@@ -370,11 +376,50 @@ def selftest():
 
     import contextlib
     import io
+    import tempfile as _tf_db
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        rc = main(["match", "--export-dir", "x" * 300])
-    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
-       rc == 1 and "next_step" in buf.getvalue())
+    # main() opens the video library before it reads the folder; point the library at a temporary
+    # file, so this check leaves no library in the checkout (P102: a fresh clone gained one).
+    # The connection is recorded, so the check also sees it closed after the error: Windows will not
+    # delete a database file that is still open, so a leaked one fails the folder's cleanup there.
+    import sqlite3
+    _saved_db, _saved_open, _opened = _vl.DB_PATH, _vl._open_db, []
+
+    def _open_recorded(*a, **k):
+        _opened.append(_saved_open(*a, **k))
+        return _opened[-1]
+
+    def _is_closed(con):
+        try:
+            con.execute("select 1")
+            return False
+        except sqlite3.ProgrammingError:
+            return True
+    with _tf_db.TemporaryDirectory() as _td_db:
+        _vl.DB_PATH, _vl._open_db = Path(_td_db) / "index.local.db", _open_recorded
+        try:
+            with contextlib.redirect_stdout(buf):
+                rc = main(["match", "--export-dir", "x" * 300])
+            _db_used = _vl.DB_PATH.is_file()
+            _closed = len(_opened) == 1 and _is_closed(_opened[0])
+        finally:
+            _vl.DB_PATH, _vl._open_db = _saved_db, _saved_open
+            for _con in _opened:
+                _con.close()
+    ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary), with the library opened "
+       "in a temporary folder and closed after the error",
+       rc == 1 and "next_step" in buf.getvalue() and _db_used and _closed)
+    import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
+    _lp_errnos = []
+    with _fh_lp.long_paths_off():
+        for _lp_name in ("x" * 300, "x" * 300 + "/inner", "\U0001F600" * 200):
+            try:
+                match_media(_lp_name, [])
+                _lp_errnos.append(None)
+            except OSError as exc:
+                _lp_errnos.append(exc.errno)
+    ok("a >255-unit export folder (a long name, as a parent folder, or 200 emoji) is refused where "
+       "the system reports it missing (P102)", _lp_errnos == [errno.ENAMETOOLONG] * 3)
     ok("main switches a redirected stdout to UTF-8 (P102: titles with an emoji on Windows)",
        "utf8_stdio" in main.__code__.co_names)
 
@@ -403,10 +448,17 @@ def _main(argv):
         return 2
 
     con = _vl._open_db()
+    try:  # the library is closed on every way out, an error included (Windows keeps an open file)
+        return _run_command(args, con)
+    finally:
+        con.close()
+
+
+def _run_command(args, con):
+    """The match or complete command against the open library `con`; main closes it."""
     records = _load_records(con)
     if args.cmd == "match":
         print(json.dumps(match_media(args.export_dir, records), indent=2, ensure_ascii=False))
-        con.close()
         return 0
     # complete
     m = match_media(args.export_dir, records)
@@ -436,7 +488,6 @@ def _main(argv):
     print(json.dumps({"proposals": proposals, "videos_completed": videos_completed, "wrote": wrote,
                       "gaps": gaps, "unmatched_media": m["unmatched_media"], "no_media": m["no_media"]},
                      indent=2, ensure_ascii=False))
-    con.close()
     return 0
 
 

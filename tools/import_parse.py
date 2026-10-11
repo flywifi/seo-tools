@@ -24,6 +24,7 @@ Usage:
   python3 tools/import_parse.py pinterest <pin-analytics.json>
   python3 tools/import_parse.py --selftest
 """
+import errno
 import argparse
 import csv
 import io
@@ -31,6 +32,7 @@ import json
 import re
 import sys
 import zipfile
+import zlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared" / "docintel"))
@@ -80,6 +82,77 @@ def _note(message):
 
 _ZIP_UNREAD_NOTE = ("this file's zip directory could not be read here (it may be an incomplete "
                     "download); unzip it and import the folder")
+
+
+# The largest zip member the importer reads (P102): the CSV and JSON files it reads are far smaller
+# in a normal export, so this stops only a pathological member, which is skipped with a note.
+MAX_MEMBER_BYTES = 256 * 1024 * 1024
+# A member is read in pieces of this many bytes. zipfile stops a member at its directory entry's
+# size, but one plain read decompresses up to a gigabyte before it cuts the result to that size, so
+# a member whose entry understates a long stream would fill memory first; a bounded read does not.
+MEMBER_CHUNK_BYTES = 1024 * 1024
+# The compression methods zipfile decompresses no further than the size it is asked for. It
+# decompresses a bzip2 or LZMA piece whole, however far it expands, so a member compressed that way
+# is skipped with a note (exports are deflated; a re-zipped one can use another method).
+BOUNDED_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+_METHOD_NAMES = {zipfile.ZIP_BZIP2: "bzip2", zipfile.ZIP_LZMA: "LZMA", 9: "Deflate64"}
+# What reading a member that does not decompress raises: a CRC mismatch or a bad header
+# (BadZipFile), a corrupt deflate stream (zlib.error), a failed read of the zip file (OSError), a
+# stream that ends early (EOFError), and RuntimeError, which covers its subclass NotImplementedError
+# (a directory entry flagged for strong encryption or patched data).
+MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, RuntimeError)
+# General purpose flag bit 0 in a member's directory entry: the member is encrypted, and zipfile
+# reads it only with its password.
+_FLAG_ENCRYPTED = 0x1
+
+
+def _read_member(z, name):
+    """The bytes of one member of an open zip, or None with one note on stderr (P102): a member
+    whose directory entry says it is over MAX_MEMBER_BYTES is not read; one compressed with a method
+    outside BOUNDED_METHODS, or flagged as encrypted, is not read; the rest is read
+    MEMBER_CHUNK_BYTES at a time, so a read
+    decompresses no more than that whatever the entry says; and one that does not decompress
+    (MEMBER_READ_ERRORS, an interrupted download) is skipped instead of stopping the import."""
+    shown = " ".join(str(name).split())[:200]  # one line, so a member name cannot add a note line
+    info = z.getinfo(name)
+    if info.file_size > MAX_MEMBER_BYTES:
+        _note(f"{shown} inside this zip is larger than {MAX_MEMBER_BYTES // (1024 * 1024)} MiB, so it "
+              f"was not read; unzip the export and import the folder")
+        return None
+    if info.compress_type not in BOUNDED_METHODS:
+        method = _METHOD_NAMES.get(info.compress_type, f"compression method {info.compress_type}")
+        _note(f"{shown} inside this zip is compressed with {method}, which the importer does not "
+              f"read, so it was skipped; unzip the export and import the folder")
+        return None
+    if info.flag_bits & _FLAG_ENCRYPTED:
+        _note(f"{shown} inside this zip is password-protected, which the importer does not read, so "
+              f"it was skipped; unzip the export and import the folder")
+        return None
+    try:
+        parts = []
+        with z.open(info) as fh:
+            while True:
+                piece = fh.read(MEMBER_CHUNK_BYTES)
+                if not piece:
+                    break
+                parts.append(piece)
+        return b"".join(parts)
+    except MEMBER_READ_ERRORS as exc:
+        if isinstance(exc, zlib.error):
+            kind = "zlib.error"
+        elif isinstance(exc, OSError):  # a failing disk or share: its own words, on one line
+            kind = f"{type(exc).__name__}: {' '.join(str(exc).split())[:200]}"
+        else:
+            kind = type(exc).__name__
+        _note(f"{shown} inside this zip could not be read ({kind}; it may be damaged or an incomplete "
+              f"download), so it was skipped; download the export again")
+        return None
+
+
+def _member_text(z, name):
+    """The decoded text of one zip member (textdecode's reading), or None when _read_member skips it."""
+    raw = _read_member(z, name)
+    return None if raw is None else _td.decode_text(raw)[0]
 
 
 def _safe_zip(path):
@@ -189,11 +262,11 @@ def parse_youtube_studio_zip(zip_path):
         csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
         table = next((n for n in csvs if "table data" in n.lower()), None)
         if table is not None:
-            text = _td.decode_text(z.read(table))[0]
+            text = _member_text(z, table)
         else:  # fall back to any csv that has a "Content" header
             for n in csvs:
-                t = _td.decode_text(z.read(n))[0]
-                if t.splitlines() and "content" in t.splitlines()[0].lower():
+                t = _member_text(z, n)
+                if t and t.splitlines() and "content" in t.splitlines()[0].lower():
                     text = t
                     break
     return parse_youtube_studio_csv(text) if text else []
@@ -206,6 +279,11 @@ def _probe_exists(p):
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError so the
     CLI envelope fires -- CPython 3.14 changed Path.exists()/is_file()/is_dir() to swallow
     those errors, which made an unreadable path parse to an empty [] instead."""
+    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):
+        # A name part over 255 UTF-16 code units (Windows' measure; an emoji counts two) cannot
+        # exist; Windows with long paths off reports it as missing, so refuse it here as
+        # unprobeable, as ENAMETOOLONG does elsewhere (P102).
+        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
         return True
@@ -250,7 +328,9 @@ def parse_youtube_takeout(path):
             with z:
                 for n in z.namelist():
                     if "video metadata" in n.lower() and n.lower().endswith(".csv"):
-                        texts.append(_td.decode_text(z.read(n))[0])
+                        t = _member_text(z, n)
+                        if t is not None:
+                            texts.append(t)
     elif p.is_dir():
         for f in p.rglob("*.csv"):
             if "video metadata" in str(f).lower() or "video" in f.name.lower():
@@ -321,7 +401,9 @@ def parse_instagram_dyi(path):
                 for n in z.namelist():
                     b = Path(n).name.lower()
                     if n.lower().endswith(".json") and (b.startswith("posts_") or b in ("reels.json", "posts.json") or "reels" in b):
-                        texts.append(_td.decode_text(z.read(n))[0])
+                        t = _member_text(z, n)
+                        if t is not None:
+                            texts.append(t)
     elif p.is_dir():
         for f in list(p.rglob("posts_*.json")) + list(p.rglob("reels.json")) + list(p.rglob("posts.json")):
             texts.append(_td.read_text_file(f)[0])
@@ -354,18 +436,20 @@ def _is_path_text(value) -> bool:
 
 
 def _tiktok_zip_text(zip_path):
-    """(text, opened): the text of the export JSON inside a TikTok data zip (user_data_tiktok.json
-    first), or None; opened is False when _safe_zip did not open the zip, which it has said."""
+    """(text, noted): the text of the export JSON inside a TikTok data zip (user_data_tiktok.json
+    first), or None; noted is True when a note already says why there is no text (_safe_zip did not
+    open the zip, or _read_member skipped the member)."""
     z = _safe_zip(zip_path)
     if z is None:
-        return None, False
+        return None, True
     with z:
         names = z.namelist()
         for want in _TIKTOK_MEMBERS:
             for n in names:
                 if n.replace("\\", "/").rsplit("/", 1)[-1].lower() == want:
-                    return _td.decode_text(z.read(n))[0], True
-    return None, True
+                    text = _member_text(z, n)
+                    return text, text is None
+    return None, False
 
 
 def parse_tiktok_dyi(path_or_obj):
@@ -374,9 +458,9 @@ def parse_tiktok_dyi(path_or_obj):
     if isinstance(path_or_obj, (dict, list)):
         obj = path_or_obj
     elif _is_path_text(path_or_obj) and str(path_or_obj).lower().endswith(".zip"):
-        text, opened = _tiktok_zip_text(path_or_obj)
+        text, noted = _tiktok_zip_text(path_or_obj)
         if text is None:
-            if opened:  # a zip _safe_zip did not open has its own note
+            if not noted:  # _safe_zip, or _read_member for a damaged member, has said why
                 _note("no user_data_tiktok.json or user_data.json in this zip (choose JSON as the file "
                       "format when you request your TikTok data)")
             return []
@@ -711,6 +795,185 @@ def selftest():
         ok("without a Table data CSV, the first CSV whose first line names a Content column is read",
            parse_youtube_studio_zip(str(_fall)) == yt)
 
+    # P102 push 4c: a member that does not decompress, or whose directory entry is over
+    # MAX_MEMBER_BYTES, is skipped with one note naming it on one line; the zip's other members are
+    # read, and nothing raises.
+    def _zip_with(path, members, damaged=None, method=zipfile.ZIP_DEFLATED, block=False, methods=None,
+                  flags=None):
+        """Write a zip of members (name -> bytes), each compressed with method unless methods names
+        another for it, and damage `damaged`'s data: flip one byte in its middle (a CRC mismatch),
+        or with block, start its deflate stream with the reserved block type, which zlib refuses.
+        flags maps a member to (local, directory): bits ORed into the general purpose flag of its
+        local header and of its central directory entry."""
+        buf = _io_n.BytesIO()
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(buf, "w", method) as _zw:
+                for _n, _data in members.items():
+                    _zw.writestr(_n, _data, compress_type=(methods or {}).get(_n, method))
+            raw = bytearray(buf.getvalue())
+            if damaged is not None:
+                with zipfile.ZipFile(_io_n.BytesIO(bytes(raw))) as _zr:
+                    _info = _zr.getinfo(damaged)
+                _off = _info.header_offset
+                _start = (_off + 30 + int.from_bytes(raw[_off + 26:_off + 28], "little")
+                          + int.from_bytes(raw[_off + 28:_off + 30], "little"))
+                if block:
+                    raw[_start] = 0x07  # BFINAL 1, BTYPE 11: a reserved deflate block type
+                else:
+                    raw[_start + _info.compress_size // 2] ^= 0xFF
+            for _fname, (_local_bits, _dir_bits) in (flags or {}).items():
+                with zipfile.ZipFile(_io_n.BytesIO(bytes(raw))) as _zr:
+                    _off = _zr.getinfo(_fname).header_offset
+                raw[_off + 6] |= _local_bits
+                _cd = raw.find(b"PK\x01\x02")
+                while _cd != -1:  # the directory entry whose local header offset is this member's
+                    if int.from_bytes(raw[_cd + 42:_cd + 46], "little") == _off:
+                        raw[_cd + 8] |= _dir_bits
+                    _cd = raw.find(b"PK\x01\x02", _cd + 4)
+            path.write_bytes(bytes(raw))
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+    _rows_csv = ("Video ID,Video title\n" + "".join(f"vid{i},Title {i}\n" for i in range(400))).encode()
+    with _tf_bom.TemporaryDirectory() as _td_dm:
+        _dm = Path(_td_dm)
+        _zip_with(_dm / "studio.zip", {"Table data.csv": yt_csv.encode() * 40}, "Table data.csv",
+                  zipfile.ZIP_STORED)
+        _studio_got = _notes_of(parse_youtube_studio_zip, str(_dm / "studio.zip"))
+        _zip_with(_dm / "takeout.zip", {"Takeout/YouTube/video metadata/videos.csv": _rows_csv,
+                                        "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
+                  "Takeout/YouTube/video metadata/videos.csv", block=True)
+        _takeout_got = _notes_of(parse_youtube_takeout, str(_dm / "takeout.zip"))
+        _zip_with(_dm / "tiktok.zip", {"user_data_tiktok.json": json.dumps(
+            {"Video": {"Videos": {"VideoList": [{"Link": f"https://x/{i}", "Date": "2026-01-01"}
+                                                for i in range(300)]}}}).encode()}, "user_data_tiktok.json")
+        _tiktok_got = _notes_of(parse_tiktok_dyi, str(_dm / "tiktok.zip"))
+        _zip_with(_dm / "named.zip", {"Table data\nnote: made-up.csv": yt_csv.encode() * 40},
+                  "Table data\nnote: made-up.csv", zipfile.ZIP_STORED)
+        _named_got = _notes_of(parse_youtube_studio_zip, str(_dm / "named.zip"))
+        _zip_with(_dm / "ig.zip", {"posts_1.json": json.dumps([{"media": [
+            {"uri": "media/posts/1.mp4", "creation_timestamp": 1772409600, "title": "x" * 5000}]}]).encode()})
+        _ig_whole = _notes_of(parse_instagram_dyi, str(_dm / "ig.zip"))
+        _zip_with(_dm / "fallback.zip", {"Chart.csv": yt_csv.encode() * 40, "Export.csv": yt_csv.encode()},
+                  "Chart.csv", zipfile.ZIP_STORED)
+        _fallback_got = _notes_of(parse_youtube_studio_zip, str(_dm / "fallback.zip"))
+        _other_methods = {}
+        for _name, _method, _mod in (("bzip2", zipfile.ZIP_BZIP2, "bz2"), ("LZMA", zipfile.ZIP_LZMA, "lzma")):
+            try:
+                __import__(_mod)
+            except ImportError:  # this Python cannot write the member, so the case is skipped
+                print(f"  [skip] a {_name} member: the {_mod} module is missing")
+                continue
+            _zip_with(_dm / f"takeout-{_mod}.zip",
+                      {"Takeout/YouTube/video metadata/videos.csv": _rows_csv,
+                       "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
+                      methods={"Takeout/YouTube/video metadata/videos.csv": _method})
+            _other_methods[_name] = _notes_of(parse_youtube_takeout, str(_dm / f"takeout-{_mod}.zip"))
+        _flagged = {}
+        for _kind, _bits in (("encrypted", (0x1, 0x1)), ("strong", (0x0, 0x40))):
+            _zip_with(_dm / f"takeout-{_kind}.zip",
+                      {"Takeout/YouTube/video metadata/videos.csv": _rows_csv,
+                       "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
+                      flags={"Takeout/YouTube/video metadata/videos.csv": _bits})
+            _flagged[_kind] = _notes_of(parse_youtube_takeout, str(_dm / f"takeout-{_kind}.zip"))
+        _cap_saved = globals()["MAX_MEMBER_BYTES"]
+        globals()["MAX_MEMBER_BYTES"] = 1000  # under posts_1.json's size, over its compressed size
+        try:
+            _ig_capped = _notes_of(parse_instagram_dyi, str(_dm / "ig.zip"))
+        finally:
+            globals()["MAX_MEMBER_BYTES"] = _cap_saved
+        _out_cli, _err_cli = _io_n.StringIO(), _io_n.StringIO()
+        with _cl_n.redirect_stdout(_out_cli), _cl_n.redirect_stderr(_err_cli):
+            _rc_cli = main(["youtube-studio-zip", str(_dm / "studio.zip")])
+    ok("a damaged member gives [] and one note naming it, from the Studio and TikTok parsers",
+       _studio_got[0] == [] and len(_studio_got[1]) == 1 and "Table data.csv" in _studio_got[1][0]
+       and "BadZipFile" in _studio_got[1][0] and _tiktok_got[0] == [] and len(_tiktok_got[1]) == 1
+       and "user_data_tiktok.json" in _tiktok_got[1][0] and "could not be read" in _tiktok_got[1][0])
+    ok("a damaged member is skipped and the zip's other members are read",
+       len(_takeout_got[0]) == 400 and len(_takeout_got[1]) == 1
+       and "videos.csv inside this zip could not be read (zlib.error" in _takeout_got[1][0])
+    ok("a bzip2 or LZMA member is skipped with a note naming its method, and the zip's other member "
+       "is read",
+       all(len(_got[0]) == 400 and len(_got[1]) == 1 and "unzip the export" in _got[1][0]
+           and f"videos.csv inside this zip is compressed with {_name}, which the importer does not "
+               "read" in _got[1][0]
+           for _name, _got in _other_methods.items()))  # a skipped case drops out
+    ok("an encrypted member (flag bit 0 in both headers) is skipped with a note that it is "
+       "password-protected, and the zip's other member is read",
+       len(_flagged["encrypted"][0]) == 400 and len(_flagged["encrypted"][1]) == 1
+       and "videos.csv inside this zip is password-protected" in _flagged["encrypted"][1][0])
+    ok("a member whose directory entry is flagged for strong encryption (NotImplementedError) is "
+       "skipped with a note naming the error, and the zip's other member is read",
+       len(_flagged["strong"][0]) == 400 and len(_flagged["strong"][1]) == 1
+       and "videos.csv inside this zip could not be read (NotImplementedError" in _flagged["strong"][1][0])
+    ok("a damaged CSV is passed over when the Studio parser looks for one with a Content column",
+       _fallback_got[0] == yt and len(_fallback_got[1]) == 1 and "Chart.csv" in _fallback_got[1][0])
+    ok("a member name with a line break stays on the one note line",
+       _named_got[0] == [] and len(_named_got[1]) == 1 and "made-up.csv" in _named_got[1][0])
+    ok("a member whose directory entry is over the cap is not read, with a note to unzip the export",
+       len(_ig_whole[0]) == 1 and _ig_whole[1] == [] and _ig_capped[0] == [] and len(_ig_capped[1]) == 1
+       and "larger than" in _ig_capped[1][0] and "unzip the export" in _ig_capped[1][0])
+    ok("the command line prints [] and exits 0 for a zip whose table is damaged, with one note",
+       _rc_cli == 0 and json.loads(_out_cli.getvalue()) == []
+       and [ln for ln in _err_cli.getvalue().splitlines() if ln.startswith("note: ")] == _studio_got[1]
+       and "Traceback" not in _err_cli.getvalue())
+    ok("the member cap is 256 MiB", MAX_MEMBER_BYTES == 256 * 1024 * 1024)
+    # A member whose directory entry understates its stream (64 MiB of zeros, entry: 1000 bytes and
+    # the CRC of 1000 zeros) is read a piece at a time: the entry's 1000 bytes come back, and the
+    # read holds no more than a few pieces (one plain zipfile read holds the whole stream).
+    import tracemalloc as _tm_z
+    _big = _io_n.BytesIO()
+    try:  # invariant 35: each ZipFile call sits inside a try
+        with zipfile.ZipFile(_big, "w", zipfile.ZIP_DEFLATED) as _zw:
+            with _zw.open("Table data.csv", "w") as _wf:
+                _zeros = b"\0" * (1024 * 1024)
+                for _ in range(64):
+                    _wf.write(_zeros)
+        _raw_big = bytearray(_big.getvalue())
+        _cd = _raw_big.rfind(b"PK\x01\x02")
+        _raw_big[_cd + 16:_cd + 20] = zlib.crc32(b"\0" * 1000).to_bytes(4, "little")
+        _raw_big[_cd + 24:_cd + 28] = (1000).to_bytes(4, "little")
+        _zbig = zipfile.ZipFile(_io_n.BytesIO(bytes(_raw_big)))
+    except (OSError, zipfile.BadZipFile):
+        _zbig = None
+    _tracing = _tm_z.is_tracing()
+    if not _tracing:
+        _tm_z.start()
+    _tm_z.reset_peak()
+    _base_z = _tm_z.get_traced_memory()[0]
+    try:
+        _small = _read_member(_zbig, "Table data.csv") if _zbig is not None else None
+        _peak_z = _tm_z.get_traced_memory()[1] - _base_z
+    finally:
+        if not _tracing:
+            _tm_z.stop()
+    ok("a member whose directory entry understates its stream is read in pieces: the entry's 1000 "
+       f"bytes, with under 16 MiB held ({_peak_z // (1024 * 1024)} MiB)",
+       _small == b"\0" * 1000 and _peak_z < 16 * 1024 * 1024)
+
+    # A failed read of the zip file itself (a failing disk, a share that drops) is a note that
+    # carries the system's own words, on one line.
+    class _FailingRead(_io_n.BytesIO):
+        failing = False
+
+        def read(self, *args):
+            if self.failing:
+                raise OSError(errno.EIO, "Input/output error\nfrom the drive")
+            return super().read(*args)
+    _small_zip = _io_n.BytesIO()
+    try:  # invariant 35
+        with zipfile.ZipFile(_small_zip, "w", zipfile.ZIP_DEFLATED) as _zw:
+            _zw.writestr("Table data.csv", yt_csv)
+        _fio = _FailingRead(_small_zip.getvalue())
+        _zfail = zipfile.ZipFile(_fio)
+    except (OSError, zipfile.BadZipFile):
+        _fio = _zfail = None
+    if _fio is not None:
+        _fio.failing = True
+    _io_got = _notes_of(lambda _n: _read_member(_zfail, _n), "Table data.csv")
+    ok("a failed read of the zip file is skipped with one note naming the system's error",
+       _io_got[0] is None and len(_io_got[1]) == 1
+       and "could not be read (OSError: [Errno 5] Input/output error from the drive;" in _io_got[1][0])
+
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})
     ok("pinterest: id + metrics", pin[0]["platform_video_id"] == "998877" and pin[0]["stats"]["impression"] == 2400)
@@ -739,6 +1002,14 @@ def selftest():
         rc = main(["youtube-takeout", "x" * 300])
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
+    import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
+    _lp_got = []
+    for _lp_name in ("x" * 300, "x" * 300 + "/inner.json", "\U0001F600" * 200):
+        buf = io.StringIO()
+        with _fh_lp.long_paths_off(), contextlib.redirect_stdout(buf):
+            _lp_got.append(main(["youtube-takeout", _lp_name]) == 1 and "next_step" in buf.getvalue())
+    ok(">255-unit path arg (a long name, as a parent folder, or 200 emoji) -> clean envelope where the "
+       "system reports it missing (P102)", _lp_got == [True, True, True])
 
     # P102: a Studio export with an emoji title, piped under a cp1252 codec (what a Windows pipe
     # uses), is parsed with the title intact; main switches the redirected stdout to UTF-8.

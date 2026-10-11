@@ -45,7 +45,14 @@ def crop_geometry(source_width, source_height, aspect="9:16", x_center=None, y_c
     x_center/y_center default to frame center; offsets are clamped so the crop stays in frame.
     """
     sw, sh = int(source_width), int(source_height)
-    num, den = (int(p) for p in str(aspect).split(":"))
+    if sw <= 0 or sh <= 0:
+        raise ValueError("source_width and source_height must be positive pixel counts")
+    try:
+        num, den = (int(p) for p in str(aspect).split(":"))
+    except ValueError:
+        raise ValueError(f"aspect must look like 9:16, got {aspect!r}") from None
+    if num <= 0 or den <= 0:
+        raise ValueError(f"aspect must look like 9:16, got {aspect!r}")
     target = Fraction(num, den)
     source = Fraction(sw, sh)
     if source > target:  # too wide: crop width
@@ -159,6 +166,19 @@ _check.ran = 0
 
 def selftest():
     failures = []
+    # P102: a zero or negative size, or an aspect that is not N:M with positive numbers, is refused
+    # with a message that names the field, before any arithmetic.
+    for args, needle in (((0, 0), "positive pixel counts"), ((1920, -1080), "positive pixel counts"),
+                         ((1920, 1080, "tall"), "look like 9:16"), ((1920, 1080, "0:16"), "look like 9:16"),
+                         ((1920, 1080, "16:9:1"), "look like 9:16"), ((1920, 1080, "16:0"), "look like 9:16"),
+                         ((1920, 1080, "16:-9"), "look like 9:16"), ((1920, 1080, "-16:-9"), "look like 9:16")):
+        try:
+            crop_geometry(*args)
+            said = None
+        except ValueError as exc:
+            said = str(exc)
+        _check(f"crop_geometry{args} is refused with a message naming the field", bool(said) and needle in said,
+               failures)
     g = crop_geometry(1280, 720, "9:16")
     _check("1280x720 to 9:16 exact width is 405.0 (P26 S-5 golden)",
            g["crop_exact"]["width"] == 405.0, failures)

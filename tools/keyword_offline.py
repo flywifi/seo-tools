@@ -153,8 +153,9 @@ def _sources_envelope(library):
 def _run_cache(query, limit):
     """Shell the scoop cache (the MCP cache_query idiom); the index auto-builds on first use.
     Any failure degrades to an honest error note, never a crash and never fabricated hits."""
+    # One --query=<text> token, so a query that starts with "-" is not read as an option (P102).
     argv = [sys.executable, str(ROOT / "shared" / "cache" / "cache.py"),
-            "--query", query, "--limit", str(limit), "--json"]
+            f"--query={query}", "--limit", str(limit), "--json"]
     try:
         proc = subprocess.run(argv, capture_output=True, text=True, timeout=120)
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -302,6 +303,21 @@ def selftest():
     # 7. limit caps every section.
     rep4 = report("furniture", limit=1, cache_runner=canned)
     ok("limit caps sections", all(len(rep4["sections"][s]) <= 1 for s in SECTIONS))
+
+    # P102: a query that starts with "-" goes to the cache as one --query=<text> token, not an option.
+    seen_argv = []
+    real_run = subprocess.run
+
+    def fake_run(argv, **kw):
+        seen_argv.append(list(argv))
+        return subprocess.CompletedProcess(argv, 0, '{"results": [], "fts5": true}', "")
+    subprocess.run = fake_run
+    try:
+        _run_cache("-stairs", 5)
+    finally:
+        subprocess.run = real_run
+    ok("a query that starts with - reaches the cache as one --query= token",
+       len(seen_argv) == 1 and "--query=-stairs" in seen_argv[0] and "-stairs" not in seen_argv[0])
 
     failed = [n for n, c in checks if not c]
     print(f"\n{len(checks) - len(failed)}/{len(checks)} checks passed")

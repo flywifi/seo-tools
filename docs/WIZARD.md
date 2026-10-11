@@ -173,8 +173,12 @@ per-platform playbook: `docs/PUBLISHING.md`.
 
 Three screens make the cross-surface hub work without a terminal. **`/drive-hub`** explains the
 shared Drive folder ("Creator OS": Inbox, Store, Jobs, Knowledge, Profile, Outbox), detects the
-Google Drive for desktop synced copy under `~/Library/CloudStorage/GoogleDrive-*`, confines any
-typed path to your home tree, creates the missing subfolders, and saves the location locally
+Google Drive for desktop synced copy under `~/Library/CloudStorage/GoogleDrive-*`, confines a
+typed path to your home tree (on Windows, also to a folder inside a `My Drive` or `Shared drives`
+folder at the root of a drive other than the system drive, the layout Drive for desktop mounts; the
+wizard reads that layout and does not check which program made the drive), says in a sentence why
+it refused a folder, creates the missing
+subfolders, and saves the location locally
 (`creator-os-config.local.json`); it also carries a "Refresh the Knowledge folder" button that
 copies the claude.ai knowledge pack into the hub's `Knowledge/` folder
 (`tools/project_docs.py`, the P60-7 Projects projection; recipe in `docs/DRIVE-HUB.md`). **`/compute`** is the one-click toggle for the
@@ -243,14 +247,20 @@ add its URI in that provider's console. Details in `docs/PUBLISHING.md`.
 **Security guards (P57/P58):** every state-changing POST rejects requests whose `Origin`/`Referer`
 is not the wizard itself, so a website you merely visit cannot drive the wizard; folder paths you
 type (import folder, Creator OS folder) are confined to your home directory after resolving
-symlinks; request bodies are size-capped and malformed lengths get a clean error; a corrupt Claude
+symlinks, and on Windows the import folder may also be inside a `My Drive` or `Shared drives`
+folder at the root of a drive other than the system drive (Google Drive for desktop's layout; which
+program made the drive is not checked), the Drive hub's rule (`wizard._drive_hub_folder`
+<!-- verify: tools/wizard.py::_drive_hub_folder -->); a path written with a long-path or device
+prefix (`\\?\G:\...`) is read as the path File Explorer shows; request bodies are size-capped and malformed lengths get a clean error; a corrupt Claude
 Desktop config is backed up to `.corrupt.bak` before the wizard writes a fresh one instead of being
 silently replaced; and the import scan/approve flow is tied to a single-use token so two open tabs
 cannot approve each other's scan. The parsed videos wait for approval in a temporary file, which is
 deleted when you approve (whether the save works or not) and when a new scan replaces it; the
 wizard deletes only a file with the scan's `creator-os-import-` name in the temp folder, and a file
 the scan could not finish writing is deleted at once. The import screen shows the importer's notes
-and error lines as text, escaped, since they can carry a file name from the export.
+and error lines as text, escaped, since they can carry a file name from the export. A page request
+builds just the screen it asks for (`_Handler.do_GET`), so opening another page does not run
+the doctor's checks.
 
 **Config files the wizard writes:**
 

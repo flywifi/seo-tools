@@ -33,8 +33,10 @@ Desktop session. The hub gives every surface one shared place that each can genu
   keeps both copies rather than merging or destroying. (Source: Google Drive Help, "Stream and
   mirror files with Drive for desktop" and "Use Drive for desktop on macOS", checked 2026-07-16.)
 - On **Windows**, Drive for desktop mounts a drive letter (often `G:`) with `My Drive` at its root,
-  outside the user folder. The wizard's `/drive-hub` screen accepts a folder inside that
-  `My Drive` or `Shared drives` folder, offers `<letter>:\My Drive\Creator OS` when it finds one,
+  outside the user folder. The wizard's `/drive-hub` screen accepts a folder inside a
+  `My Drive` or `Shared drives` folder at the root of a drive other than the system drive (that
+  layout; it does not check which program made the drive), offers `<letter>:\My Drive\Creator OS`
+  when it finds one,
   and refuses `My Drive` itself; the other folder inputs keep the home-folder rule (ADR 0078,
   `docs/SETUP_WINDOWS.md`).
 

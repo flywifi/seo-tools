@@ -10,7 +10,7 @@ load:
   - protocols/formatting-metadata.md
 ---
 
-_Data freshness: as of 2026-10-10 (Creator OS baseline ac7c9ecc). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-10-11 (Creator OS baseline ac7c9ecc). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # keyword-compare
 

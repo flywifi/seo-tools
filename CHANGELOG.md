@@ -355,6 +355,91 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (selftests on real setups and fresh clones): the watcher's selftest stands in for the
+  compute hand-off gate, so it passes on a computer whose local config switches the hand-off on; the
+  wizard's selftest pins the interpreter while it records tool runs, so a `.venv` adds no run; the
+  `env_paths` checks link the base interpreter and put its folder on PATH, the surface pin uses a
+  short temporary folder name, and the isolation pin gives HOME a stand-in folder outside its
+  sandbox, so they pass with the Python install manager, with Windows long paths off and with no
+  HOME, and with no HOME the pin still sees an isolation that leaves HOME alone. The hand-off
+  runner's selftest runs with `CREATOR_OS_ROOT` pointed at a temporary folder from start to end, so
+  the jobs it starts open their video library there, and stands in for `keyword_offline`'s cache
+  query; `library_complete`'s selftest points its library at a temporary file; in a fresh clone the
+  two selftests left `pipeline/video-library/index.local.db`, `shared/cache/index.local.db` and
+  `shared/cache/cache-baseline.local.json` behind.
+  `CREATOR_OS_FILE_HASH_JOBS` sets how many child processes `file_hash --selftest` runs at a time
+  (`file_hash.mutant_jobs`; default min(8, the CPU count)); `install_hooks`' selftest finds MinGit's
+  `usr\bin\sh.exe`, and with a full Git for Windows still runs its bash (`install_hooks._shell`);
+  and the Visual C++ steps take the Windows folder from
+  `GetSystemWindowsDirectoryW` before `%SystemRoot%` (`transcribe.windows_dir`). The wizard's
+  engine-probe check makes faster-whisper read as absent, so it passes where the `.venv` has it
+  installed; and `library_complete` closes its video library when a command stops with an error,
+  as after success, so Windows can remove the file (its selftest's temporary folder could not be
+  removed there).
+- P102 (damaged or oversized export members): `import_parse` reads a zip member through
+  `_read_member`: a member whose directory entry says it is over 256 MiB (`MAX_MEMBER_BYTES`) is not
+  read, nor is one compressed with bzip2 or LZMA, which zipfile decompresses without a size bound,
+  nor one its directory entry flags as encrypted (the note says it is password-protected);
+  the rest is read 1 MiB at a time (`MEMBER_CHUNK_BYTES`), so a member whose entry understates a
+  long deflate stream does not fill memory first (in the selftest, a 64 MiB stream whose entry
+  says 1000 bytes holds under 16 MiB); and one that does not decompress (a CRC mismatch, a corrupt
+  deflate stream, a stream that ends early, as an interrupted download leaves) or whose read fails
+  (the note carries the system's error) is skipped. A skipped member gives one `note:` line naming
+  it on one line, the zip's other members are read, and the command prints the records it found
+  and exits 0. Before, a damaged `Table data.csv` stopped the import with a `BadZipFile` traceback
+  and exit 1, and a member was read whole at any size.
+- P102 (wizard folder refusals, Drive export folders, one screen per page): the Drive hub screen
+  refuses a folder with a sentence for its reason instead of the reason code, and now has sentences
+  for an empty path, a missing folder and the home folder itself (`wizard._DRIVE_HUB_WHY`); on
+  Windows a path written with a long-path or device prefix (`\\?\G:\...`, `\\?\UNC\...`,
+  `\\.\UNC\...`) is read as the path File Explorer shows (`wizard._strip_device_prefix`). The import
+  screen scans an unzipped export by the hub's folder rule, so on Windows an export inside a My
+  Drive or Shared drives folder at the root of a drive other than the system drive (Google Drive for
+  desktop's layout; the rule does not check which program made the drive) is scanned where it is;
+  the storage folder
+  screen keeps the home-folder rule. The import and hub folder fields show an example path written
+  for the computer's system. A page request builds just the screen it asks for; before, a request
+  for any page of that table, or for an unknown path such as `/favicon.ico`, built its 24 screens,
+  the doctor's check among them (`_Handler.do_GET`).
+- P102 (competitor list kept local): `competitor_snapshot.py --add-competitor` and the
+  `add_competitor` tool save a page to the creator's own list,
+  `pipeline/competitor-snapshots/competitors.local.json` (gitignored), instead of the tracked
+  `canonical-sources/source-registry.json`, and a fetch stamps its check date there; `--report`,
+  `--fetch` and `--parse` read that list beside the registry's competitor-page entries, and
+  `source_staleness` reports the `competitor-page` category through `competitor_snapshot --report`.
+  Before, one added competitor left the tracked registry modified, so the drift guard failed until
+  it was reverted and an update could conflict. A local list that does not parse is refused by
+  name and not written over (`competitor_snapshot._load_local`). `--add-competitor` and a fetch's
+  stamp read and save the list while holding its file lock (`atomic_io.locked`), so an add and a
+  fetch running at the same time keep both changes, and a list saved with a UTF-8 byte-order mark
+  is read (`registry_io.load_registry` skips the mark, for the source registry too).
+- P102 (search words): the scoop cache quotes the words of a search as FTS5 strings
+  (`cache._match_query`), so a search with AND, OR, NOT or NEAR, or one ending in OR, answers
+  instead of returning an `fts5: syntax error` traceback through `cache_query`,
+  `construction_lookup` and `code_lookup`; a word with a letter beyond ASCII stays whole, and a
+  search for two words still finds a record that holds both and not one that holds one of them.
+  `video_library_query` keeps FTS5 operators, as its description says.
+- P102 (a search that starts with "-"): `cache_query`, `construction_lookup`, `code_lookup`, the
+  runner's keyword job and `keyword_offline` pass the query as one `--query=<text>` token, and
+  `video_library_query` passes it after `--`, with `--limit` ahead of the `query` command, the order
+  Python's argparse reads before 3.12.7 as well (gh-59317), so a query such as `-stairs` reaches its
+  engine instead of being read as a command-line option (`mcp_server._cache_query_argv`,
+  `_video_query_argv`; the selftest runs that command through video_library's own parser).
+- P102 (unknown capability names): `configure_tool` refuses a name `creator-os-config.json` does
+  not declare, with the closest known names, and does not write the local config; before, a typo such as
+  `compute_handof_enabled` was saved and answered ok (`mcp_server._unknown_capability`).
+- P102 (missing FCPXML file, crop sizes): `edit_parse_fcpxml` and `import_edit_artifact` report a
+  path that is not there as `FCPXML file not found`, not as an XML parse error, and
+  `reframe.crop_geometry` refuses a zero or negative size and an aspect that is not N:M with
+  positive numbers with a message naming the field.
+- P102 (calendar line endings): `tasks.py ics` writes the calendar's CRLF line endings unchanged
+  to a file and to stdout; on Windows the lines ended in CR CR LF.
+- P102 (long names on Windows): the path checks in `tasks`, `import_parse`, `obligations`,
+  `source_currency` and `library_complete` refuse a path with a part, the last or a parent folder,
+  over 255 UTF-16 code units, the unit NTFS counts (a name of 200 emoji is 400), as unprobeable
+  (`ENAMETOOLONG`); Windows with long paths off reports such a name as missing, which gave an
+  empty register or worklist instead of the clean error. `file_hash.long_paths_off()` stands that
+  Windows behavior in for the selftests: a path over 259 UTF-16 code units reads as missing.
 - P102 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 1800 s, up from 900 s
   (`selftest_sweep.TOOL_TIMEOUTS`). Its selftest runs the committed mutation rows; at 1,022 rows
   a GitHub Windows runner took longer than 900 s, and the Windows CI job failed. The job's

@@ -2,7 +2,7 @@
 """competitor_snapshot.py — deep competitive intelligence pipeline for Creator OS.
 
 Orchestrates the full competitor research cycle:
-  1. Staleness check (via source_currency.py) to identify competitor pages needing re-fetch
+  1. Staleness check (source_currency's report) to identify competitor pages needing re-fetch
   2. HTML acquisition (via acquire.py) — offline-first with Playwright, web fallback
   3. Metadata extraction (via parse_competitor_meta.py) — YouTube tags, TikTok hashtags, etc.
   4. SQLite storage in pipeline/competitor-snapshots/index.local.db
@@ -18,6 +18,12 @@ USAGE
 The pipeline/competitor-snapshots/ directory is gitignored. Raw HTML, screenshots, and
 manifests live there and are never committed. The SQLite index (*.local.db) is also gitignored.
 Only competitor-channels.json (the sanitized summary) is committed.
+
+YOUR COMPETITOR LIST (P102)
+  --add-competitor saves the page to pipeline/competitor-snapshots/competitors.local.json, the
+  creator's own list, and a fetch stamps its check date there. --report, --fetch and --parse read
+  that list beside the competitor-page entries of canonical-sources/source-registry.json; this tool
+  does not write source-registry.json.
 
 OFFLINE vs WEB-ONLY
   If Playwright is installed: full offline snapshot (HTML + rendered DOM + network capture).
@@ -40,6 +46,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 
 import source_currency as SC  # noqa: E402
+from atomic_io import locked as _locked  # noqa: E402
 import parse_competitor_meta as PM  # noqa: E402
 import injection_scan as IS  # noqa: E402
 import secret_scan as SSC  # noqa: E402
@@ -48,6 +55,57 @@ SNAPSHOTS_DIR = ROOT / "pipeline" / "competitor-snapshots"
 DB_PATH = SNAPSHOTS_DIR / "index.local.db"
 CHANNELS_JSON = ROOT / "canonical-sources" / "keyword-library" / "competitor-channels.json"
 COMPETITOR_CATEGORY = "competitor-page"
+# The creator's own competitor list (P102): written by --add-competitor and stamped by --fetch, read
+# beside the canonical registry, so adding a page leaves the tracked source-registry.json as it is.
+LOCAL_COMPETITORS = SNAPSHOTS_DIR / "competitors.local.json"
+_STAMP_FIELDS = ("last_checked", "last_changed_detected")
+
+
+class LocalListError(ValueError):
+    """The local competitor list exists but cannot be read as {"sources": [ {..}, ... ]}."""
+
+
+def _load_local() -> dict:
+    """The creator's competitor list, {"sources": [...]}, empty when the file is absent. A file that
+    does not parse as that shape raises LocalListError naming it, so nothing is written over it. A
+    caller that saves the list reads it under _locked(LOCAL_COMPETITORS), so an add and a fetch
+    running at the same time do not lose each other's change."""
+    try:
+        data = SC.load_registry(LOCAL_COMPETITORS)
+    except ValueError as exc:
+        raise LocalListError(f"{LOCAL_COMPETITORS} is not valid JSON ({exc}); fix or remove it") from None
+    sources = data.get("sources", []) if isinstance(data, dict) else None
+    if not isinstance(sources, list) or not all(isinstance(s, dict) for s in sources):
+        raise LocalListError(f'{LOCAL_COMPETITORS} is not a competitor list ({{"sources": [...]}}); '
+                             f"fix or remove it")
+    data["sources"] = sources
+    return data
+
+
+def _save_local(data: dict) -> None:
+    """Write the local competitor list through the registry's single save implementation."""
+    SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+    SC.save_registry(data, LOCAL_COMPETITORS)
+
+
+def _merged_registry(local=None) -> dict:
+    """The canonical registry with the creator's competitor list added. A local record whose id the
+    canonical registry holds adds only its newer check stamps to that entry; a local entry with a url
+    and another id is appended; a stamp record whose canonical entry is gone is left out."""
+    registry = SC.load_registry()
+    by_id = {s.get("id"): s for s in registry.get("sources", [])}
+    extra = []
+    for s in (local if local is not None else _load_local())["sources"]:
+        canon = by_id.get(s.get("id"))
+        if canon is None:
+            if s.get("url"):
+                extra.append(s)
+            continue
+        for k in _STAMP_FIELDS:
+            if s.get(k) and (not canon.get(k) or str(s[k]) > str(canon[k])):
+                canon[k] = s[k]
+    registry["sources"] = list(registry.get("sources", [])) + extra
+    return registry
 
 # --------------------------------------------------------------------------- #
 # SQLite helpers                                                               #
@@ -273,7 +331,7 @@ def cmd_check_og(args) -> int:
 # --------------------------------------------------------------------------- #
 
 def cmd_report(args) -> int:
-    registry = SC.load_registry()
+    registry = _merged_registry()
     tc = SC.load_traversal_config()
     category = getattr(args, "category", None) or COMPETITOR_CATEGORY
     report = SC.build_report(registry.get("sources", []),
@@ -308,8 +366,13 @@ def cmd_add_competitor(args) -> int:
     platform = getattr(args, "platform", None) or _guess_platform(url)
     custom_id = getattr(args, "id", None) or f"competitor-{_slugify(url)}"
 
-    registry = SC.load_registry()
-    sources = registry.setdefault("sources", [])
+    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)
+        return _add_to_local(url, platform, custom_id)
+
+
+def _add_to_local(url, platform, custom_id) -> int:
+    local = _load_local()
+    sources = _merged_registry(local)["sources"]
 
     if any(s.get("id") == custom_id for s in sources):
         print(f"Already registered: {custom_id}")
@@ -340,9 +403,10 @@ def cmd_add_competitor(args) -> int:
         "traversal_status": "pending",
         "child_source_ids": [],
     }
-    sources.append(entry)
-    SC.save_registry(registry)
-    print(f"Registered competitor: {custom_id}")
+    local["sources"].append(entry)
+    _save_local(local)
+    print(f"Registered competitor: {custom_id} (saved in your competitor list, "
+          f"pipeline/competitor-snapshots/{LOCAL_COMPETITORS.name})")
     print(json.dumps(entry, indent=2))
     return 0
 
@@ -352,15 +416,23 @@ def cmd_add_competitor(args) -> int:
 # --------------------------------------------------------------------------- #
 
 def _mark_checked(src_id: str, changed: bool = False) -> None:
-    """Call source_currency mark-checked via subprocess (avoids re-loading registry)."""
-    cmd = [sys.executable, str(HERE / "source_currency.py"), "mark-checked", src_id]
-    if changed:
-        cmd.append("--changed")
-    subprocess.run(cmd, capture_output=True, timeout=15)
+    """Stamp a fetched page's check date (and change date) in the local competitor list: on the
+    creator's entry, or on a record of the id alone for a canonical entry, which _merged_registry
+    reads back. source-registry.json is not written. The list is read and saved under its lock."""
+    with _locked(LOCAL_COMPETITORS):
+        local = _load_local()
+        entry = next((s for s in local["sources"] if s.get("id") == src_id), None)
+        if entry is None:
+            entry = {"id": src_id}
+            local["sources"].append(entry)
+        entry["last_checked"] = SC.today_str()
+        if changed:
+            entry["last_changed_detected"] = SC.today_str()
+        _save_local(local)
 
 
 def cmd_fetch(args) -> int:
-    registry = SC.load_registry()
+    registry = _merged_registry()
     tc = SC.load_traversal_config()
     category = getattr(args, "category", None) or COMPETITOR_CATEGORY
     force = getattr(args, "force", False)
@@ -438,7 +510,7 @@ def cmd_fetch(args) -> int:
 # --------------------------------------------------------------------------- #
 
 def cmd_parse(args) -> int:
-    registry = SC.load_registry()
+    registry = _merged_registry()
     src_map = {
         s["id"]: s
         for s in registry.get("sources", [])
@@ -683,6 +755,20 @@ def cmd_export_summary(args) -> int:
 # Selftest (offline; exercises the export screening, no network, no db)        #
 # --------------------------------------------------------------------------- #
 
+class _RestoreGlobals:
+    """Puts saved module globals back when the block ends (selftest only)."""
+
+    def __init__(self, g, saved):
+        self.g, self.saved = g, saved
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.g.update(self.saved)
+        return False
+
+
 def selftest() -> int:
     failures = []
     ran = [0]
@@ -758,11 +844,17 @@ def selftest() -> int:
         check("the non-UTF-8 fixture actually distinguishes the two hashings",
               _expected != _naive)
         import unittest.mock as _mock
-        with _mock.patch.object(sys.modules[__name__], "SNAPSHOTS_DIR", Path(_td2)):
+        # The module's own globals are patched (not sys.modules[__name__]), so the checks also run
+        # when file_hash loads this file under another name to score its rows.
+        _g, _saved_dir = globals(), SNAPSHOTS_DIR
+        _g["SNAPSHOTS_DIR"] = Path(_td2)
+        try:
             check("_current_snapshot_hash reproduces parse()'s hash on invalid UTF-8",
                   _current_snapshot_hash("c-x") == _expected)
             check("_current_snapshot_hash returns None when no snapshot exists",
                   _current_snapshot_hash("c-absent") is None)
+        finally:
+            _g["SNAPSHOTS_DIR"] = _saved_dir
 
     hostile = {
         "competitor_id": "t-hostile",
@@ -792,6 +884,193 @@ def selftest() -> int:
           not _screen_channel(clean) and clean["title"] is not None
           and "screened_fields" not in clean)
 
+    # ---- P102: the creator's competitor list stays local --------------------------------
+    # SC.load_registry() with no path answers a fixture canonical registry, and SC.save_registry()
+    # with no path records the call and writes nothing, so a broken build cannot touch the real
+    # source-registry.json; the local list, the snapshots and the index live in a temp folder.
+    import contextlib as _cl, io as _io
+    _canon = {"sources": [
+        {"id": "competitor-canon", "name": "Competitor page: canon", "url": "https://www.youtube.com/@canon",
+         "category": COMPETITOR_CATEGORY, "check_interval_days": 3, "last_checked": "2026-01-01"},
+        {"id": "seo-one", "name": "SEO page", "url": "https://example.com/seo", "category": "seo-authority"}]}
+    _writes, _real_load, _real_save = [], SC.load_registry, SC.save_registry
+    _held = []  # ("load" or "save", whether the local list's lock was held) per local list access
+
+    def _lock_free(path):
+        """True when no handle holds <path>.lock, the file atomic_io.locked locks (none can before
+        its folder exists)."""
+        import os as _os_l
+        if not Path(path).parent.is_dir():
+            return True
+        with open(str(path) + ".lock", "a+") as fh:
+            try:
+                if _os_l.name == "nt":
+                    import msvcrt
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(fh, fcntl.LOCK_UN)
+                return True
+            except OSError:
+                return False
+
+    def _fake_load(path=None):
+        if path is not None and Path(path).name == "competitors.local.json":
+            _held.append(("load", not _lock_free(path)))
+        return json.loads(json.dumps(_canon)) if path is None else _real_load(path)
+
+    def _fake_save(data, path=None):
+        _writes.append(None if path is None else Path(path).name)
+        if path is not None and Path(path).name == "competitors.local.json":
+            _held.append(("save", not _lock_free(path)))
+        if path is not None:
+            _real_save(data, path)
+
+    def _saved_under_lock(events):
+        """Each save of the local list happened under its lock, right after a load under it."""
+        saves = [i for i, (kind, _) in enumerate(events) if kind == "save"]
+        return bool(saves) and all(events[i][1] and i > 0 and events[i - 1] == ("load", True)
+                                   for i in saves)
+
+    def _run(argv):
+        out, err = _io.StringIO(), _io.StringIO()
+        with _cl.redirect_stdout(out), _cl.redirect_stderr(err):
+            rc = main(argv)
+        return rc, out.getvalue(), err.getvalue()
+
+    with _tf.TemporaryDirectory() as _td3:
+        _snaps = Path(_td3) / "competitor-snapshots"
+        _local = _snaps / "competitors.local.json"
+        _g = globals()
+        _saved_g = {k: _g[k] for k in ("SNAPSHOTS_DIR", "LOCAL_COMPETITORS", "DB_PATH")}
+        _g.update(SNAPSHOTS_DIR=_snaps, LOCAL_COMPETITORS=_local, DB_PATH=_snaps / "index.local.db")
+        with _mock.patch.object(SC, "load_registry", _fake_load), \
+             _mock.patch.object(SC, "save_registry", _fake_save), \
+             _RestoreGlobals(_g, _saved_g):
+            _rc1, _out1, _ = _run(["--add-competitor", "https://www.youtube.com/@newone",
+                                   "--platform", "youtube"])
+            _held_add, _held[:] = list(_held), []
+            _saved = json.loads(_local.read_text(encoding="utf-8")) if _local.is_file() else {}
+            _new_id = (_saved.get("sources") or [{}])[0].get("id")
+            check("add_competitor saves the page to the local competitor list and writes no other file",
+                  _rc1 == 0 and _writes == ["competitors.local.json"] and _new_id
+                  and [x.get("url") for x in _saved["sources"]] == ["https://www.youtube.com/@newone"])
+            _rc2, _out2, _ = _run(["--add-competitor", "https://www.youtube.com/@newone"])
+            _rc3, _out3, _ = _run(["--add-competitor", "https://www.youtube.com/@canon"])
+            check("a URL already in the local list or the canonical registry is not added again",
+                  _rc2 == 0 and _rc3 == 0 and "URL already registered as: competitor-canon" in _out3
+                  and len(json.loads(_local.read_text(encoding="utf-8"))["sources"]) == 1
+                  and _writes == ["competitors.local.json"])
+            _rc4, _out4, _ = _run(["--report"])
+            _rep4 = json.loads(_out4) if _rc4 == 0 else {}
+            check("report lists the canonical and the local competitor pages, and no other category",
+                  [x["id"] for x in _rep4.get("never_checked", [])] == [_new_id]
+                  and [x["id"] for x in _rep4.get("stale", [])] == ["competitor-canon"]
+                  and not _rep4.get("up_to_date"))
+            _acq = []
+
+            def _fake_acquire(argv, **kw):
+                _acq.append(argv[2])
+                _sid = {"https://www.youtube.com/@newone": _new_id,
+                        "https://www.youtube.com/@canon": "competitor-canon"}[argv[2]]
+                (_snaps / _sid).mkdir(parents=True, exist_ok=True)
+                (_snaps / _sid / "raw.html").write_text(
+                    "<html><head><title>Lamp build</title></head></html>", encoding="utf-8")
+                return subprocess.CompletedProcess(argv, 0, "", "")
+            _held[:] = []
+            with _mock.patch.object(subprocess, "run", _fake_acquire):
+                _rc5, _out5, _ = _run(["--fetch"])
+            _held_fetch = list(_held)
+            check("add_competitor, and fetch for each page it stamps, read and save the local list "
+                  "while holding its lock",
+                  _held_add == [("load", True), ("save", True)] and _saved_under_lock(_held_fetch)
+                  and sum(1 for kind, _ in _held_fetch if kind == "save") == 2)
+            _stamps = {x["id"]: x for x in json.loads(_local.read_text(encoding="utf-8"))["sources"]}
+            _today = SC.today_str()
+            check("fetch reads both lists and stamps each page in the local list, never the registry",
+                  _rc5 == 0 and sorted(_acq) == ["https://www.youtube.com/@canon",
+                                                 "https://www.youtube.com/@newone"]
+                  and _stamps[_new_id].get("last_checked") == _today
+                  and _stamps.get("competitor-canon") == {"id": "competitor-canon", "last_checked": _today}
+                  and None not in _writes)
+            _with_orphan = json.loads(_local.read_text(encoding="utf-8"))
+            _with_orphan["sources"].append({"id": "competitor-gone", "last_checked": "2026-02-02"})
+            _local.write_text(json.dumps(_with_orphan), encoding="utf-8")
+            _merged = {x["id"]: x for x in _merged_registry()["sources"]}
+            check("a canonical page reads its local stamp back and keeps its canonical fields; a stamp "
+                  "whose canonical page is gone is left out",
+                  _merged["competitor-canon"]["last_checked"] == _today
+                  and _merged["competitor-canon"]["url"] == "https://www.youtube.com/@canon"
+                  and list(_merged) == ["competitor-canon", "seo-one", _new_id])
+            _mark_checked("competitor-canon", changed=True)
+            _older = json.loads(_local.read_text(encoding="utf-8"))
+            for _x in _older["sources"]:
+                if _x["id"] == "competitor-canon":
+                    _x["last_checked"] = "2025-01-01"
+            _local.write_text(json.dumps(_older), encoding="utf-8")
+            _merged2 = {x["id"]: x for x in _merged_registry()["sources"]}
+            check("a local stamp older than the canonical one does not replace it; a change stamp is kept",
+                  _merged2["competitor-canon"]["last_checked"] == "2026-01-01"
+                  and _merged2["competitor-canon"].get("last_changed_detected") == _today)
+            _rc6, _out6, _err6 = _run(["--parse", "--id", _new_id])
+            _con6 = sqlite3.connect(str(_snaps / "index.local.db"))
+            _urls = [r[0] for r in _con6.execute("SELECT url FROM competitor_pages")]
+            _con6.close()
+            check("parse gives a local page the url from the local list",
+                  _rc6 == 0 and _urls == ["https://www.youtube.com/@newone"])
+            _ids_before = [x["id"] for x in json.loads(_local.read_text(encoding="utf-8"))["sources"]]
+            _local.write_text("\ufeff" + _local.read_text(encoding="utf-8"), encoding="utf-8")
+            _rcb, _, _errb = _run(["--add-competitor", "https://www.youtube.com/@marked",
+                                   "--platform", "youtube"])
+            _rawb = _local.read_bytes()
+            _ids_after = [x["id"] for x in json.loads(_rawb.decode("utf-8-sig"))["sources"]]
+            check("a local list saved with a UTF-8 byte-order mark is read: the add keeps its entries "
+                  "and saves the list without the mark",
+                  _rcb == 0 and not _rawb.startswith(b"\xef\xbb\xbf") and _ids_after[:-1] == _ids_before
+                  and len(_ids_after) == len(_ids_before) + 1 and "Traceback" not in _errb)
+            # An add while another writer holds the list (as a fetch's stamp does) waits for it, then
+            # reads its change: the list ends with both entries.
+            import threading as _th_l
+            import time as _time_l
+            _go, _added = _th_l.Event(), []
+
+            def _hold_and_stamp():
+                with _locked(LOCAL_COMPETITORS):
+                    _lst = _load_local()
+                    _go.set()
+                    _time_l.sleep(0.5)
+                    _lst["sources"].append({"id": "competitor-held", "url": "https://www.youtube.com/@held"})
+                    _save_local(_lst)
+            _holder = _th_l.Thread(target=_hold_and_stamp)
+            _holder.start()
+            _go.wait(10)
+            _adder = _th_l.Thread(target=lambda: _added.append(_run(
+                ["--add-competitor", "https://www.youtube.com/@waited", "--platform", "youtube"])))
+            _adder.start()
+            _holder.join(20)
+            _adder.join(20)
+            _urls_c = [x.get("url") for x in json.loads(_local.read_text(encoding="utf-8"))["sources"]]
+            check("an add while another writer holds the local list waits, and the list keeps both "
+                  "entries",
+                  [r[0] for r in _added] == [0] and "https://www.youtube.com/@held" in _urls_c
+                  and "https://www.youtube.com/@waited" in _urls_c)
+            _local.write_text("{oops", encoding="utf-8")
+            _rc7, _out7, _err7 = _run(["--add-competitor", "https://www.youtube.com/@third"])
+            _rc8, _, _err8 = _run(["--report"])
+            check("a local list that does not parse is refused by name, and nothing is written over it",
+                  _rc7 == 1 and _rc8 == 1 and "competitors.local.json" in _err7
+                  and "Traceback" not in _err7 + _err8
+                  and _local.read_text(encoding="utf-8") == "{oops")
+            _local.write_text('{"sources": [1]}', encoding="utf-8")
+            _rc9, _, _err9 = _run(["--fetch"])
+            check("a local list of the wrong shape is refused by name",
+                  _rc9 == 1 and "is not a competitor list" in _err9)
+        check("the canonical registry was never asked to save", None not in _writes)
+
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     return 0 if not failures else 1
@@ -810,7 +1089,8 @@ def main(argv=None) -> int:
     mode_group.add_argument("--report", action="store_true",
                             help="Print staleness report for competitor-page sources")
     mode_group.add_argument("--add-competitor", metavar="URL",
-                            help="Register a competitor page URL into source-registry.json")
+                            help="Add a competitor page URL to your competitor list "
+                                 "(pipeline/competitor-snapshots/competitors.local.json)")
     mode_group.add_argument("--fetch", action="store_true",
                             help="Fetch stale competitor pages via acquire.py")
     mode_group.add_argument("--parse", action="store_true",
@@ -840,6 +1120,14 @@ def main(argv=None) -> int:
 
     if args.selftest:
         return selftest()
+    try:
+        return _dispatch(args, ap)
+    except LocalListError as exc:
+        print(f"competitor_snapshot: {exc}", file=sys.stderr)
+        return 1
+
+
+def _dispatch(args, ap) -> int:
     if args.report:
         return cmd_report(args)
     if args.add_competitor:

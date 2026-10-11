@@ -15,9 +15,10 @@ run the mundane parts token-free (as deterministic Python, without spending mode
 | **Dependencies** | pip packages, system binaries, MCP servers | `tools/dependency_currency.py` | fully |
 
 Both read the one registry, `canonical-sources/source-registry.json`, written only through
-`tools/registry_io.py`. Five tools funnel through it: `source_currency.py`, `traversal_engine.py`,
-`dependency_currency.py`, and `update_check.py` import it directly, and `competitor_snapshot.py`
-writes through `source_currency`'s re-exported `save_registry`. `canonical-sources/data-currency-map.json` says, for every canonical <!-- verify: tools/registry_io.py::save_registry -->
+`tools/registry_io.py`. Four tools write it, importing it directly: `source_currency.py`,
+`traversal_engine.py`, `dependency_currency.py`, and `update_check.py`. `competitor_snapshot.py`
+calls the same `save_registry` to write the creator's own competitor list
+(`pipeline/competitor-snapshots/competitors.local.json`) and does not write the registry. `canonical-sources/data-currency-map.json` says, for every canonical <!-- verify: tools/registry_io.py::save_registry -->
 data file, whether it is **watched** by a source, **static** (no upstream by design), **dated**
 (a calendar cadence, e.g. the seasonal windows), or **tool-managed**.
 

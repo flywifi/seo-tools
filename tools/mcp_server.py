@@ -7,7 +7,7 @@ Tools (the docstrings below and tools/list are authoritative; the set has grown 
   source_staleness     Report which canonical sources are stale or never checked.
   drift_check          Run sync_check.py and return the result.
   quality_score        Score an artifact against the 9-dimension quality gates.
-  add_competitor       Add a competitor URL to the tracking registry.
+  add_competitor       Add a competitor URL to your local competitor list.
   get_capabilities     Return which Creator OS capabilities are enabled.
   get_connectors       Return the full connector evidence plan for this deployment.
   get_stats_tools      Return which statistical MCP servers are currently enabled.
@@ -267,6 +267,50 @@ def _read_local_config_for_write(path) -> tuple:
 
 
 _CACHE_REBUILD_HINT = env_paths.local_commands("Run: python3 shared/cache/cache.py --build")
+
+
+def _cache_query_argv(query, limit) -> list:
+    """The cache.py command for one search: the query as a single --query=<text> token, so a search
+    that starts with "-" reaches the cache instead of being read as an option (P102)."""
+    return [sys.executable, str(ROOT / "shared" / "cache" / "cache.py"), f"--query={query}",
+            "--limit", str(limit), "--json"]
+
+
+def _video_query_argv(fts_query, limit) -> list:
+    """The video_library.py query command: the FTS query after "--", so a query that starts with
+    "-" is the query, not an option, and the options before the command, since argparse before
+    Python 3.12.7 cannot match the query positional after an option (gh-59317) (P102)."""
+    return [sys.executable, str(ROOT / "tools" / "video_library.py"), "--limit", str(limit), "query",
+            "--", fts_query]
+
+
+def _staleness_argv(category="") -> list:
+    """The command source_staleness runs: source_currency's report, or for the competitor-page
+    category competitor_snapshot's report, which reads the creator's local competitor list beside the
+    registry's entries (P102: add_competitor saves pages to that list, not the registry)."""
+    if category == "competitor-page":
+        return [sys.executable, str(ROOT / "tools" / "competitor_snapshot.py"), "--report"]
+    return [sys.executable, str(ROOT / "tools" / "source_currency.py"), "report"] + (
+        [f"--category={category}"] if category else [])
+
+
+def _unknown_capability(capability, config_path=None):
+    """The refusal configure_tool returns for a capability name the committed config does not
+    declare, or None when it declares it (P102): a typo such as compute_handof_enabled was written
+    to the local config and answered ok while switching nothing on. When the committed config
+    cannot be read, nothing is refused, since a real name cannot be told from a typo then."""
+    try:
+        caps = json.loads(Path(config_path or CONFIG_PATH).read_text(encoding="utf-8")).get("capabilities")
+    except (OSError, ValueError, AttributeError):
+        return None
+    if not isinstance(caps, dict) or not caps or capability in caps:
+        return None
+    import difflib
+    return {"error": f"unknown capability {capability!r}; nothing was written", "refused": True,
+            "did_you_mean": difflib.get_close_matches(str(capability), sorted(caps), n=3),
+            "known_capabilities": sorted(caps)}
+
+
 _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
                        "databaseerror", "file is encrypted or is not a database")
 
@@ -1096,6 +1140,61 @@ def _selftest_static() -> tuple:
     ok(f"each printed or returned python3 command goes through env_paths.local_commands (bare at lines {_bare_lc})",
        _bare_lc == [] and src.count('"manual": env_paths.' + 'local_commands("Run: ' + _needles_lc[0] + 'wizard.py")') == 1)
 
+    # P102: a search that starts with "-" reaches its engine as one token, and configure_tool
+    # refuses a capability name the committed config does not declare before it writes anything.
+    import ast as _ast_p102
+    import tempfile as _tf_p102
+    _q_argv, _v_argv = _cache_query_argv("-stairs", 5), _video_query_argv("-armoire", 5)
+    # The video argv goes through video_library's own parser on this interpreter, with the library
+    # stood in for, so an order argparse cannot parse here fails the check.
+    import contextlib as _cl_vq
+    import io as _io_vq
+    import video_library as _vl_vq
+    _vq_seen, _vq_saved = [], (_vl_vq._open_db, _vl_vq.query_fts)
+
+    class _VqCon:
+        def close(self):
+            pass
+    _vl_vq._open_db = lambda *a, **k: _VqCon()
+    _vl_vq.query_fts = lambda con, q, limit=20: _vq_seen.append((q, limit)) or []
+    try:
+        with _cl_vq.redirect_stdout(_io_vq.StringIO()), _cl_vq.redirect_stderr(_io_vq.StringIO()):
+            _vq_rc = _vl_vq.main(_v_argv[2:])
+    except SystemExit as _vq_exit:
+        _vq_rc = f"exit {_vq_exit.code}"
+    finally:
+        _vl_vq._open_db, _vl_vq.query_fts = _vq_saved
+    ok("a search that starts with - is passed as one --query=<text> token, and a video query that "
+       f"video_library's parser reads as the query on this Python ({_vq_rc}, {_vq_seen})",
+       "--query=-stairs" in _q_argv and "-stairs" not in _q_argv and _vq_rc == 0
+       and _vq_seen == [("-armoire", 5)]
+       and src.count("_run(_cache_query" + "_argv(") == 2 and src.count("_run(_video_query" + "_argv(") == 1)
+    _unk_cap, _known_cap = _unknown_capability("wolfram_alpah"), _unknown_capability("wolfram_alpha")
+    with _tf_p102.TemporaryDirectory() as _td_p102:
+        _unread_cap = _unknown_capability("anything", pathlib_Path(_td_p102) / "absent.json")
+    ok("configure_tool's check refuses an undeclared name with suggestions, passes a declared one, "
+       "and refuses nothing when the committed config cannot be read",
+       isinstance(_unk_cap, dict) and _unk_cap.get("refused") is True
+       and "wolfram_alpha" in _unk_cap.get("did_you_mean", []) and _known_cap is None and _unread_cap is None)
+    _ct = next(n for n in _ast_p102.walk(_ast_p102.parse(src))
+               if isinstance(n, _ast_p102.FunctionDef) and n.name == "configure_tool")
+    _ct_body = [s for s in _ct.body if not (isinstance(s, _ast_p102.Expr)
+                                            and isinstance(s.value, _ast_p102.Constant))]
+    ok("configure_tool checks the capability name before it takes the write lock",
+       len(_ct_body) > 2 and _ast_p102.unparse(_ct_body[0]) == "refusal = _unknown_capability(capability)"
+       and _ast_p102.unparse(_ct_body[1]).startswith("if refusal:\n    return json.dumps(refusal)")
+       and isinstance(_ct_body[2], _ast_p102.With))
+    # P102: the competitor-page staleness report reads the local competitor list through
+    # competitor_snapshot; other categories, and none, stay with source_currency.
+    _st_comp, _st_seo, _st_all = (_staleness_argv("competitor-page"), _staleness_argv("seo-authority"),
+                                  _staleness_argv(""))
+    ok("source_staleness sends competitor-page to competitor_snapshot's report and the rest to "
+       "source_currency's",
+       pathlib_Path(_st_comp[1]).name == "competitor_snapshot.py" and _st_comp[2:] == ["--report"]
+       and pathlib_Path(_st_seo[1]).name == "source_currency.py"
+       and _st_seo[2:] == ["report", "--category=seo-authority"] and _st_all[2:] == ["report"]
+       and src.count("_run(_staleness" + "_argv(category))") == 1)
+
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
 
@@ -1162,18 +1261,12 @@ def cache_query(query: str, limit: int = 5) -> str:
         query: Full-text search query (e.g. "seasonal home decor" or "entity armoire").
         limit: Maximum number of results to return (default 5).
     """
-    cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
         return json.dumps({
             "error": "Cache index not found.",
             "hint": _CACHE_REBUILD_HINT,
         })
-    rc, out, err = _run([
-        sys.executable, str(cache_script),
-        "--query", query,
-        "--limit", str(limit),
-        "--json",
-    ])
+    rc, out, err = _run(_cache_query_argv(query, limit))
     if rc != 0:
         return json.dumps(_cache_failure(err))
     return out.strip() or json.dumps([])
@@ -1181,11 +1274,9 @@ def cache_query(query: str, limit: int = 5) -> str:
 
 def _construction_query(query, limit):
     """Run the offline cache query and keep only construction-dictionary results."""
-    cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not (ROOT / "shared" / "cache" / "index.local.db").exists():
         return None, {"error": "Cache index not found.", "hint": _CACHE_REBUILD_HINT}
-    rc, out, err = _run([sys.executable, str(cache_script), "--query", query,
-                         "--limit", str(max(limit * 5, 20)), "--json"])
+    rc, out, err = _run(_cache_query_argv(query, max(limit * 5, 20)))
     if rc != 0:
         return None, _cache_failure(err)
     try:
@@ -1314,13 +1405,10 @@ def source_staleness(category: str = "") -> str:
     Args:
         category: Optional filter — one of: seo-authority, platform-spec,
                   api-changelog, rate-benchmark, tool-mcp, partner-site,
-                  niche-authority, competitor-page. Leave empty for all.
+                  niche-authority, competitor-page. Leave empty for all. competitor-page
+                  also lists the pages add_competitor saved to your local competitor list.
     """
-    currency_script = ROOT / "tools" / "source_currency.py"
-    cmd = [sys.executable, str(currency_script), "report"]
-    if category:
-        cmd += [f"--category={category}"]
-    rc, out, err = _run(cmd)
+    rc, out, err = _run(_staleness_argv(category))
     if rc != 0:
         return json.dumps({"error": err.strip() or "staleness report failed"})
     return out.strip()
@@ -1429,8 +1517,7 @@ def video_library_query(fts_query: str, limit: int = 20) -> str:
     """
     if not fts_query:
         return json.dumps({"error": "fts_query is required"})
-    rc, out, err = _run([sys.executable, str(ROOT / "tools" / "video_library.py"),
-                         "query", fts_query, "--limit", str(limit)])
+    rc, out, err = _run(_video_query_argv(fts_query, limit))
     if rc != 0:
         return json.dumps({"error": (err or out or "video_library query failed").strip()[:300]})
     return out.strip() or "[]"
@@ -1646,10 +1733,12 @@ def quality_score(scores: dict) -> str:
 
 @mcp.tool()
 def add_competitor(url: str, platform: str) -> str:
-    """Add a competitor URL to the source registry for snapshot tracking.
+    """Add a competitor URL to your competitor list for snapshot tracking.
 
-    Upserts the URL into canonical-sources/source-registry.json under the
-    competitor-page category. After adding, run the fetch externally:
+    Saves the URL under the competitor-page category in
+    pipeline/competitor-snapshots/competitors.local.json, your own list, kept
+    out of git; canonical-sources/source-registry.json is not changed. After
+    adding, run the fetch externally:
       python3 tools/competitor_snapshot.py --fetch
     Then use competitor_scan to query the results.
 
@@ -1660,7 +1749,7 @@ def add_competitor(url: str, platform: str) -> str:
         platform: One of: youtube, pinterest, tiktok, instagram.
     """
     snapshot_script = ROOT / "tools" / "competitor_snapshot.py"
-    with _WRITE_LOCK:   # the subprocess read-modify-writes the registry; serialise concurrent calls
+    with _WRITE_LOCK:   # the subprocess read-modify-writes the local competitor list; serialise concurrent calls
         rc, out, err = _run([
             sys.executable, str(snapshot_script),
             "--add-competitor", url,
@@ -1800,7 +1889,13 @@ def configure_tool(capability: str, enabled: bool = True) -> str:
                     "duckdb_analytics", "stats_compass", "jupyter_notebook",
                     "r_statistics", "monte_carlo", "scikit_learn").
         enabled: True to enable the capability, False to disable it.
+
+    A name creator-os-config.json does not declare is refused with the closest known names, and
+    nothing is written.
     """
+    refusal = _unknown_capability(capability)
+    if refusal:
+        return json.dumps(refusal)
     with _WRITE_LOCK, _locked(CONFIG_LOCAL_PATH):   # P80 in-process, P81 cross-process (the wizard writes this file too)
         local, backup, err = _read_local_config_for_write(CONFIG_LOCAL_PATH)
         if err:
@@ -2892,13 +2987,14 @@ if __name__ == "__main__":
                 def _toggle(name):
                     for i in range(25):
                         configure_tool(name, bool(i % 2))
-                _ts = [_th3.Thread(target=_toggle, args=("cap_a",)), _th3.Thread(target=_toggle, args=("cap_b",))]
+                _ts = [_th3.Thread(target=_toggle, args=("wolfram_alpha",)),
+                       _th3.Thread(target=_toggle, args=("duckdb_analytics",))]
                 for _x in _ts:
                     _x.start()
                 for _x in _ts:
                     _x.join()
                 _data = json.loads(CONFIG_LOCAL_PATH.read_text(encoding="utf-8"))
-                _conc_ok = (set(_data.get("capabilities", {})) == {"cap_a", "cap_b"}
+                _conc_ok = (set(_data.get("capabilities", {})) == {"wolfram_alpha", "duckdb_analytics"}
                             and not list(pathlib_Path(_td3).glob("*.tmp*")))
             except Exception as _exc:  # noqa: BLE001
                 print(f"FAIL concurrent configure_tool raised: {_exc}")

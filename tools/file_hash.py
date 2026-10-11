@@ -36,8 +36,9 @@ already yields backslashes, so the same selftests run there unchanged.
   python3 tools/file_hash.py --selftest    # the properties above, plus the committed mutations
 
 The selftest runs the committed mutation rows in child processes (`--run-rows`, rows as JSON on
-stdin), at most 12 rows of one module per child and up to 8 children at a time, to keep the run
-under the selftest sweep's per-tool limit.
+stdin), at most 12 rows of one module per child and up to 8 children at a time
+(`CREATOR_OS_FILE_HASH_JOBS` sets another number, for a computer with little memory), to keep the
+run under the selftest sweep's per-tool limit.
 """
 from __future__ import annotations
 
@@ -93,6 +94,43 @@ def windows_paths():
             cls.relative_to = real
         else:
             del cls.relative_to
+
+
+@contextlib.contextmanager
+def long_paths_off(real=None):
+    """Test helper: while the block runs, os.stat (which Path.stat calls) raises FileNotFoundError
+    for a path whose absolute form is over 259 UTF-16 code units (MAX_PATH, 260, less its ending
+    NUL), as Windows does with long paths off (its default), where POSIX systems raise ENAMETOOLONG
+    for a name part over 255 bytes (P102). A name of 200 emoji is 400 units. Other paths go to real,
+    the system's os.stat unless given (file_hash's own check gives a stand-in, so the check reads
+    the same where the system already refuses long paths)."""
+    saved = os.stat
+    under = saved if real is None else real
+
+    def stat(path, *args, **kwargs):
+        if not isinstance(path, int):
+            full = os.path.abspath(os.fsdecode(os.fspath(path)))
+            if len(full.encode("utf-16-le", "surrogatepass")) // 2 > 259:
+                raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))
+        return under(path, *args, **kwargs)
+
+    os.stat = stat
+    try:
+        yield
+    finally:
+        os.stat = saved
+
+
+def mutant_jobs(env=None, cpu_count=None) -> int:
+    """How many child processes the selftest's mutation run uses at a time: CREATOR_OS_FILE_HASH_JOBS
+    when it is a whole number of 1 or more, else min(8, the CPU count). On a computer with little
+    memory, 8 children can be stopped by the system and their rows read as survivors (P102); a value
+    that is not a whole number of 1 or more (a superscript digit, a sign, a fraction) is ignored. env
+    and cpu_count stand in for the system's."""
+    raw = str((os.environ if env is None else env).get("CREATOR_OS_FILE_HASH_JOBS", "")).strip()
+    if raw.isdecimal() and int(raw) >= 1:
+        return int(raw)
+    return min(8, (os.cpu_count() if cpu_count is None else cpu_count) or 1)
 
 
 # --- selftest: everything below is test code; the committed mutations apply above this line ---
@@ -2465,8 +2503,8 @@ _MUTANTS = (
      '_DRIVE_LETTER_RE = re.compile(r"^(?:\\\\\\\\[?.]\\\\)?([A-Za-z]):")\n',
      '_DRIVE_LETTER_RE = re.compile(r"^(?:\\\\\\\\\\?\\\\)?([A-Za-z]):")\n'),
     ('FX-W4 forward slashes hide the drive letter', 'wizard.py',
-     '        letter = _DRIVE_LETTER_RE.match(folder.replace("/", "\\\\"))\n',
-     '        letter = _DRIVE_LETTER_RE.match(folder)\n'),
+     '    f = str(folder).replace("/", "\\\\")\n',
+     '    f = str(folder)\n'),
     ('FX-W5 the import screen does not point at Check my setup', 'wizard.py',
      "'this computer. Already installed the free tools? <a href=\"/doctor\">Check my setup</a> '",
      "'this computer. '"),
@@ -2594,8 +2632,8 @@ _MUTANTS = (
      '                return _td.read_text_file(p)[0]\n',
      '                return p.read_text(encoding="utf-8", errors="replace")\n'),
     ('IP3 a zip member read as UTF-8 with replacement', 'import_parse.py',
-     '            text = _td.decode_text(z.read(table))[0]\n',
-     '            text = z.read(table).decode("utf-8", "replace")\n'),
+     '    return None if raw is None else _td.decode_text(raw)[0]\n',
+     '    return None if raw is None else raw.decode("utf-8", "replace")\n'),
     # P102 push 4b: the injection screen decodes a UTF-16 or UTF-32 file before the binary sniff.
     ('SC1 a wide byte-order mark is not noticed', 'injection_scan.py',
      '    wide = raw.startswith(_WIDE_BOMS)\n',
@@ -3038,17 +3076,17 @@ _MUTANTS = (
      '("utf-8 without NULs", loose.replace("\\x00", ""))',
      '("utf-8 without NULs", loose.replace("\\x00", " "))'),
     ('IQ8 the TikTok parser adds its note to a zip it did not open', 'import_parse.py',
-     '            if opened:  # a zip _safe_zip did not open has its own note\n',
-     '            if True:  # a zip _safe_zip did not open has its own note\n'),
+     '            if not noted:  # _safe_zip, or _read_member for a damaged member, has said why\n',
+     '            if True:  # _safe_zip, or _read_member for a damaged member, has said why\n'),
     ('IQ9 the Studio parser opens its zip twice', 'import_parse.py',
      '    z = _safe_zip(zip_path)\n    if z is None:\n        return []\n    text = None\n',
      '    _safe_zip(zip_path)\n    z = _safe_zip(zip_path)\n    if z is None:\n        return []\n    text = None\n'),
     ('IQ10 a damaged zip gets no note', 'import_parse.py',
      '        if Path(path).is_file():  # its end record reads, its directory does not: a damaged download\n',
      '        if False:  # its end record reads, its directory does not: a damaged download\n'),
-    ('IQ11 an opened zip without the member counts as not opened', 'import_parse.py',
-     '    return None, True\n',
-     '    return None, False\n'),
+    ('IQ11 an opened zip without the member counts as noted', 'import_parse.py',
+     '                    return text, text is None\n    return None, False\n',
+     '                    return text, text is None\n    return None, True\n'),
     ('TR6 a JSON-looking text file raises', '../shared/docintel/transcripts.py',
      '        except (ValueError, TypeError, OverflowError, RecursionError):\n            if ext == "json":\n                raise\n',
      '        except (ValueError, TypeError, OverflowError, RecursionError):\n            raise\n'),
@@ -3161,8 +3199,8 @@ _MUTANTS = (
      '        table = next((n for n in csvs if "table data" in n.lower()), None)\n',
      '        table = next((n for n in csvs if "table data" in n), None)\n'),
     ('AU3-IQ4 the Studio fallback takes the first CSV', 'import_parse.py',
-     '                if t.splitlines() and "content" in t.splitlines()[0].lower():\n',
-     '                if t.splitlines():\n'),
+     '                if t and t.splitlines() and "content" in t.splitlines()[0].lower():\n',
+     '                if t and t.splitlines():\n'),
     ('AU3-TR1 a .srt holding JSON of another shape raises', '../shared/docintel/transcripts.py',
      '            if ext == "json":\n',
      '            if ext in ("json", "srt"):\n'),
@@ -3220,6 +3258,367 @@ _MUTANTS = (
     ('AU4-QE1 a missing path is checked like a zip file', 'import_parse.py',
      '    if Path(str(path)).is_file():\n',
      '    if not Path(str(path)).is_dir():\n'),
+    # P102 push 4c: search words, a leading "-", missing files, crop guards, CRLF, long names.
+    ('C4-A1 the search words go unquoted again', '../shared/cache/cache.py',
+     '    return " ".join(f\'"{t}"\' for t in tokens)\n',
+     '    return " ".join(tokens)\n'),
+    ('C4-A2 a letter beyond ASCII splits the word', '../shared/cache/cache.py',
+     '    tokens = re.findall(r"[^\\W_]+", q)\n',
+     '    tokens = re.findall(r"[A-Za-z0-9]+", q)\n'),
+    ('C4-A3 the words are joined with bare AND', '../shared/cache/cache.py',
+     '    return " ".join(f\'"{t}"\' for t in tokens)\n',
+     '    return " AND ".join(tokens)\n'),
+    ('C4-B1 the runner passes --query and the query apart', 'handoff/runner.py',
+     'return [_tool("keyword_offline.py"), "report", f"--query={query}", "--json"], None',
+     'return [_tool("keyword_offline.py"), "report", "--query", query, "--json"], None'),
+    ('C4-B2 keyword_offline passes --query and the query apart', 'keyword_offline.py',
+     '            f"--query={query}", "--limit", str(limit), "--json"]',
+     '            "--query", query, "--limit", str(limit), "--json"]'),
+    ('C4-B3 keyword_offline joins them with a space', 'keyword_offline.py',
+     '            f"--query={query}", "--limit", str(limit), "--json"]',
+     '            f"--query {query}", "--limit", str(limit), "--json"]'),
+    ('C4-E1 a missing FCPXML path is parsed as XML again', 'videoedit/fcpxml.py',
+     '    if p is not None and not p.exists() and "<" not in src:\n',
+     '    if False:\n'),
+    ('C4-E2 the XML test is inverted', 'videoedit/fcpxml.py',
+     '    if p is not None and not p.exists() and "<" not in src:\n',
+     '    if p is not None and not p.exists() and "<" in src:\n'),
+    ('C4-E3 a missing file raises ValueError', 'videoedit/fcpxml.py',
+     '        raise FileNotFoundError(f"FCPXML file not found: {src}")\n',
+     '        raise ValueError(f"FCPXML file not found: {src}")\n'),
+    ('C4-G1 a zero size reaches the arithmetic', 'videoedit/reframe.py',
+     '    if sw <= 0 or sh <= 0:\n',
+     '    if False:\n'),
+    ('C4-G2 one negative side passes', 'videoedit/reframe.py',
+     '    if sw <= 0 or sh <= 0:\n',
+     '    if sw <= 0 and sh <= 0:\n'),
+    ('C4-G3 a zero aspect part passes', 'videoedit/reframe.py',
+     '    if num <= 0 or den <= 0:\n',
+     '    if False:\n'),
+    ('C4-G4 an aspect is refused only when both numbers are not positive', 'videoedit/reframe.py',
+     '    if num <= 0 or den <= 0:\n',
+     '    if num <= 0 and den <= 0:\n'),
+    ('C4-G5 a zero denominator passes the check', 'videoedit/reframe.py',
+     '    if num <= 0 or den <= 0:\n',
+     '    if num <= 0 or den < 0:\n'),
+    ('C4-ICS1 the calendar file is written in text mode', 'tasks.py',
+     '                Path(args.out).write_text(ics, encoding="utf-8", newline="")\n',
+     '                Path(args.out).write_text(ics, encoding="utf-8")\n'),
+    ('C4-ICS2 the calendar goes through the text stdout', 'tasks.py',
+     '            out = getattr(sys.stdout, "buffer", None)\n',
+     '            out = None\n'),
+    ('C4-ICS3 the calendar bytes are not UTF-8', 'tasks.py',
+     '                out.write(ics.encode("utf-8"))\n',
+     '                out.write(ics.encode("utf-16"))\n'),
+    ('C4-I1 tasks reads a long name as absent', 'tasks.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I2 tasks takes 300 characters as the limit', 'tasks.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 300 for part in Path(p).parts):\n'),
+    ('C4-I3 import_parse reads a long name as absent', 'import_parse.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I4 import_parse calls a long name absent', 'import_parse.py',
+     '        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))\n',
+     '        return False\n'),
+    ('C4-I5 obligations reads a long name as absent', 'obligations.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I6 obligations takes 300 characters as the limit', 'obligations.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 300 for part in Path(p).parts):\n'),
+    ('C4-I7 source_currency reads a long name as absent', 'source_currency.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if False:\n'),
+    ('C4-I8 source_currency calls a long name absent', 'source_currency.py',
+     '        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))\n',
+     '        return False\n'),
+    ('C4-I9 library_complete reads a long folder as missing', 'library_complete.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
+     '    if False:\n'),
+    ('C4-I10 library_complete takes 300 characters as the limit', 'library_complete.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 300 for part in export.parts):\n'),
+    ('C4-I11 tasks counts code points', 'tasks.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I12 tasks measures the last part only', 'tasks.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I13 import_parse counts code points', 'import_parse.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I14 import_parse measures the last part only', 'import_parse.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I15 obligations counts code points', 'obligations.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I16 obligations measures the last part only', 'obligations.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I17 source_currency counts code points', 'source_currency.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I18 source_currency measures the last part only', 'source_currency.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I19 library_complete counts code points', 'library_complete.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
+     '    if any(len(part) > 255 for part in export.parts):\n'),
+    ('C4-I20 library_complete measures the last part only', 'library_complete.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
+     '    if len(export.name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-LP1 the stand-in counts code points', 'file_hash.py',
+     '            if len(full.encode("utf-16-le", "surrogatepass")) // 2 > 259:\n',
+     '            if len(full) > 259:\n'),
+    ('C4-LP2 the stand-in raises ENAMETOOLONG', 'file_hash.py',
+     '                raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))\n',
+     '                raise OSError(36, "File name too long", os.fspath(path))\n'),
+    ('C4-LP4 the stand-in measures a part, not the whole path', 'file_hash.py',
+     '            if len(full.encode("utf-16-le", "surrogatepass")) // 2 > 259:\n',
+     '            if any(len(part) > 255 for part in pathlib.PurePath(full).parts):\n'),
+    ('C4-LP3 the stand-in is not installed', 'file_hash.py',
+     '    os.stat = stat\n    try:\n        yield\n    finally:\n        os.stat = saved\n',
+     '    try:\n        yield\n    finally:\n        os.stat = saved\n'),
+    ('C4-LP5 the stand-in ignores the stat it wraps', 'file_hash.py',
+     '        return under(path, *args, **kwargs)\n',
+     '        return saved(path, *args, **kwargs)\n'),
+    # P102 push 4c: the competitor list kept local (competitor_snapshot).
+    ('C4-CS1 add_competitor saves the local list to the registry path', 'competitor_snapshot.py',
+     '    local["sources"].append(entry)\n    _save_local(local)\n',
+     '    local["sources"].append(entry)\n    SC.save_registry(local)\n'),
+    ('C4-CS2 the local list is saved to the default path', 'competitor_snapshot.py',
+     '    SC.save_registry(data, LOCAL_COMPETITORS)\n',
+     '    SC.save_registry(data)\n'),
+    ('C4-CS3 a fetch stamp is saved to the registry path', 'competitor_snapshot.py',
+     '            entry["last_changed_detected"] = SC.today_str()\n        _save_local(local)\n',
+     '            entry["last_changed_detected"] = SC.today_str()\n        SC.save_registry(local)\n'),
+    ('C4-CS4 report reads the registry alone', 'competitor_snapshot.py',
+     'def cmd_report(args) -> int:\n    registry = _merged_registry()\n',
+     'def cmd_report(args) -> int:\n    registry = SC.load_registry()\n'),
+    ('C4-CS5 fetch reads the registry alone', 'competitor_snapshot.py',
+     'def cmd_fetch(args) -> int:\n    registry = _merged_registry()\n',
+     'def cmd_fetch(args) -> int:\n    registry = SC.load_registry()\n'),
+    ('C4-CS6 parse reads the registry alone', 'competitor_snapshot.py',
+     'def cmd_parse(args) -> int:\n    registry = _merged_registry()\n',
+     'def cmd_parse(args) -> int:\n    registry = SC.load_registry()\n'),
+    ('C4-CS7 add checks the local list alone for duplicates', 'competitor_snapshot.py',
+     '    sources = _merged_registry(local)["sources"]\n',
+     '    sources = local["sources"]\n'),
+    ('C4-CS8 a local stamp is not read back onto a canonical page', 'competitor_snapshot.py',
+     '                canon[k] = s[k]\n',
+     '                pass\n'),
+    ('C4-CS9 an older local stamp replaces the canonical one', 'competitor_snapshot.py',
+     '            if s.get(k) and (not canon.get(k) or str(s[k]) > str(canon[k])):\n',
+     '            if s.get(k):\n'),
+    ('C4-CS10 a stamp record whose page is gone is appended', 'competitor_snapshot.py',
+     '            if s.get("url"):\n                extra.append(s)\n',
+     '            if True:\n                extra.append(s)\n'),
+    ("C4-CS11 a fetch stamps the canonical page's own record only when present", 'competitor_snapshot.py',
+     '        if entry is None:\n            entry = {"id": src_id}\n            local["sources"].append(entry)\n',
+     '        if entry is None:\n            return\n'),
+    ('C4-CS12 a list that does not parse escapes as a plain ValueError', 'competitor_snapshot.py',
+     '        raise LocalListError(f"{LOCAL_COMPETITORS} is not valid JSON ({exc}); fix or remove it") from None\n',
+     '        raise ValueError(f"{LOCAL_COMPETITORS} is not valid JSON ({exc}); fix or remove it") from None\n'),
+    ('C4-CS13 a list of the wrong shape is read', 'competitor_snapshot.py',
+     '    if not isinstance(sources, list) or not all(isinstance(s, dict) for s in sources):\n',
+     '    if not isinstance(sources, list):\n'),
+    ('C4-CS14 the refusal is not caught', 'competitor_snapshot.py',
+     '    except LocalListError as exc:\n        print(f"competitor_snapshot: {exc}", file=sys.stderr)\n',
+     '    except KeyError as exc:\n        print(f"competitor_snapshot: {exc}", file=sys.stderr)\n'),
+    ('C4-CS15 add_competitor takes no lock', 'competitor_snapshot.py',
+     '    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)\n',
+     '    if True:\n'),
+    ('C4-CS16 a fetch stamp takes no lock', 'competitor_snapshot.py',
+     '    with _locked(LOCAL_COMPETITORS):\n        local = _load_local()\n',
+     '    if True:\n        local = _load_local()\n'),
+    ('C4-CS17 add_competitor reads the list before it takes the lock', 'competitor_snapshot.py',
+     '    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)\n        return _add_to_local(url, platform, custom_id)\n',
+     '    _load_local()\n    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)\n        return _add_to_local(url, platform, custom_id)\n'),
+    # P102 push 4c: wizard refusal sentences, the long-path prefix, the import screen's Drive rule, per-system examples and one screen per page.
+    ('C4-W1 the long-path prefix is kept on Windows', 'wizard.py',
+     '    if (os.name if osname is None else osname) == "nt":\n        folder = _strip_device_prefix(folder)\n',
+     '    if False:\n        folder = _strip_device_prefix(folder)\n'),
+    ('C4-W2 UNC loses its leading backslashes', 'wizard.py',
+     '    return ("\\\\\\\\" if m.group(1) else "") + f[m.end():]\n',
+     '    return f[m.end():]\n'),
+    ('C4-W3 the prefix is stripped off Windows too', 'wizard.py',
+     '    if (os.name if osname is None else osname) == "nt":\n        folder = _strip_device_prefix(folder)\n',
+     '    if True:\n        folder = _strip_device_prefix(folder)\n'),
+    ('C4-W4 the device prefix is not read', 'wizard.py',
+     '_DEVICE_PREFIX_RE = re.compile(r"^\\\\\\\\[?.]\\\\(?:(UNC)\\\\|(?=[A-Za-z]:))", re.IGNORECASE)\n',
+     '_DEVICE_PREFIX_RE = re.compile(r"^\\\\\\\\[?]\\\\(?:(UNC)\\\\|(?=[A-Za-z]:))", re.IGNORECASE)\n'),
+    ('C4-W5 the hub screen shows the reason code', 'wizard.py',
+     '                self._send(_screen_drive_hub(error="That folder cannot be used. "\n',
+     '                self._send(_screen_drive_hub(error=f"That folder cannot be used: {why}. "\n'),
+    ('C4-W6 home_root has no sentence', 'wizard.py',
+     '    "home_root": "That is your whole home folder.',
+     '    "home-root": "That is your whole home folder.'),
+    ('C4-W7 not_dir has no sentence', 'wizard.py',
+     '    "not_dir": "No folder was found at that path.',
+     '    "not-dir": "No folder was found at that path.'),
+    ('C4-W8 an empty path has no sentence', 'wizard.py',
+     '    "empty": "Enter the full path of the hub folder.",\n',
+     '    "blank": "Enter the full path of the hub folder.",\n'),
+    ('C4-W9 the import screen keeps the home-only rule', 'wizard.py',
+     '            ok_folder, expanded, why = _drive_hub_folder(folder)\n',
+     '            ok_folder, expanded, why = _confined_folder(folder, allow_home=False)\n'),
+    ("C4-W10 the scan's file search refuses a Drive folder", 'wizard.py',
+     '    ok_folder, _real, _why = _confined_folder(folder, allow_home=True, allow_drive=True)\n',
+     '    ok_folder, _real, _why = _confined_folder(folder, allow_home=True)\n'),
+    ('C4-W11 the import screen reads a Drive root as not found', 'wizard.py',
+     '                if why in ("drive_root", "system_drive"):\n',
+     '                if False:\n'),
+    ('C4-W12 the import example is the Mac path on Windows', 'wizard.py',
+     '    return {"windows": r"C:\\Users\\you\\Downloads\\Takeout",\n',
+     '    return {"windows": "/Users/you/Downloads/Takeout",\n'),
+    ('C4-W13 the hub example ignores the system', 'wizard.py',
+     '    if _os() == "windows":\n        return f"G:\\\\My Drive\\\\{folder_name}"\n',
+     '    if False:\n        return f"G:\\\\My Drive\\\\{folder_name}"\n'),
+    ('C4-W14 every screen is built per request', 'wizard.py',
+     '        if path in routes:\n            self._send(routes[path]())\n',
+     '        _built = {k: v() for k, v in routes.items()}\n        if path in routes:\n            self._send(_built[path])\n'),
+    ('C4-W15 a path names the wrong screen', 'wizard.py',
+     '            "/doctor": _screen_doctor,\n',
+     '            "/doctor": _screen_welcome,\n'),
+    ('C4-W16 the storage screen allows Drive folders', 'wizard.py',
+     '            ok_folder, expanded, why = _confined_folder(folder, allow_home=False)\n',
+     '            ok_folder, expanded, why = _confined_folder(folder, allow_home=False, allow_drive=True)\n'),
+    ('C4-W17 a path with no screen builds one', 'wizard.py',
+     '        else:\n            self._send("<h1>Not found</h1>", 404)\n',
+     '        else:\n            self._send(_screen_welcome(), 404)\n'),
+    # P102 push 4c: a damaged or oversized zip member is skipped with one note (import_parse).
+    ('C4-Z1 the member cap is not checked', 'import_parse.py',
+     '    if info.file_size > MAX_MEMBER_BYTES:\n',
+     '    if False:\n'),
+    ('C4-Z2 the cap reads the compressed size', 'import_parse.py',
+     '    if info.file_size > MAX_MEMBER_BYTES:\n',
+     '    if info.compress_size > MAX_MEMBER_BYTES:\n'),
+    ('C4-Z3 a member that does not decompress raises', 'import_parse.py',
+     '    except MEMBER_READ_ERRORS as exc:\n',
+     '    except OSError as exc:\n'),
+    ('C4-Z4 a corrupt deflate stream raises', 'import_parse.py',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, RuntimeError)\n',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, OSError, EOFError, RuntimeError)\n'),
+    ('C4-Z5 a zlib error is named only error', 'import_parse.py',
+     '            kind = "zlib.error"\n',
+     '            kind = type(exc).__name__\n'),
+    ('C4-Z6 a member name keeps its line break in the note', 'import_parse.py',
+     '    shown = " ".join(str(name).split())[:200]',
+     '    shown = str(name)[:200]'),
+    ('C4-Z7 the Studio fallback reads a skipped member', 'import_parse.py',
+     '                if t and t.splitlines() and "content" in t.splitlines()[0].lower():\n',
+     '                if t.splitlines() and "content" in t.splitlines()[0].lower():\n'),
+    ('C4-Z8 a damaged TikTok member gets a second note', 'import_parse.py',
+     '                    return text, text is None\n',
+     '                    return text, False\n'),
+    ('C4-Z11 a failed read of the zip file raises', 'import_parse.py',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, RuntimeError)\n',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, EOFError, RuntimeError)\n'),
+    ('C4-Z12 a bzip2 or LZMA member is read', 'import_parse.py',
+     '    if info.compress_type not in BOUNDED_METHODS:\n',
+     '    if False:\n'),
+    ('C4-Z13 a member is read in one piece', 'import_parse.py',
+     '        parts = []\n        with z.open(info) as fh:\n',
+     '        return z.read(info)\n        with z.open(info) as fh:\n'),
+    ('C4-Z14 a piece is a gigabyte', 'import_parse.py',
+     'MEMBER_CHUNK_BYTES = 1024 * 1024\n',
+     'MEMBER_CHUNK_BYTES = 1 << 30\n'),
+    ('C4-Z15 bzip2 and LZMA count as bounded', 'import_parse.py',
+     'BOUNDED_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)\n',
+     'BOUNDED_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED, zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA)\n'),
+    ('C4-Z16 the skipped method is not named', 'import_parse.py',
+     '        method = _METHOD_NAMES.get(info.compress_type, f"compression method {info.compress_type}")\n',
+     '        method = f"compression method {info.compress_type}"\n'),
+    ('C4-Z17 a failed read loses the system\'s words', 'import_parse.py',
+     "            kind = f\"{type(exc).__name__}: {' '.join(str(exc).split())[:200]}\"\n",
+     '            kind = type(exc).__name__\n'),
+    ('C4-Z18 the system\'s words keep their line break', 'import_parse.py',
+     "            kind = f\"{type(exc).__name__}: {' '.join(str(exc).split())[:200]}\"\n",
+     '            kind = f"{type(exc).__name__}: {str(exc)[:200]}"\n'),
+    ('C4-Z19 an encrypted member is read', 'import_parse.py',
+     '    if info.flag_bits & _FLAG_ENCRYPTED:\n',
+     '    if False:\n'),
+    ('C4-Z20 the encrypted flag is read from another bit', 'import_parse.py',
+     '_FLAG_ENCRYPTED = 0x1\n',
+     '_FLAG_ENCRYPTED = 0x40\n'),
+    ('C4-Z21 an encrypted member gets the damaged-member words', 'import_parse.py',
+     '        _note(f"{shown} inside this zip is password-protected, which the importer does not read, so "\n',
+     '        _note(f"{shown} inside this zip could not be read, which the importer does not read, so "\n'),
+    ('C4-LC1 the library is left open', 'library_complete.py',
+     '    try:  # the library is closed on every way out, an error included (Windows keeps an open file)\n        return _run_command(args, con)\n    finally:\n        con.close()\n',
+     '    return _run_command(args, con)\n'),
+    ('C4-LC2 the library is closed after success only', 'library_complete.py',
+     '    try:  # the library is closed on every way out, an error included (Windows keeps an open file)\n        return _run_command(args, con)\n    finally:\n        con.close()\n',
+     '    rc = _run_command(args, con)\n    con.close()\n    return rc\n'),
+    ('C4-LC3 the library is closed before the command runs', 'library_complete.py',
+     '    try:  # the library is closed on every way out, an error included (Windows keeps an open file)\n        return _run_command(args, con)\n    finally:\n        con.close()\n',
+     '    con.close()\n    return _run_command(args, con)\n'),
+    ('C4-Z10 Instagram keeps a skipped member', 'import_parse.py',
+     ' or "reels" in b):\n                        t = _member_text(z, n)\n                        if t is not None:\n',
+     ' or "reels" in b):\n                        t = _member_text(z, n)\n                        if True:\n'),
+    # P102 push 4c: the mutation run's child count, MinGit's sh for the hooks selftest, and the Windows folder from the system call.
+    ('C4-H1 the worker override is ignored', 'file_hash.py',
+     '    if raw.isdecimal() and int(raw) >= 1:\n        return int(raw)\n',
+     '    if False:\n        return int(raw)\n'),
+    ('C4-H2 zero workers are taken', 'file_hash.py',
+     '    if raw.isdecimal() and int(raw) >= 1:\n',
+     '    if raw.isdecimal() and int(raw) >= 0:\n'),
+    ('C4-H7 a superscript digit stops the run', 'file_hash.py',
+     '    if raw.isdecimal() and int(raw) >= 1:\n',
+     '    if raw.isdigit() and int(raw) >= 1:\n'),
+    ('C4-H3 the CPU count is used without the cap of 8', 'file_hash.py',
+     '    return min(8, (os.cpu_count() if cpu_count is None else cpu_count) or 1)\n',
+     '    return (os.cpu_count() if cpu_count is None else cpu_count) or 1\n'),
+    ("C4-H4 MinGit's sh.exe is not looked for", 'install_hooks.py',
+     '        if git_sh.is_file():\n            return str(git_sh)\n',
+     '        if False:\n            return str(git_sh)\n'),
+    ('C4-H5 the sh.exe is looked for outside usr', 'install_hooks.py',
+     'git_sh = Path(out.stdout.strip()).parent.parent.parent / "usr" / "bin" / "sh.exe"',
+     'git_sh = Path(out.stdout.strip()).parent.parent.parent / "bin" / "sh.exe"'),
+    ('C4-H6 the bash lookup ignores the stand-ins', 'install_hooks.py',
+     '        bash = battery.bash_for_syntax(which=which, run=run, os_name=os_name)\n',
+     '        bash = battery.bash_for_syntax()\n'),
+    ("C4-H8 the sh on PATH wins over Git's bash on Windows", 'install_hooks.py',
+     '    found = which("sh")\n    if found and os_name != "nt":\n',
+     '    found = which("sh")\n    if found:\n'),
+    # P102 push 4c: the reviewer's rows, adapted to the code they now meet (AU-4 is the shape of
+    # C4-I11 to C4-I20; AU-6 removed NotImplementedError, which RuntimeError already covers).
+    ('AU-1 the search words are joined with OR', '../shared/cache/cache.py',
+     '    return " ".join(f\'"{t}"\' for t in tokens)\n',
+     '    return " OR ".join(f\'"{t}"\' for t in tokens)\n'),
+    ('AU-2 each word is a prefix search', '../shared/cache/cache.py',
+     '    return " ".join(f\'"{t}"\' for t in tokens)\n',
+     '    return " ".join(f\'"{t}"*\' for t in tokens)\n'),
+    ('AU-3 a zero or negative denominator passes', 'videoedit/reframe.py',
+     '    if num <= 0 or den <= 0:\n',
+     '    if num <= 0:\n'),
+    ('AU-5 RuntimeError, NotImplementedError among them, is not caught', 'import_parse.py',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, RuntimeError)\n',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError)\n'),
+    ('AU-7 the device prefix is matched in upper case only', 'wizard.py',
+     '(?=[A-Za-z]:))", re.IGNORECASE)\n',
+     '(?=[A-Za-z]:))")\n'),
+    ('AU-H2 the bash is never returned', 'install_hooks.py',
+     '    if bash:\n        return bash\n',
+     '    if False:\n        return bash\n'),
+    ('C4-T1 SystemRoot wins over the system call', 'transcribe.py',
+     '            if 0 < n < 260 and buf.value:\n                return buf.value\n',
+     '            if False:\n                return buf.value\n'),
+    ('C4-T2 a cut-off answer is used', 'transcribe.py',
+     '            if 0 < n < 260 and buf.value:\n',
+     '            if 0 < n and buf.value:\n'),
+    ('C4-T3 the DLL check reads SystemRoot', 'transcribe.py',
+     '    root = system_root or windows_dir()\n    exists = os.path.exists if exists is None else exists\n',
+     '    root = system_root or os.environ.get("SystemRoot") or "C:\\\\Windows"\n    exists = os.path.exists if exists is None else exists\n'),
+    ('C4-T4 the signature check reads SystemRoot', 'transcribe.py',
+     '    root = system_root or windows_dir()\n    ps = ntpath.join(',
+     '    root = system_root or os.environ.get("SystemRoot") or "C:\\\\Windows"\n    ps = ntpath.join('),
+    ('C4-T5 a failing system call stops the lookup', 'transcribe.py',
+     '        except Exception:  # noqa: BLE001 -- an unusable call falls back to the environment\n            pass\n',
+     '        except ValueError:  # noqa: BLE001 -- an unusable call falls back to the environment\n            pass\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -3761,10 +4160,40 @@ def selftest() -> int:
            ("relative_to" in vars(pathlib.PosixPath), vars(pathlib.PosixPath).get("relative_to")) == state
            and type(nested.relative_to(root)) is type(native)
            and str(nested.relative_to(root)) == str(native))
+        # P102: long_paths_off() reads a path whose absolute form is over 259 UTF-16 code units as
+        # missing (FileNotFoundError), as Windows does with long paths off: a 300-character name, a
+        # name of 200 emoji (400 units, 200 code points) and a deep path of 40-character parts, each
+        # under the root folder; it passes a short path to the stat it wraps and restores os.stat.
+        # The wrapped stat is a stand-in that finds every path, so the answers do not depend on
+        # whether this computer itself refuses long paths (Windows with long paths off does).
+        real_stat = os.stat
+        top = os.path.abspath(os.sep)
+        said = {}
+        with long_paths_off(real=lambda path, *args, **kwargs: "found"):
+            for label, name in (("long name", "x" * 300), ("emoji name", "\U0001F600" * 200),
+                                ("deep path", "/".join(["d" * 40] * 7)), ("short path", "short-name")):
+                try:
+                    said[label] = pathlib.Path(top, name).stat()
+                except FileNotFoundError:
+                    said[label] = "missing"
+                except OSError as exc:
+                    said[label] = f"errno {exc.errno}"
+        with long_paths_off():
+            short_found = pathlib.Path(__file__).stat().st_size > 0
+        ok(f"long_paths_off() reads a path over 259 UTF-16 units as missing and passes a short path "
+           f"to the stat it wraps ({said})",
+           said == {"long name": "missing", "emoji name": "missing", "deep path": "missing",
+                    "short path": "found"} and short_found and os.stat is real_stat)
+    _jobs_cases = {("", 4): 4, ("", 16): 8, ("", 0): 1, ("2", 16): 2, (" 3 ", 4): 3, ("12", 4): 12,
+                   ("0", 4): 4, ("-2", 4): 4, ("two", 4): 4, ("1.5", 4): 4, ("\u00b2", 4): 4}
+    _jobs_got = {k: mutant_jobs({"CREATOR_OS_FILE_HASH_JOBS": k[0]} if k[0] else {}, cpu_count=k[1])
+                 for k in _jobs_cases}
+    ok("the mutation run's child count is CREATOR_OS_FILE_HASH_JOBS when it is a whole number of 1 or "
+       "more, else min(8, the CPU count)", _jobs_got == _jobs_cases)
     if not _IN_MUTANT:
         for name, cond in _runner_controls():
             ok(f"runner control: {name}", cond)
-        survivors = _run_mutants(jobs=min(8, os.cpu_count() or 1))
+        survivors = _run_mutants(jobs=mutant_jobs())
         skipped = len(_POSIX_ONLY & {r[0] for r in _MUTANTS}) if os.name == "nt" else 0
         ok(f"each of {len(_MUTANTS) - skipped} committed mutations is caught by the selftest it targets"
            + (f" ({skipped} POSIX-only not run on Windows)" if skipped else "")

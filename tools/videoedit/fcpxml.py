@@ -190,6 +190,9 @@ def parse(src: str) -> dict:
     """Recover an edit-package from an FCPXML string or file path."""
     text = src
     p = Path(src) if len(src) < 1024 else None
+    if p is not None and not p.exists() and "<" not in src:
+        # a path that is not there: say so, rather than parse the path text as XML (P102)
+        raise FileNotFoundError(f"FCPXML file not found: {src}")
     if p is not None and p.exists():
         # .fcpxmld bundle: read the inner Info.fcpxml
         if p.is_dir():
@@ -430,6 +433,13 @@ def selftest() -> int:
        abs(time_to_sec(sec_to_time(2.5, 24), 24) - 2.5) < 1e-6)
     ok("zero seconds round-trips", abs(time_to_sec(sec_to_time(0.0, 30), 30)) < 1e-6)
     ok("rational time is emitted in FCPXML's N/Ds form", sec_to_time(1.0, 30).endswith("s"))
+    try:
+        parse(str(Path(__file__).parent / "no-such-dir" / "edit.fcpxml"))
+        _missing = None
+    except FileNotFoundError as exc:
+        _missing = str(exc)
+    ok("a path that is not there is reported as a missing file, not an XML error (P102)",
+       bool(_missing) and _missing.startswith("FCPXML file not found:"))
 
     # P102: the edit-package template ships "title": null and "name": null; a null in any field
     # that becomes an XML attribute builds with its default instead of raising.
