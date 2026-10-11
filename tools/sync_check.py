@@ -183,6 +183,13 @@ Invariants enforced:
       each battery gate, a blocking step running exactly its command or a CI_PARITY_NOTES reason,
       no stale note, and a workflow it can read. The commit hygiene step blocks and its run
       block equals _COMMIT_HYGIENE_RUN byte for byte. Self-proves on fixtures before the scan.
+  62. Creator-facing text (P102; protocols/formatting-metadata.md): no em dash, or an HTML entity
+      for one, in the string literals of the local web pages (modules with a *RequestHandler
+      class) and their static files, in the MCP server's tool descriptions and replies, in the
+      programs those modules run and the scripts their text names, or in the JSON files they read
+      (with the JSON a program keeps beside itself). The scan set is derived from the tree;
+      docstrings, comments, test code, \u2014 escapes and .local. files are the cuts, each a
+      self-proof case, and _CREATOR_TEXT_FLOOR must stay inside the derived set.
 """
 import ast
 import json
@@ -4493,6 +4500,363 @@ def _install_scope_selfproof():
     return None
 
 
+
+# Invariant 62 (P102): creator-facing text carries no em dash. The character itself, and the HTML
+# entities a page renders as one; an em dash written as an escape (\u2014) in Python source is
+# read as data (a detector or a parser's placeholder) and passes.
+_CREATOR_DASH_RE = re.compile("\u2014|&" + "mdash;|&#0*8212;|&#[xX]0*2014;")  # parts: no entity in this text
+# The places protocols/formatting-metadata.md's rule names for the local tools; the derived scan
+# set must reach each one, so a refactor that hides one from the derivation fails the build.
+_CREATOR_TEXT_FLOOR = ("tools/wizard.py", "tools/dashboard/server.py", "tools/dashboard/static/app.js",
+                       "tools/mcp_server.py", "tools/setup.py", "tools/update.py",
+                       "creator-os-config.json", "shared/connectors/connectors.json")
+
+
+def _ct_tree(path):
+    try:
+        return ast.parse(Path(path).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, ValueError):
+        return None
+
+
+def _ct_is_test(node):
+    return isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.lstrip("_").startswith("selftest")
+
+
+def _ct_test_lines(src, tree):
+    """Line numbers of test code: top-level selftest functions, and every line from a
+    '# --- selftest' marker comment down."""
+    lines = set()
+    for node in tree.body:
+        if _ct_is_test(node):
+            lines.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+    for i, line in enumerate(src.splitlines(), 1):
+        if line.startswith("# --- selftest"):
+            lines.update(range(i, src.count("\n") + 2))
+            break
+    return lines
+
+
+def _ct_docstrings(tree):
+    """{id(docstring node): the name of the function, class or module it documents}."""
+    out = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.body:
+            first = node.body[0]
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) \
+                    and isinstance(first.value.value, str):
+                out[id(first.value)] = getattr(node, "name", "<module>")
+    return out
+
+
+def _ct_tool_functions(tree):
+    """Names of the top-level functions decorated with <server>.tool or <server>.tool(...)."""
+    names = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for dec in node.decorator_list:
+                target = dec.func if isinstance(dec, ast.Call) else dec
+                if isinstance(target, ast.Attribute) and target.attr == "tool":
+                    names.add(node.name)
+    return names
+
+
+def _ct_built_paths(tree, skip_lines=()):
+    """(base, 'a/b/c.ext') for each path built as ROOT / "a" / "b" / "c.ext" or HERE / ..., from
+    string parts alone, outside the lines in skip_lines (test code)."""
+    out = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div) and node.lineno not in skip_lines:
+            parts, cur = [], node
+            while isinstance(cur, ast.BinOp) and isinstance(cur.op, ast.Div) \
+                    and isinstance(cur.right, ast.Constant) and isinstance(cur.right.value, str):
+                parts.insert(0, cur.right.value)
+                cur = cur.left
+            if isinstance(cur, ast.Name) and cur.id in ("ROOT", "HERE") and parts:
+                out.add((cur.id, "/".join(parts)))
+    return out
+
+
+def _ct_segment(lines):
+    """A function giving a node's source text from lines, the source's lines as UTF-8 bytes (the
+    col offsets are byte offsets); ast.get_source_segment splits the whole source on each call."""
+    def seg(node):
+        a, b = node.lineno - 1, (node.end_lineno or node.lineno) - 1
+        if a == b:
+            raw = lines[a][node.col_offset:node.end_col_offset]
+        else:
+            raw = b"".join([lines[a][node.col_offset:]] + lines[a + 1:b] + [lines[b][:node.end_col_offset]])
+        return raw.decode("utf-8", "replace")
+    return seg
+
+
+def _ct_literal_hits(src, tree, include_docs=()):
+    """(line, fragment) for each string literal, as written in the source, that carries an em dash:
+    docstrings are left out except those of the functions in include_docs, and so is test code. An
+    f-string is read whole, so the text pieces inside it are not read twice."""
+    test = _ct_test_lines(src, tree)
+    docs = _ct_docstrings(tree)
+    seg_of = _ct_segment([line.encode("utf-8") for line in src.splitlines(keepends=True)])
+    inner = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            for value in node.values:
+                inner.add(id(value))
+                if isinstance(value, ast.FormattedValue) and value.format_spec is not None:
+                    inner.add(id(value.format_spec))
+                    inner.update(id(v) for v in value.format_spec.values)
+    hits = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.JoinedStr)
+                or (isinstance(node, ast.Constant) and isinstance(node.value, str))):
+            continue
+        if id(node) in inner:
+            continue
+        if id(node) in docs and docs[id(node)] not in include_docs:
+            continue
+        if node.lineno in test:
+            continue
+        seg = seg_of(node)
+        m = _CREATOR_DASH_RE.search(seg)
+        if m:
+            line = node.lineno + seg.count("\n", 0, m.start())
+            hits.append((line, seg[max(0, m.start() - 30):m.end() + 30].replace("\n", " ")))
+    return hits
+
+
+def _ct_json_hits(path):
+    """(None, fragment) for each JSON string (a key or a value) that carries an em dash."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    found = []
+
+    def walk(o):
+        if isinstance(o, str):
+            m = _CREATOR_DASH_RE.search(o)
+            if m:
+                found.append((None, o[max(0, m.start() - 30):m.end() + 30]))
+        elif isinstance(o, dict):
+            for k, v in o.items():
+                walk(k)
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    walk(data)
+    return found
+
+
+def _creator_text_scan(root):
+    """(scanned, hits): the derived scan set of invariant 62 under root, {rel: kind}, and
+    [(rel, line or None, fragment)] for the em dashes in it. Derived from the tree:
+      pages     modules under tools/ with a top-level class deriving from a *RequestHandler;
+      static    the files of a static/ folder beside a page module;
+      mcp       modules under tools/ with top-level functions decorated <server>.tool;
+      programs  .py files a page or mcp module builds a path to from ROOT or HERE (what it runs);
+      commands  tools/<x>.py files a page or mcp literal names (what it tells the creator to run);
+      data      .json files a page or mcp module builds a path to, and the .json files a program
+                builds from HERE (beside itself), when the name holds no '.local.' (an ignored file).
+    Python files are read for their string literals outside docstrings and test code, with the
+    tool functions' docstrings (their descriptions) included; static files whole; JSON strings."""
+    root = Path(root)
+    pages, mcps = [], []
+    for p in sorted((root / "tools").rglob("*.py")):
+        if "__pycache__" in p.parts:
+            continue
+        tree = _ct_tree(p)
+        if tree is None:
+            continue
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and any(
+                    (getattr(b, "id", None) or getattr(b, "attr", "") or "").endswith("RequestHandler")
+                    for b in node.bases):
+                pages.append(p)
+                break
+        if _ct_tool_functions(tree):
+            mcps.append(p)
+    scanned = {}
+    for p in pages:
+        scanned.setdefault(p.relative_to(root).as_posix(), "page")
+        static = p.parent / "static"
+        if static.is_dir():
+            for f in sorted(static.rglob("*")):
+                if f.is_file():
+                    scanned.setdefault(f.relative_to(root).as_posix(), "static")
+    for p in mcps:
+        scanned.setdefault(p.relative_to(root).as_posix(), "mcp")
+
+    def resolve(base, rel, module):
+        full = (root / rel) if base == "ROOT" else (module.parent / rel)
+        try:
+            return full.resolve().relative_to(root.resolve()).as_posix() if full.is_file() else None
+        except ValueError:
+            return None
+    programs = []
+    for p in pages + mcps:
+        tree = _ct_tree(p)
+        src = p.read_text(encoding="utf-8")
+        test = _ct_test_lines(src, tree)
+        for base, rel in sorted(_ct_built_paths(tree, test)):
+            hit = resolve(base, rel, p)
+            if hit is None:
+                continue
+            if hit.endswith(".py"):
+                if hit not in scanned:
+                    programs.append(root / hit)
+                scanned.setdefault(hit, "program")
+            elif hit.endswith(".json") and ".local." not in Path(hit).name:
+                scanned.setdefault(hit, "data")
+        docs = _ct_docstrings(tree)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docs \
+                    and node.lineno not in test:
+                for named in re.findall(r"\btools/[\w/.-]+?\.py\b", node.value):
+                    if (root / named).is_file():
+                        scanned.setdefault(named, "command")
+    for prog in programs:
+        tree = _ct_tree(prog)
+        if tree is None:
+            continue
+        test = _ct_test_lines(prog.read_text(encoding="utf-8"), tree)
+        for base, rel in sorted(_ct_built_paths(tree, test)):
+            if base == "HERE" and rel.endswith(".json") and ".local." not in Path(rel).name:
+                hit = resolve(base, rel, prog)
+                if hit:
+                    scanned.setdefault(hit, "data")
+    hits = []
+    for rel, kind in sorted(scanned.items()):
+        path = root / rel
+        if kind == "static":
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            for i, line in enumerate(text.splitlines(), 1):
+                m = _CREATOR_DASH_RE.search(line)
+                if m:
+                    hits.append((rel, i, line[max(0, m.start() - 30):m.end() + 30].strip()))
+        elif kind == "data":
+            hits += [(rel, ln, frag) for ln, frag in _ct_json_hits(path)]
+        else:
+            tree = _ct_tree(path)
+            if tree is None:
+                continue
+            src = path.read_text(encoding="utf-8")
+            tools_fns = _ct_tool_functions(tree) if kind == "mcp" else set()
+            hits += [(rel, ln, frag) for ln, frag in _ct_literal_hits(src, tree, include_docs=tools_fns)]
+    return scanned, hits
+
+
+def _creator_text_selfproof():
+    """None when invariant 62 finds each fixture em dash and passes each cut, else what failed. A
+    temporary tree holds a page module (with a static folder), an MCP module, a program the MCP
+    module runs, a command a page names, and data files."""
+    import tempfile
+    d = "\\u2014"  # written as an escape here, so this module's own text stays clean
+    em = d.encode().decode("unicode_escape")
+    with tempfile.TemporaryDirectory() as td:
+        t = Path(td)
+        (t / "tools" / "web" / "static").mkdir(parents=True)
+        (t / "shared" / "x").mkdir(parents=True)
+        files = {
+            "tools/web/page.py": (
+                '"""Page module ' + em + ' its docstring is maintainer text."""\n'
+                "import http.server\n"
+                'ROOT = None\n'
+                "class H(http.server.BaseHTTPRequestHandler):\n"
+                '    """A handler ' + em + ' docstring."""\n'
+                "    def do_GET(self):\n"
+                '        body = "<h1>Step 1 &' + 'mdash; start</h1>"  # comment ' + em + ' is not text\n'
+                '        other = "Done &#' + '8212; next"\n'
+                '        hint = "Run python3 tools/cmd.py to finish."\n'
+                '        data = ROOT / "settings.json"\n'
+                '        safe = "' + d + '"\n'
+                "        return body, other, hint, data, safe\n"
+                "def selftest():\n"
+                '    fixture = ROOT / "fixture.json"\n'
+                '    return "test code ' + em + ' passes", fixture\n'),
+            "tools/web/static/app.js": "/* app " + em + " comment */\n",
+            "tools/server.py": (
+                "HERE = None\nROOT = None\n"
+                "class _M:\n    def tool(self, *a):\n        return lambda f: f\n"
+                "mcp = _M()\n"
+                "@mcp.tool()\n"
+                "def ask():\n"
+                '    """Tool description ' + em + ' shown to the client."""\n'
+                '    return [ROOT / "shared" / "x" / "prog.py", "reply ok"]\n'
+                "def helper():\n"
+                '    """Helper docstring ' + em + ' maintainer text."""\n'
+                '    return "helper reply ' + em + ' shown"\n'),
+            "shared/x/prog.py": (
+                '"""Program docstring ' + em + ' kept."""\n'
+                "HERE = None\n"
+                'REG = HERE / "beside.json"\n'
+                'LOCAL = HERE / "cache.local.json"\n'
+                'print("program output ' + em + ' shown")\n'),
+            "shared/x/beside.json": json.dumps({"note": "beside " + em + " data"}),
+            "shared/x/cache.local.json": json.dumps({"note": "local " + em + " ignored"}),
+            "settings.json": json.dumps({"msg": "settings " + em + " value", "ok": "fine"}),
+            "tools/cmd.py": 'print("command output ' + em + ' shown")\n',
+            "tools/unreached.py": 'print("unreached ' + em + ' not scanned")\n',
+            "fixture.json": json.dumps({"note": "test fixture " + em + " not read"}),
+        }
+        for rel, text in files.items():
+            (t / rel).write_text(text, encoding="utf-8")
+        scanned, hits = _creator_text_scan(t)
+    got = {(rel, frag.split()[0] if frag else "") for rel, _ln, frag in hits}
+    want_kinds = {"tools/web/page.py": "page", "tools/web/static/app.js": "static",
+                  "tools/server.py": "mcp", "shared/x/prog.py": "program", "tools/cmd.py": "command",
+                  "settings.json": "data", "shared/x/beside.json": "data"}
+    if {k: scanned.get(k) for k in want_kinds} != want_kinds:
+        return f"creator-text: self-proof failed -- the scan set is {scanned}"
+    if {"tools/unreached.py", "shared/x/cache.local.json", "fixture.json"} & set(scanned):
+        return (f"creator-text: self-proof failed -- an unreached file, a .local. file or a path "
+                f"built in test code was scanned: {scanned}")
+    by_file = {}
+    for rel, _ln, frag in hits:
+        by_file.setdefault(rel, []).append(frag)
+    expect = {"tools/web/page.py": 2, "tools/web/static/app.js": 1, "tools/server.py": 2,
+              "shared/x/prog.py": 1, "tools/cmd.py": 1, "settings.json": 1, "shared/x/beside.json": 1}
+    counts = {rel: len(v) for rel, v in by_file.items()}
+    if counts != expect:
+        return (f"creator-text: self-proof failed -- em dashes found {counts}, expected {expect} "
+                f"(page entity forms, static text, a tool description and a helper's reply, program "
+                f"and command output, data; not docstrings, comments, test code or escapes)")
+    return None
+
+
+def check_creator_text_dashes():
+    """Invariant 62: creator-facing text carries no em dash (protocols/formatting-metadata.md).
+    The scan set is derived from the tree (_creator_text_scan): the local web pages (modules with a
+    *RequestHandler class) and their static files, the MCP server's tool descriptions and replies
+    (modules with <server>.tool functions), the programs those modules run and the scripts their
+    text tells the creator to run, and the JSON files they read, with the JSON a program keeps
+    beside itself. Python text is read as written: string literals outside docstrings (a tool
+    function's docstring is its description, so it is read) and outside test code, with an em
+    dash written as the escape \\u2014 read as data. HTML entities for the character count.
+    Docstrings, comments, test code, escapes and .local. files are the cuts, each a case in the
+    self-proof that runs first. Every path in _CREATOR_TEXT_FLOOR must be in the derived set.
+    Limits: a program reached through a path built another way (a variable, os.path.join) and a
+    second hop (a program a program runs) are not followed."""
+    gap = _creator_text_selfproof()
+    if gap:
+        problem(gap)
+        return
+    scanned, hits = _creator_text_scan(ROOT)
+    missing = [rel for rel in _CREATOR_TEXT_FLOOR if rel not in scanned]
+    if missing:
+        problem(f"creator-text: the derived scan set no longer reaches {missing}; the derivation in "
+                f"_creator_text_scan must still find the local pages, the MCP server, setup and "
+                f"update and the two settings files")
+    for rel, line, frag in hits:
+        where = f"{rel}:{line}" if line else rel
+        problem(f"creator-text: {where}: an em dash in creator-facing text ({frag.strip()!r}); use a "
+                f"comma, colon, semicolon, parentheses or a full stop (protocols/formatting-metadata.md), "
+                f"or the escape \\u2014 where the character is data")
+
+
 def check_install_scope():
     """Invariant 59: install-scope policy (P93, widened P93-4). Every machine-wide install
     instruction anywhere in the repo's LIVE guidance -- brew, a sudo package command, MacPorts,
@@ -8019,6 +8383,7 @@ def main():
         problem(f"claim-proof: invariant 60 stopped before it finished ({type(exc).__name__}: "
                 f"{exc}); the claims after that point were not checked")
     check_ci_parity()
+    check_creator_text_dashes()
     check_invariant_catalog()
     if ADVISORIES:
         print(f"DRIFT GUARD: {len(ADVISORIES)} advisory note(s) (non-blocking):")

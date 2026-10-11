@@ -13,6 +13,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (creator-facing text has no em dash): drift invariant 62
+  (`sync_check.check_creator_text_dashes`) fails the build on an em dash, or `&mdash;`, `&#8212;`
+  or `&#x2014;`, in the string literals of the local web pages and their static files, the MCP
+  tools' descriptions and replies, the programs those modules run and the scripts their text names,
+  and the JSON files they read, with the JSON a program keeps beside itself. The scan set is derived
+  from the tree; docstrings, comments, test code, `\u2014` escapes and `.local.` files are its cuts,
+  each a case in the self-proof that runs before the scan, and the build fails when the derived set
+  stops reaching the wizard, the dashboard, the MCP server, `setup.py`, `update.py` or the two
+  settings files (ADR 0081).
 - P102 (the configured hub folder name): the wizard's hub screen asks
   `watcher.detect_mirror_candidates` for the folder named in `drive_hub.folder_name`, and the
   profile mirror's Doc lookup and its move-it messages, `project_docs.py project --api` and the

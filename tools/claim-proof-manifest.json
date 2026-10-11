@@ -21,7 +21,7 @@
       "doc": "CLAUDE.md",
       "claim": "No em dashes in user-facing output",
       "proof": "invariant:4",
-      "why": "invariant 4 (check_formatting) proves the no-em-dash rule over committed examples/ content, which is the scope the same bullet states; the wider instruction to the agent is covered by the formatting protocol it cites."
+      "why": "invariant 4 (check_formatting) proves the no-em-dash rule over committed examples/ content, and invariant 62 extends it to the local tools' creator-facing text, the scopes the same bullet states; the wider instruction to the agent is covered by the formatting protocol it cites."
     },
     {
       "doc": "CLAUDE.md",
@@ -79,9 +79,12 @@
     },
     {
       "doc": "CLAUDE.md",
-      "claim": "The drift guard enforces this for `examples/` only.",
-      "proof": "invariant:4",
-      "why": "this sentence states the enforced scope exactly, and check_formatting is what enforces it."
+      "claim": "The drift guard enforces this for `examples/` (invariant 4) and for the local tools'\n  creator-facing text (invariant 62",
+      "why": "this sentence states the two enforced scopes: check_formatting (invariant 4) over the committed examples/ content, and check_creator_text_dashes (invariant 62) over the scan set it derives from the tree (local pages and their static files, MCP tool descriptions and replies, the programs and scripts those run or name, and the JSON they read), which its self-proof covers branch by branch before each scan.",
+      "proofs": [
+        "invariant:4",
+        "invariant:62"
+      ]
     },
     {
       "doc": "CLAUDE.md",
