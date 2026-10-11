@@ -91,7 +91,7 @@
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "cb99ba8a13c7b4420da2eca1fd97a6b63d9193c24a9ad7fec5111f2ab63a6da5",
     "tools/acquire.py": "3b7684b5cdb7534d909f39dd0f1d69d5365671010341fd3646bccbda1447cfaa",
-    "tools/battery.py": "b251f1de064e049cd9cdf799135023e2e6c5dff0bca67afc6669b57d3e42626a",
+    "tools/battery.py": "1eea7a05a396dbd20ac20590dd11e38e7667afe07bf2796b2055836e4f9bbd94",
     "tools/claim-proof-manifest.json": "4eb185e441311cfad5a61bd78c490e0cfa599499dbc44ddd891c20ddd24f4a19",
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
     "tools/env_paths.py": "473240e843ffd633a0ebdfef5e7892b42db64fee45ca497ee43ead2307ffd642",

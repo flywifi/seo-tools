@@ -399,6 +399,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (launcher check with MinGit): `battery.bash_for_syntax` falls back to `usr\bin\sh.exe` of the
+  Git that `git --exec-path` names when that Git has no `bash.exe` (MinGit ships `sh.exe`, bash in
+  POSIX mode, in its place), so on a Windows computer with MinGit the launcher syntax check runs
+  instead of reporting that it did not run. `install_hooks._shell` takes the hooks' `sh` from it
+  and no longer looks for that file itself.
 - P102 (competitor pages): `tools/parse_competitor_meta.py` reads a YouTube watch page's chapters
   from `multiMarkersPlayerBarRenderer` (the `DESCRIPTION_CHAPTERS` entry of its `markersMap`) before
   the older `chapteredPlayerBarRenderer`; a channel page's space-separated keywords become one tag per
