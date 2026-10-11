@@ -93,8 +93,9 @@ Invariants enforced:
   41. Capability->connector target existence (P47, advisory): every CAPABILITY_TO_CONNECTOR target is
       a connector defined in connectors.json.
   42. Registry writer-count integrity (P47, advisory): exactly the five sanctioned tools reference the
-      registry writer; the one-atomic-writer rule for local-config, credential and register files is
-      blocking (P81).
+      registry writer (four write source-registry.json; competitor_snapshot writes the creator's local
+      competitor list with it); the one-atomic-writer rule for local-config, credential and register
+      files is blocking (P81).
   43. Moving-date calendar (P47, advisory): any moving-dates.json date whose effective/phase_2 has
       passed while verified_after < effective is surfaced.
   44. degraded_behavior/capability parity (P47, advisory): every '<name>_disabled' key maps to a real
@@ -2697,10 +2698,11 @@ def check_capability_connector_exists():
 
 def check_registry_writer_count():
     """Invariant 42 (advisory): registry writer-count integrity (P47, write path). Advisory. Exactly
-    five sanctioned tools may write source-registry.json: four import registry_io directly
-    (source_currency, traversal_engine, dependency_currency, update_check) and competitor_snapshot
-    writes through source_currency's re-exported save_registry. A new tool that references save_registry
-    (a new writer) or a vanished one is surfaced so the writer list in registry_io.py + CLAUDE.md stays
+    five sanctioned tools may reference the registry writer: four import registry_io directly and
+    write source-registry.json (source_currency, traversal_engine, dependency_currency, update_check),
+    and competitor_snapshot calls source_currency's re-exported save_registry with a path, to write
+    the creator's local competitor list (P102). A new tool that references save_registry (a new
+    writer) or a vanished one is surfaced so the writer list in registry_io.py + CLAUDE.md stays
     true."""
     tools_dir = ROOT / "tools"
     if not tools_dir.exists():

@@ -355,7 +355,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
-- P102 (search words): the scoop cache quotes each word of a search as an FTS5 string
+- P102 (competitor list kept local): `competitor_snapshot.py --add-competitor` and the
+  `add_competitor` tool save a page to the creator's own list,
+  `pipeline/competitor-snapshots/competitors.local.json` (gitignored), instead of the tracked
+  `canonical-sources/source-registry.json`, and a fetch stamps its check date there; `--report`,
+  `--fetch` and `--parse` read that list beside the registry's competitor-page entries, and
+  `source_staleness` reports the `competitor-page` category through `competitor_snapshot --report`.
+  Before, one added competitor left the tracked registry modified, so the drift guard failed until
+  it was reverted and an update could conflict. A local list that does not parse is refused by
+  name and not written over (`competitor_snapshot._load_local`).
+- P102 (search words): the scoop cache quotes the words of a search as FTS5 strings
   (`cache._match_query`), so a search with AND, OR, NOT or NEAR, or one ending in OR, answers
   instead of returning an `fts5: syntax error` traceback through `cache_query`,
   `construction_lookup` and `code_lookup`; a word with a letter beyond ASCII stays whole, and a

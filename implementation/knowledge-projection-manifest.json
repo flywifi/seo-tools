@@ -83,7 +83,7 @@
     },
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "1b578bf8e80f396102ef5852c2c5c067be19ba94d06dd3b17971bf073622277c",
+        "docs/DEPLOYMENT.md": "4eb078984695b6f4c19cce747781e31a7cbcda2bb5f55592d2dd76d6fd4bfbae",
         "docs/WIZARD.md": "598e0152b7b75d2978030d28e85bb3bee1483f129829f37aa0be4a5f77dd10cc",
         "docs/SETUP_MAC.md": "7ad10e0aed36723c4b189ac5bb0420ba47d60c37997bba19af76408c6774e9e4",
         "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
@@ -130,9 +130,9 @@
     },
     "AGENTS.md": {
       "sources": {
-        "CLAUDE.md": "b3ec9edec9b53b25d01a6298685acddbb30b7eddca02d7ad439d9db3d31ae1b1"
+        "CLAUDE.md": "ceaf5020f65456b7a5597e4830e3ccce8fd65fc4195a72c74da6348ee3c7407e"
       },
-      "projection": "f61efc3319cf753dd7b9a460a3e5db88d352cc760f109b9d8c6a321f93bf14b2"
+      "projection": "96291138f4cd87b61fa9f93c1d34c972e225cfdae6fc94a288e866772134736f"
     },
     "implementation/gemini/system-instruction.md": {
       "sources": {
@@ -146,7 +146,7 @@
     },
     "implementation/claude/project/creator-os-combined.md": {
       "sources": {
-        "docs/DEPLOYMENT.md": "1b578bf8e80f396102ef5852c2c5c067be19ba94d06dd3b17971bf073622277c",
+        "docs/DEPLOYMENT.md": "4eb078984695b6f4c19cce747781e31a7cbcda2bb5f55592d2dd76d6fd4bfbae",
         "docs/SETUP_MAC.md": "7ad10e0aed36723c4b189ac5bb0420ba47d60c37997bba19af76408c6774e9e4",
         "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
         "docs/WIZARD.md": "598e0152b7b75d2978030d28e85bb3bee1483f129829f37aa0be4a5f77dd10cc",

@@ -7,7 +7,7 @@ Tools (the docstrings below and tools/list are authoritative; the set has grown 
   source_staleness     Report which canonical sources are stale or never checked.
   drift_check          Run sync_check.py and return the result.
   quality_score        Score an artifact against the 9-dimension quality gates.
-  add_competitor       Add a competitor URL to the tracking registry.
+  add_competitor       Add a competitor URL to your local competitor list.
   get_capabilities     Return which Creator OS capabilities are enabled.
   get_connectors       Return the full connector evidence plan for this deployment.
   get_stats_tools      Return which statistical MCP servers are currently enabled.
@@ -281,6 +281,16 @@ def _video_query_argv(fts_query, limit) -> list:
     "-" is the query, not an option (P102)."""
     return [sys.executable, str(ROOT / "tools" / "video_library.py"), "query", "--limit", str(limit),
             "--", fts_query]
+
+
+def _staleness_argv(category="") -> list:
+    """The command source_staleness runs: source_currency's report, or for the competitor-page
+    category competitor_snapshot's report, which reads the creator's local competitor list beside the
+    registry's entries (P102: add_competitor saves pages to that list, not the registry)."""
+    if category == "competitor-page":
+        return [sys.executable, str(ROOT / "tools" / "competitor_snapshot.py"), "--report"]
+    return [sys.executable, str(ROOT / "tools" / "source_currency.py"), "report"] + (
+        [f"--category={category}"] if category else [])
 
 
 def _unknown_capability(capability, config_path=None):
@@ -1152,6 +1162,16 @@ def _selftest_static() -> tuple:
        len(_ct_body) > 2 and _ast_p102.unparse(_ct_body[0]) == "refusal = _unknown_capability(capability)"
        and _ast_p102.unparse(_ct_body[1]).startswith("if refusal:\n    return json.dumps(refusal)")
        and isinstance(_ct_body[2], _ast_p102.With))
+    # P102: the competitor-page staleness report reads the local competitor list through
+    # competitor_snapshot; other categories, and none, stay with source_currency.
+    _st_comp, _st_seo, _st_all = (_staleness_argv("competitor-page"), _staleness_argv("seo-authority"),
+                                  _staleness_argv(""))
+    ok("source_staleness sends competitor-page to competitor_snapshot's report and the rest to "
+       "source_currency's",
+       pathlib_Path(_st_comp[1]).name == "competitor_snapshot.py" and _st_comp[2:] == ["--report"]
+       and pathlib_Path(_st_seo[1]).name == "source_currency.py"
+       and _st_seo[2:] == ["report", "--category=seo-authority"] and _st_all[2:] == ["report"]
+       and src.count("_run(_staleness" + "_argv(category))") == 1)
 
     failed = [n for n, c in checks if not c]
     return (1 if failed else 0), static_count
@@ -1363,13 +1383,10 @@ def source_staleness(category: str = "") -> str:
     Args:
         category: Optional filter — one of: seo-authority, platform-spec,
                   api-changelog, rate-benchmark, tool-mcp, partner-site,
-                  niche-authority, competitor-page. Leave empty for all.
+                  niche-authority, competitor-page. Leave empty for all. competitor-page
+                  also lists the pages add_competitor saved to your local competitor list.
     """
-    currency_script = ROOT / "tools" / "source_currency.py"
-    cmd = [sys.executable, str(currency_script), "report"]
-    if category:
-        cmd += [f"--category={category}"]
-    rc, out, err = _run(cmd)
+    rc, out, err = _run(_staleness_argv(category))
     if rc != 0:
         return json.dumps({"error": err.strip() or "staleness report failed"})
     return out.strip()
@@ -1694,10 +1711,12 @@ def quality_score(scores: dict) -> str:
 
 @mcp.tool()
 def add_competitor(url: str, platform: str) -> str:
-    """Add a competitor URL to the source registry for snapshot tracking.
+    """Add a competitor URL to your competitor list for snapshot tracking.
 
-    Upserts the URL into canonical-sources/source-registry.json under the
-    competitor-page category. After adding, run the fetch externally:
+    Saves the URL under the competitor-page category in
+    pipeline/competitor-snapshots/competitors.local.json, your own list, kept
+    out of git; canonical-sources/source-registry.json is not changed. After
+    adding, run the fetch externally:
       python3 tools/competitor_snapshot.py --fetch
     Then use competitor_scan to query the results.
 
@@ -1708,7 +1727,7 @@ def add_competitor(url: str, platform: str) -> str:
         platform: One of: youtube, pinterest, tiktok, instagram.
     """
     snapshot_script = ROOT / "tools" / "competitor_snapshot.py"
-    with _WRITE_LOCK:   # the subprocess read-modify-writes the registry; serialise concurrent calls
+    with _WRITE_LOCK:   # the subprocess read-modify-writes the local competitor list; serialise concurrent calls
         rc, out, err = _run([
             sys.executable, str(snapshot_script),
             "--add-competitor", url,

@@ -391,6 +391,7 @@ python3 shared/cache/cache.py --build   # only if canonical-sources/ changed
 | Your channel stats | `pipeline/user-context/channel-context.local.json` | gitignored — never conflicts |
 | API credentials | `pipeline/user-context/api-credentials.local.json` | gitignored — never conflicts |
 | Competitor snapshots | `pipeline/competitor-snapshots/` | gitignored — never conflicts |
+| Your competitor list | `pipeline/competitor-snapshots/competitors.local.json` | gitignored (git does not track it) |
 | Keyword cache | `shared/cache/index.local.db` | gitignored — rebuilt by update.py |
 
 The committed versions of these files are null-filled schemas. They define the shape of the data;
