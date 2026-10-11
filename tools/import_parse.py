@@ -98,16 +98,19 @@ BOUNDED_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
 _METHOD_NAMES = {zipfile.ZIP_BZIP2: "bzip2", zipfile.ZIP_LZMA: "LZMA", 9: "Deflate64"}
 # What reading a member that does not decompress raises: a CRC mismatch or a bad header
 # (BadZipFile), a corrupt deflate stream (zlib.error), a failed read of the zip file (OSError), a
-# stream that ends early (EOFError), an encrypted member (RuntimeError); NotImplementedError is
-# kept for a method zipfile adds that this Python cannot read.
-MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, NotImplementedError,
-                      RuntimeError)
+# stream that ends early (EOFError), and RuntimeError, which covers its subclass NotImplementedError
+# (a directory entry flagged for strong encryption or patched data).
+MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, RuntimeError)
+# General purpose flag bit 0 in a member's directory entry: the member is encrypted, and zipfile
+# reads it only with its password.
+_FLAG_ENCRYPTED = 0x1
 
 
 def _read_member(z, name):
     """The bytes of one member of an open zip, or None with one note on stderr (P102): a member
     whose directory entry says it is over MAX_MEMBER_BYTES is not read; one compressed with a method
-    outside BOUNDED_METHODS is not read; the rest is read MEMBER_CHUNK_BYTES at a time, so a read
+    outside BOUNDED_METHODS, or flagged as encrypted, is not read; the rest is read
+    MEMBER_CHUNK_BYTES at a time, so a read
     decompresses no more than that whatever the entry says; and one that does not decompress
     (MEMBER_READ_ERRORS, an interrupted download) is skipped instead of stopping the import."""
     shown = " ".join(str(name).split())[:200]  # one line, so a member name cannot add a note line
@@ -120,6 +123,10 @@ def _read_member(z, name):
         method = _METHOD_NAMES.get(info.compress_type, f"compression method {info.compress_type}")
         _note(f"{shown} inside this zip is compressed with {method}, which the importer does not "
               f"read, so it was skipped; unzip the export and import the folder")
+        return None
+    if info.flag_bits & _FLAG_ENCRYPTED:
+        _note(f"{shown} inside this zip is password-protected, which the importer does not read, so "
+              f"it was skipped; unzip the export and import the folder")
         return None
     try:
         parts = []
@@ -272,9 +279,10 @@ def _probe_exists(p):
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError so the
     CLI envelope fires -- CPython 3.14 changed Path.exists()/is_file()/is_dir() to swallow
     those errors, which made an unreadable path parse to an empty [] instead."""
-    if any(len(part) > 255 for part in Path(p).parts):
-        # A name part over 255 characters cannot exist; Windows with long paths off reports it as
-        # missing, so refuse it here as unprobeable, as ENAMETOOLONG does elsewhere (P102).
+    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):
+        # A name part over 255 UTF-16 code units (Windows' measure; an emoji counts two) cannot
+        # exist; Windows with long paths off reports it as missing, so refuse it here as
+        # unprobeable, as ENAMETOOLONG does elsewhere (P102).
         raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
@@ -790,10 +798,13 @@ def selftest():
     # P102 push 4c: a member that does not decompress, or whose directory entry is over
     # MAX_MEMBER_BYTES, is skipped with one note naming it on one line; the zip's other members are
     # read, and nothing raises.
-    def _zip_with(path, members, damaged=None, method=zipfile.ZIP_DEFLATED, block=False, methods=None):
+    def _zip_with(path, members, damaged=None, method=zipfile.ZIP_DEFLATED, block=False, methods=None,
+                  flags=None):
         """Write a zip of members (name -> bytes), each compressed with method unless methods names
         another for it, and damage `damaged`'s data: flip one byte in its middle (a CRC mismatch),
-        or with block, start its deflate stream with the reserved block type, which zlib refuses."""
+        or with block, start its deflate stream with the reserved block type, which zlib refuses.
+        flags maps a member to (local, directory): bits ORed into the general purpose flag of its
+        local header and of its central directory entry."""
         buf = _io_n.BytesIO()
         try:  # invariant 35: each ZipFile call sits inside a try
             with zipfile.ZipFile(buf, "w", method) as _zw:
@@ -810,6 +821,15 @@ def selftest():
                     raw[_start] = 0x07  # BFINAL 1, BTYPE 11: a reserved deflate block type
                 else:
                     raw[_start + _info.compress_size // 2] ^= 0xFF
+            for _fname, (_local_bits, _dir_bits) in (flags or {}).items():
+                with zipfile.ZipFile(_io_n.BytesIO(bytes(raw))) as _zr:
+                    _off = _zr.getinfo(_fname).header_offset
+                raw[_off + 6] |= _local_bits
+                _cd = raw.find(b"PK\x01\x02")
+                while _cd != -1:  # the directory entry whose local header offset is this member's
+                    if int.from_bytes(raw[_cd + 42:_cd + 46], "little") == _off:
+                        raw[_cd + 8] |= _dir_bits
+                    _cd = raw.find(b"PK\x01\x02", _cd + 4)
             path.write_bytes(bytes(raw))
         except (OSError, zipfile.BadZipFile):
             pass  # the checks below then fail
@@ -848,6 +868,13 @@ def selftest():
                        "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
                       methods={"Takeout/YouTube/video metadata/videos.csv": _method})
             _other_methods[_name] = _notes_of(parse_youtube_takeout, str(_dm / f"takeout-{_mod}.zip"))
+        _flagged = {}
+        for _kind, _bits in (("encrypted", (0x1, 0x1)), ("strong", (0x0, 0x40))):
+            _zip_with(_dm / f"takeout-{_kind}.zip",
+                      {"Takeout/YouTube/video metadata/videos.csv": _rows_csv,
+                       "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
+                      flags={"Takeout/YouTube/video metadata/videos.csv": _bits})
+            _flagged[_kind] = _notes_of(parse_youtube_takeout, str(_dm / f"takeout-{_kind}.zip"))
         _cap_saved = globals()["MAX_MEMBER_BYTES"]
         globals()["MAX_MEMBER_BYTES"] = 1000  # under posts_1.json's size, over its compressed size
         try:
@@ -870,6 +897,14 @@ def selftest():
            and f"videos.csv inside this zip is compressed with {_name}, which the importer does not "
                "read" in _got[1][0]
            for _name, _got in _other_methods.items()))  # a skipped case drops out
+    ok("an encrypted member (flag bit 0 in both headers) is skipped with a note that it is "
+       "password-protected, and the zip's other member is read",
+       len(_flagged["encrypted"][0]) == 400 and len(_flagged["encrypted"][1]) == 1
+       and "videos.csv inside this zip is password-protected" in _flagged["encrypted"][1][0])
+    ok("a member whose directory entry is flagged for strong encryption (NotImplementedError) is "
+       "skipped with a note naming the error, and the zip's other member is read",
+       len(_flagged["strong"][0]) == 400 and len(_flagged["strong"][1]) == 1
+       and "videos.csv inside this zip could not be read (NotImplementedError" in _flagged["strong"][1][0])
     ok("a damaged CSV is passed over when the Studio parser looks for one with a Content column",
        _fallback_got[0] == yt and len(_fallback_got[1]) == 1 and "Chart.csv" in _fallback_got[1][0])
     ok("a member name with a line break stays on the one note line",
@@ -968,11 +1003,13 @@ def selftest():
     ok(">255-byte path arg -> clean envelope, no traceback (P66 boundary)",
        rc == 1 and "next_step" in buf.getvalue())
     import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
-    buf = io.StringIO()
-    with _fh_lp.long_paths_off(), contextlib.redirect_stdout(buf):
-        rc_lp = main(["youtube-takeout", "x" * 300])
-    ok(">255-character path arg -> clean envelope where the system reports it missing (P102)",
-       rc_lp == 1 and "next_step" in buf.getvalue())
+    _lp_got = []
+    for _lp_name in ("x" * 300, "x" * 300 + "/inner.json", "\U0001F600" * 200):
+        buf = io.StringIO()
+        with _fh_lp.long_paths_off(), contextlib.redirect_stdout(buf):
+            _lp_got.append(main(["youtube-takeout", _lp_name]) == 1 and "next_step" in buf.getvalue())
+    ok(">255-unit path arg (a long name, as a parent folder, or 200 emoji) -> clean envelope where the "
+       "system reports it missing (P102)", _lp_got == [True, True, True])
 
     # P102: a Studio export with an emoji title, piped under a cp1252 codec (what a Windows pipe
     # uses), is parsed with the title intact; main switches the redirected stdout to UTF-8.

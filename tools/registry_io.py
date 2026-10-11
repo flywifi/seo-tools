@@ -40,10 +40,11 @@ def content_digest(data: dict) -> str:
 
 def load_registry(path: Path = REGISTRY_PATH) -> dict:
     """Return the registry dict ({_comment, version, last_registry_update, sources[]}), or a
-    minimal empty shell when the file is absent."""
+    minimal empty shell when the file is absent. A UTF-8 byte-order mark at the start, which some
+    Windows editors write, is skipped (P102); save_registry writes none."""
     if not path.exists():
         return {"sources": []}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def save_registry(data: dict, path: Path = REGISTRY_PATH) -> None:

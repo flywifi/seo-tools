@@ -278,8 +278,9 @@ def _cache_query_argv(query, limit) -> list:
 
 def _video_query_argv(fts_query, limit) -> list:
     """The video_library.py query command: the FTS query after "--", so a query that starts with
-    "-" is the query, not an option (P102)."""
-    return [sys.executable, str(ROOT / "tools" / "video_library.py"), "query", "--limit", str(limit),
+    "-" is the query, not an option, and the options before the command, since argparse before
+    Python 3.12.7 cannot match the query positional after an option (gh-59317) (P102)."""
+    return [sys.executable, str(ROOT / "tools" / "video_library.py"), "--limit", str(limit), "query",
             "--", fts_query]
 
 
@@ -1144,8 +1145,29 @@ def _selftest_static() -> tuple:
     import ast as _ast_p102
     import tempfile as _tf_p102
     _q_argv, _v_argv = _cache_query_argv("-stairs", 5), _video_query_argv("-armoire", 5)
-    ok("a search that starts with - is passed as one --query=<text> token, and a video query after --",
-       "--query=-stairs" in _q_argv and "-stairs" not in _q_argv and _v_argv[-2:] == ["--", "-armoire"]
+    # The video argv goes through video_library's own parser on this interpreter, with the library
+    # stood in for, so an order argparse cannot parse here fails the check.
+    import contextlib as _cl_vq
+    import io as _io_vq
+    import video_library as _vl_vq
+    _vq_seen, _vq_saved = [], (_vl_vq._open_db, _vl_vq.query_fts)
+
+    class _VqCon:
+        def close(self):
+            pass
+    _vl_vq._open_db = lambda *a, **k: _VqCon()
+    _vl_vq.query_fts = lambda con, q, limit=20: _vq_seen.append((q, limit)) or []
+    try:
+        with _cl_vq.redirect_stdout(_io_vq.StringIO()), _cl_vq.redirect_stderr(_io_vq.StringIO()):
+            _vq_rc = _vl_vq.main(_v_argv[2:])
+    except SystemExit as _vq_exit:
+        _vq_rc = f"exit {_vq_exit.code}"
+    finally:
+        _vl_vq._open_db, _vl_vq.query_fts = _vq_saved
+    ok("a search that starts with - is passed as one --query=<text> token, and a video query that "
+       f"video_library's parser reads as the query on this Python ({_vq_rc}, {_vq_seen})",
+       "--query=-stairs" in _q_argv and "-stairs" not in _q_argv and _vq_rc == 0
+       and _vq_seen == [("-armoire", 5)]
        and src.count("_run(_cache_query" + "_argv(") == 2 and src.count("_run(_video_query" + "_argv(") == 1)
     _unk_cap, _known_cap = _unknown_capability("wolfram_alpah"), _unknown_capability("wolfram_alpha")
     with _tf_p102.TemporaryDirectory() as _td_p102:

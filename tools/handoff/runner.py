@@ -353,6 +353,26 @@ def run_pass(hub_root, *, spawn=subprocess.run, allow=None) -> list:
 
 
 def selftest() -> int:
+    """The runner's checks, with CREATOR_OS_ROOT set to a temporary folder for the whole run: a job
+    that a check, or a broken runner under file_hash's mutation run, starts for real opens its stores
+    there and not in this checkout (P102: a fresh clone gained pipeline/video-library/index.local.db
+    when a mutant ran a job the unmutated runner archives). The old value is put back."""
+    import shutil
+    import tempfile
+    saved = os.environ.get("CREATOR_OS_ROOT")
+    root = tempfile.mkdtemp(prefix="runner-selftest-root-")
+    os.environ["CREATOR_OS_ROOT"] = root
+    try:
+        return _selftest_body()
+    finally:
+        if saved is None:
+            os.environ.pop("CREATOR_OS_ROOT", None)
+        else:
+            os.environ["CREATOR_OS_ROOT"] = saved
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _selftest_body() -> int:
     import shutil
     import tempfile
     import types
@@ -360,6 +380,11 @@ def selftest() -> int:
 
     def ok(name, cond):
         checks.append((name, bool(cond)))
+
+    _root_env = os.environ.get("CREATOR_OS_ROOT", "")
+    ok("a job started for real gets a temporary CREATOR_OS_ROOT outside this checkout",
+       bool(_root_env) and Path(_root_env).is_dir()
+       and not Path(_root_env).resolve().is_relative_to(ROOT.resolve()))
 
     calls = []
 

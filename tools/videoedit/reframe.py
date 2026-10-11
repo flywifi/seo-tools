@@ -170,7 +170,8 @@ def selftest():
     # with a message that names the field, before any arithmetic.
     for args, needle in (((0, 0), "positive pixel counts"), ((1920, -1080), "positive pixel counts"),
                          ((1920, 1080, "tall"), "look like 9:16"), ((1920, 1080, "0:16"), "look like 9:16"),
-                         ((1920, 1080, "16:9:1"), "look like 9:16")):
+                         ((1920, 1080, "16:9:1"), "look like 9:16"), ((1920, 1080, "16:0"), "look like 9:16"),
+                         ((1920, 1080, "16:-9"), "look like 9:16"), ((1920, 1080, "-16:-9"), "look like 9:16")):
         try:
             crop_geometry(*args)
             said = None

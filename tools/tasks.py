@@ -319,9 +319,10 @@ def _probe_exists(p: Path) -> bool:
     UNPROBEABLE path (e.g. a >NAME_MAX component raising ENAMETOOLONG) raises OSError instead
     of reading absent -- CPython 3.14 changed Path.exists() to swallow those errors, which
     silently turned this boundary's documented refusal into an empty register."""
-    if any(len(part) > 255 for part in Path(p).parts):
-        # A name part over 255 characters cannot exist; Windows with long paths off reports it as
-        # missing, so refuse it here as unprobeable, as ENAMETOOLONG does elsewhere (P102).
+    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):
+        # A name part over 255 UTF-16 code units (Windows' measure; an emoji counts two) cannot
+        # exist; Windows with long paths off reports it as missing, so refuse it here as
+        # unprobeable, as ENAMETOOLONG does elsewhere (P102).
         raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))
     try:
         p.stat()
@@ -1297,16 +1298,19 @@ def selftest() -> int:
         check("oversize-register-path-ValueError", False)
     # P102: the same refusal where the system reports the long name as missing, as Windows does
     # with long paths off (file_hash.long_paths_off stands that in on any system).
+    # A long name, the same name as a parent folder, and a name of 200 emoji (400 UTF-16 units).
     import file_hash as _fh_lp
+    _lp_refused = []
     with _fh_lp.long_paths_off():
-        try:
-            load_register("local_fs", "x" * 300)
-            _lp_refused = False
-        except ValueError:
-            _lp_refused = True
-        except OSError:
-            _lp_refused = False
-    check("oversize-register-path-ValueError-long-paths-off", _lp_refused)
+        for _lp_name in ("x" * 300, "x" * 300 + "/inner.json", "\U0001F600" * 200):
+            try:
+                load_register("local_fs", _lp_name)
+                _lp_refused.append(False)
+            except ValueError:
+                _lp_refused.append(True)
+            except OSError:
+                _lp_refused.append(False)
+    check("oversize-register-path-ValueError-long-paths-off", _lp_refused == [True, True, True])
 
     if not _IN_MUTANT and _MERGE_MUTANTS:
         survivors = _run_merge_mutants()

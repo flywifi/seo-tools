@@ -97,23 +97,28 @@ def windows_paths():
 
 
 @contextlib.contextmanager
-def long_paths_off():
+def long_paths_off(real=None):
     """Test helper: while the block runs, os.stat (which Path.stat calls) raises FileNotFoundError
-    for a path with a part over 255 characters, as Windows does with long paths off (its default),
-    where POSIX systems raise ENAMETOOLONG (P102)."""
-    real = os.stat
+    for a path whose absolute form is over 259 UTF-16 code units (MAX_PATH, 260, less its ending
+    NUL), as Windows does with long paths off (its default), where POSIX systems raise ENAMETOOLONG
+    for a name part over 255 bytes (P102). A name of 200 emoji is 400 units. Other paths go to real,
+    the system's os.stat unless given (file_hash's own check gives a stand-in, so the check reads
+    the same where the system already refuses long paths)."""
+    saved = os.stat
+    under = saved if real is None else real
 
     def stat(path, *args, **kwargs):
-        if not isinstance(path, int) and any(len(part) > 255 for part in
-                                             pathlib.PurePath(os.fspath(path)).parts):
-            raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))
-        return real(path, *args, **kwargs)
+        if not isinstance(path, int):
+            full = os.path.abspath(os.fsdecode(os.fspath(path)))
+            if len(full.encode("utf-16-le", "surrogatepass")) // 2 > 259:
+                raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))
+        return under(path, *args, **kwargs)
 
     os.stat = stat
     try:
         yield
     finally:
-        os.stat = real
+        os.stat = saved
 
 
 def mutant_jobs(env=None, cpu_count=None) -> int:
@@ -3290,6 +3295,12 @@ _MUTANTS = (
     ('C4-G3 a zero aspect part passes', 'videoedit/reframe.py',
      '    if num <= 0 or den <= 0:\n',
      '    if False:\n'),
+    ('C4-G4 an aspect is refused only when both numbers are not positive', 'videoedit/reframe.py',
+     '    if num <= 0 or den <= 0:\n',
+     '    if num <= 0 and den <= 0:\n'),
+    ('C4-G5 a zero denominator passes the check', 'videoedit/reframe.py',
+     '    if num <= 0 or den <= 0:\n',
+     '    if num <= 0 or den < 0:\n'),
     ('C4-ICS1 the calendar file is written in text mode', 'tasks.py',
      '                Path(args.out).write_text(ics, encoding="utf-8", newline="")\n',
      '                Path(args.out).write_text(ics, encoding="utf-8")\n'),
@@ -3300,44 +3311,80 @@ _MUTANTS = (
      '                out.write(ics.encode("utf-8"))\n',
      '                out.write(ics.encode("utf-16"))\n'),
     ('C4-I1 tasks reads a long name as absent', 'tasks.py',
-     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
      '    if False:\n'),
     ('C4-I2 tasks takes 300 characters as the limit', 'tasks.py',
-     '    if any(len(part) > 255 for part in Path(p).parts):\n',
-     '    if any(len(part) > 300 for part in Path(p).parts):\n'),
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 300 for part in Path(p).parts):\n'),
     ('C4-I3 import_parse reads a long name as absent', 'import_parse.py',
-     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
      '    if False:\n'),
     ('C4-I4 import_parse calls a long name absent', 'import_parse.py',
      '        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))\n',
      '        return False\n'),
     ('C4-I5 obligations reads a long name as absent', 'obligations.py',
-     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
      '    if False:\n'),
     ('C4-I6 obligations takes 300 characters as the limit', 'obligations.py',
-     '    if any(len(part) > 255 for part in Path(p).parts):\n',
-     '    if any(len(part) > 300 for part in Path(p).parts):\n'),
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 300 for part in Path(p).parts):\n'),
     ('C4-I7 source_currency reads a long name as absent', 'source_currency.py',
-     '    if any(len(part) > 255 for part in Path(p).parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
      '    if False:\n'),
     ('C4-I8 source_currency calls a long name absent', 'source_currency.py',
      '        raise OSError(errno.ENAMETOOLONG, "file name too long", str(p))\n',
      '        return False\n'),
     ('C4-I9 library_complete reads a long folder as missing', 'library_complete.py',
-     '    if any(len(part) > 255 for part in export.parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
      '    if False:\n'),
     ('C4-I10 library_complete takes 300 characters as the limit', 'library_complete.py',
-     '    if any(len(part) > 255 for part in export.parts):\n',
-     '    if any(len(part) > 300 for part in export.parts):\n'),
-    ('C4-LP1 the stand-in takes 300 characters as the limit', 'file_hash.py',
-     '        if not isinstance(path, int) and any(len(part) > 255 for part in\n',
-     '        if not isinstance(path, int) and any(len(part) > 300 for part in\n'),
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 300 for part in export.parts):\n'),
+    ('C4-I11 tasks counts code points', 'tasks.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I12 tasks measures the last part only', 'tasks.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I13 import_parse counts code points', 'import_parse.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I14 import_parse measures the last part only', 'import_parse.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I15 obligations counts code points', 'obligations.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I16 obligations measures the last part only', 'obligations.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I17 source_currency counts code points', 'source_currency.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if any(len(part) > 255 for part in Path(p).parts):\n'),
+    ('C4-I18 source_currency measures the last part only', 'source_currency.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in Path(p).parts):\n',
+     '    if len(Path(p).name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-I19 library_complete counts code points', 'library_complete.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
+     '    if any(len(part) > 255 for part in export.parts):\n'),
+    ('C4-I20 library_complete measures the last part only', 'library_complete.py',
+     '    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):\n',
+     '    if len(export.name.encode("utf-16-le", "surrogatepass")) // 2 > 255:\n'),
+    ('C4-LP1 the stand-in counts code points', 'file_hash.py',
+     '            if len(full.encode("utf-16-le", "surrogatepass")) // 2 > 259:\n',
+     '            if len(full) > 259:\n'),
     ('C4-LP2 the stand-in raises ENAMETOOLONG', 'file_hash.py',
-     '            raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))\n',
-     '            raise OSError(36, "File name too long", os.fspath(path))\n'),
+     '                raise FileNotFoundError(2, "The system cannot find the path specified", os.fspath(path))\n',
+     '                raise OSError(36, "File name too long", os.fspath(path))\n'),
+    ('C4-LP4 the stand-in measures a part, not the whole path', 'file_hash.py',
+     '            if len(full.encode("utf-16-le", "surrogatepass")) // 2 > 259:\n',
+     '            if any(len(part) > 255 for part in pathlib.PurePath(full).parts):\n'),
     ('C4-LP3 the stand-in is not installed', 'file_hash.py',
-     '    os.stat = stat\n    try:\n        yield\n    finally:\n        os.stat = real\n',
-     '    try:\n        yield\n    finally:\n        os.stat = real\n'),
+     '    os.stat = stat\n    try:\n        yield\n    finally:\n        os.stat = saved\n',
+     '    try:\n        yield\n    finally:\n        os.stat = saved\n'),
+    ('C4-LP5 the stand-in ignores the stat it wraps', 'file_hash.py',
+     '        return under(path, *args, **kwargs)\n',
+     '        return saved(path, *args, **kwargs)\n'),
     # P102 push 4c: the competitor list kept local (competitor_snapshot).
     ('C4-CS1 add_competitor saves the local list to the registry path', 'competitor_snapshot.py',
      '    local["sources"].append(entry)\n    _save_local(local)\n',
@@ -3346,8 +3393,8 @@ _MUTANTS = (
      '    SC.save_registry(data, LOCAL_COMPETITORS)\n',
      '    SC.save_registry(data)\n'),
     ('C4-CS3 a fetch stamp is saved to the registry path', 'competitor_snapshot.py',
-     '        entry["last_changed_detected"] = SC.today_str()\n    _save_local(local)\n',
-     '        entry["last_changed_detected"] = SC.today_str()\n    SC.save_registry(local)\n'),
+     '            entry["last_changed_detected"] = SC.today_str()\n        _save_local(local)\n',
+     '            entry["last_changed_detected"] = SC.today_str()\n        SC.save_registry(local)\n'),
     ('C4-CS4 report reads the registry alone', 'competitor_snapshot.py',
      'def cmd_report(args) -> int:\n    registry = _merged_registry()\n',
      'def cmd_report(args) -> int:\n    registry = SC.load_registry()\n'),
@@ -3370,8 +3417,8 @@ _MUTANTS = (
      '            if s.get("url"):\n                extra.append(s)\n',
      '            if True:\n                extra.append(s)\n'),
     ("C4-CS11 a fetch stamps the canonical page's own record only when present", 'competitor_snapshot.py',
-     '    if entry is None:\n        entry = {"id": src_id}\n        local["sources"].append(entry)\n',
-     '    if entry is None:\n        return\n'),
+     '        if entry is None:\n            entry = {"id": src_id}\n            local["sources"].append(entry)\n',
+     '        if entry is None:\n            return\n'),
     ('C4-CS12 a list that does not parse escapes as a plain ValueError', 'competitor_snapshot.py',
      '        raise LocalListError(f"{LOCAL_COMPETITORS} is not valid JSON ({exc}); fix or remove it") from None\n',
      '        raise ValueError(f"{LOCAL_COMPETITORS} is not valid JSON ({exc}); fix or remove it") from None\n'),
@@ -3381,6 +3428,15 @@ _MUTANTS = (
     ('C4-CS14 the refusal is not caught', 'competitor_snapshot.py',
      '    except LocalListError as exc:\n        print(f"competitor_snapshot: {exc}", file=sys.stderr)\n',
      '    except KeyError as exc:\n        print(f"competitor_snapshot: {exc}", file=sys.stderr)\n'),
+    ('C4-CS15 add_competitor takes no lock', 'competitor_snapshot.py',
+     '    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)\n',
+     '    if True:\n'),
+    ('C4-CS16 a fetch stamp takes no lock', 'competitor_snapshot.py',
+     '    with _locked(LOCAL_COMPETITORS):\n        local = _load_local()\n',
+     '    if True:\n        local = _load_local()\n'),
+    ('C4-CS17 add_competitor reads the list before it takes the lock', 'competitor_snapshot.py',
+     '    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)\n        return _add_to_local(url, platform, custom_id)\n',
+     '    _load_local()\n    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)\n        return _add_to_local(url, platform, custom_id)\n'),
     # P102 push 4c: wizard refusal sentences, the long-path prefix, the import screen's Drive rule, per-system examples and one screen per page.
     ('C4-W1 the long-path prefix is kept on Windows', 'wizard.py',
      '    if (os.name if osname is None else osname) == "nt":\n        folder = _strip_device_prefix(folder)\n',
@@ -3444,8 +3500,8 @@ _MUTANTS = (
      '    except MEMBER_READ_ERRORS as exc:\n',
      '    except OSError as exc:\n'),
     ('C4-Z4 a corrupt deflate stream raises', 'import_parse.py',
-     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, NotImplementedError,\n',
-     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, OSError, EOFError, NotImplementedError,\n'),
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, RuntimeError)\n',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, OSError, EOFError, RuntimeError)\n'),
     ('C4-Z5 a zlib error is named only error', 'import_parse.py',
      '            kind = "zlib.error"\n',
      '            kind = type(exc).__name__\n'),
@@ -3458,9 +3514,9 @@ _MUTANTS = (
     ('C4-Z8 a damaged TikTok member gets a second note', 'import_parse.py',
      '                    return text, text is None\n',
      '                    return text, False\n'),
-    ('C4-Z11 a corrupt bzip2 member raises', 'import_parse.py',
-     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, NotImplementedError,\n',
-     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, EOFError, NotImplementedError,\n'),
+    ('C4-Z11 a failed read of the zip file raises', 'import_parse.py',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, RuntimeError)\n',
+     'MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, EOFError, RuntimeError)\n'),
     ('C4-Z12 a bzip2 or LZMA member is read', 'import_parse.py',
      '    if info.compress_type not in BOUNDED_METHODS:\n',
      '    if False:\n'),
@@ -3482,6 +3538,15 @@ _MUTANTS = (
     ('C4-Z18 the system\'s words keep their line break', 'import_parse.py',
      "            kind = f\"{type(exc).__name__}: {' '.join(str(exc).split())[:200]}\"\n",
      '            kind = f"{type(exc).__name__}: {str(exc)[:200]}"\n'),
+    ('C4-Z19 an encrypted member is read', 'import_parse.py',
+     '    if info.flag_bits & _FLAG_ENCRYPTED:\n',
+     '    if False:\n'),
+    ('C4-Z20 the encrypted flag is read from another bit', 'import_parse.py',
+     '_FLAG_ENCRYPTED = 0x1\n',
+     '_FLAG_ENCRYPTED = 0x40\n'),
+    ('C4-Z21 an encrypted member gets the damaged-member words', 'import_parse.py',
+     '        _note(f"{shown} inside this zip is password-protected, which the importer does not read, so "\n',
+     '        _note(f"{shown} inside this zip could not be read, which the importer does not read, so "\n'),
     ('C4-LC1 the library is left open', 'library_complete.py',
      '    try:  # the library is closed on every way out, an error included (Windows keeps an open file)\n        return _run_command(args, con)\n    finally:\n        con.close()\n',
      '    return _run_command(args, con)\n'),
@@ -3516,6 +3581,9 @@ _MUTANTS = (
     ('C4-H6 the bash lookup ignores the stand-ins', 'install_hooks.py',
      '        bash = battery.bash_for_syntax(which=which, run=run, os_name=os_name)\n',
      '        bash = battery.bash_for_syntax()\n'),
+    ("C4-H8 the sh on PATH wins over Git's bash on Windows", 'install_hooks.py',
+     '    found = which("sh")\n    if found and os_name != "nt":\n',
+     '    found = which("sh")\n    if found:\n'),
     ('C4-T1 SystemRoot wins over the system call', 'transcribe.py',
      '            if 0 < n < 260 and buf.value:\n                return buf.value\n',
      '            if False:\n                return buf.value\n'),
@@ -4072,20 +4140,30 @@ def selftest() -> int:
            ("relative_to" in vars(pathlib.PosixPath), vars(pathlib.PosixPath).get("relative_to")) == state
            and type(nested.relative_to(root)) is type(native)
            and str(nested.relative_to(root)) == str(native))
-        # P102: long_paths_off() reads a name part over 255 characters as missing (FileNotFoundError),
-        # as Windows does with long paths off, leaves a short path alone, and restores os.stat.
+        # P102: long_paths_off() reads a path whose absolute form is over 259 UTF-16 code units as
+        # missing (FileNotFoundError), as Windows does with long paths off: a 300-character name, a
+        # name of 200 emoji (400 units, 200 code points) and a deep path of 40-character parts, each
+        # under the root folder; it passes a short path to the stat it wraps and restores os.stat.
+        # The wrapped stat is a stand-in that finds every path, so the answers do not depend on
+        # whether this computer itself refuses long paths (Windows with long paths off does).
         real_stat = os.stat
+        top = os.path.abspath(os.sep)
+        said = {}
+        with long_paths_off(real=lambda path, *args, **kwargs: "found"):
+            for label, name in (("long name", "x" * 300), ("emoji name", "\U0001F600" * 200),
+                                ("deep path", "/".join(["d" * 40] * 7)), ("short path", "short-name")):
+                try:
+                    said[label] = pathlib.Path(top, name).stat()
+                except FileNotFoundError:
+                    said[label] = "missing"
+                except OSError as exc:
+                    said[label] = f"errno {exc.errno}"
         with long_paths_off():
-            try:
-                pathlib.Path("x" * 256).stat()
-                long_said = "found"
-            except FileNotFoundError:
-                long_said = "missing"
-            except OSError as exc:
-                long_said = f"errno {exc.errno}"
             short_found = pathlib.Path(__file__).stat().st_size > 0
-        ok("long_paths_off() reads a 256-character name as missing and leaves a short path alone",
-           long_said == "missing" and short_found and os.stat is real_stat)
+        ok(f"long_paths_off() reads a path over 259 UTF-16 units as missing and passes a short path "
+           f"to the stat it wraps ({said})",
+           said == {"long name": "missing", "emoji name": "missing", "deep path": "missing",
+                    "short path": "found"} and short_found and os.stat is real_stat)
     _jobs_cases = {("", 4): 4, ("", 16): 8, ("", 0): 1, ("2", 16): 2, (" 3 ", 4): 3, ("12", 4): 12,
                    ("0", 4): 4, ("-2", 4): 4, ("two", 4): 4, ("1.5", 4): 4, ("\u00b2", 4): 4}
     _jobs_got = {k: mutant_jobs({"CREATOR_OS_FILE_HASH_JOBS": k[0]} if k[0] else {}, cpu_count=k[1])

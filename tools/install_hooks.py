@@ -321,7 +321,9 @@ def selftest() -> int:
                nothing.returncode == 1 and "run tools/install_hooks.py again" in nothing.stderr.lower()
                .replace("run tools/install_hooks.py again with", "run tools/install_hooks.py again"))
     # P102: on Windows with MinGit (no sh or bash on PATH, and no bash in the Git folder) the hooks
-    # run with the sh.exe in Git's usr\bin; elsewhere, and when Git does not answer, as before.
+    # run with the sh.exe in Git's usr\bin; with a full Git for Windows (bash.exe and sh.exe in
+    # usr\bin) with its bash, also when an sh is on PATH; elsewhere, and when Git does not answer,
+    # as before.
     with tempfile.TemporaryDirectory() as td_git:
         git_root = Path(td_git) / "MinGit"
         exec_path = git_root / "mingw64" / "libexec" / "git-core"
@@ -334,6 +336,11 @@ def selftest() -> int:
                 self.stdout, self.stderr, self.returncode = out, "", code
         git_run = lambda argv, **kw: _Done(str(exec_path) + "\n")  # noqa: E731
         no_path = lambda name: None  # noqa: E731
+        (git_root / "usr" / "bin" / "bash.exe").write_bytes(b"MZ")
+        got_full = _shell(which=no_path, run=git_run, os_name="nt")
+        got_full_sh = _shell(which=lambda n: "C:\\x\\sh.exe" if n == "sh" else None, run=git_run,
+                             os_name="nt")
+        (git_root / "usr" / "bin" / "bash.exe").unlink()
         got_min = _shell(which=no_path, run=git_run, os_name="nt")
         (git_root / "usr" / "bin" / "sh.exe").unlink()
         got_none = _shell(which=no_path, run=git_run, os_name="nt")
@@ -344,6 +351,10 @@ def selftest() -> int:
        "PATH, as off Windows",
        got_min == str(git_root / "usr" / "bin" / "sh.exe") and got_none is None
        and got_posix == "/bin/sh" and got_failed == "C:\\x\\sh.exe")
+    ok("on Windows with a full Git for Windows the hooks run with its bash.exe, not its sh.exe, also "
+       "when an sh is on PATH",
+       got_full == str(git_root / "usr" / "bin" / "bash.exe")
+       and got_full_sh == str(git_root / "usr" / "bin" / "bash.exe"))
     failed = [n for n, c in checks if not c]
     for n, c in checks:
         print(("ok   " if c else "FAIL ") + n)

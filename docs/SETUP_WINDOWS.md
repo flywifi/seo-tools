@@ -149,8 +149,10 @@ It binds `8766`, then `8776`, then `8786`. *(tested on Windows)*
   the letter is the one Drive for desktop shows in its Preferences (often `G:`).
 - Make the `Creator OS` folder inside `My Drive`, then open the wizard's **Drive hub** screen
   (`/drive-hub`). It offers that folder when it finds one on a drive; otherwise paste its path
-  (Explorer's "Copy as path" works, quotes included). The wizard accepts a folder inside a Drive
-  `My Drive` or `Shared drives` folder, and refuses `My Drive` itself, a `My Drive` folder on the
+  (Explorer's "Copy as path" works, quotes included). The wizard accepts a folder inside a
+  `My Drive` or `Shared drives` folder at the root of a drive, the layout Drive for desktop mounts
+  (it does not check that Drive for desktop made the drive), and refuses `My Drive` itself, a
+  `My Drive` folder on the
   system drive, and a network share (`\\server\share`), which it refuses without opening
   <!-- verify: tools/wizard.py::on_google_drive -->.
 - The wizard's **Import** screen accepts an unzipped export inside those Drive folders by the same

@@ -174,8 +174,10 @@ per-platform playbook: `docs/PUBLISHING.md`.
 Three screens make the cross-surface hub work without a terminal. **`/drive-hub`** explains the
 shared Drive folder ("Creator OS": Inbox, Store, Jobs, Knowledge, Profile, Outbox), detects the
 Google Drive for desktop synced copy under `~/Library/CloudStorage/GoogleDrive-*`, confines a
-typed path to your home tree (on Windows, also to a folder inside `My Drive` or `Shared drives` on
-the Drive for desktop letter), says in a sentence why it refused a folder, creates the missing
+typed path to your home tree (on Windows, also to a folder inside a `My Drive` or `Shared drives`
+folder at the root of a drive other than the system drive, the layout Drive for desktop mounts; the
+wizard reads that layout and does not check which program made the drive), says in a sentence why
+it refused a folder, creates the missing
 subfolders, and saves the location locally
 (`creator-os-config.local.json`); it also carries a "Refresh the Knowledge folder" button that
 copies the claude.ai knowledge pack into the hub's `Knowledge/` folder
@@ -245,8 +247,9 @@ add its URI in that provider's console. Details in `docs/PUBLISHING.md`.
 **Security guards (P57/P58):** every state-changing POST rejects requests whose `Origin`/`Referer`
 is not the wizard itself, so a website you merely visit cannot drive the wizard; folder paths you
 type (import folder, Creator OS folder) are confined to your home directory after resolving
-symlinks, and on Windows the import folder may also be inside `My Drive` or `Shared drives` on the
-Google Drive for desktop letter, the Drive hub's rule (`wizard._drive_hub_folder`
+symlinks, and on Windows the import folder may also be inside a `My Drive` or `Shared drives`
+folder at the root of a drive other than the system drive (Google Drive for desktop's layout; which
+program made the drive is not checked), the Drive hub's rule (`wizard._drive_hub_folder`
 <!-- verify: tools/wizard.py::_drive_hub_folder -->); a path written with a long-path or device
 prefix (`\\?\G:\...`) is read as the path File Explorer shows; request bodies are size-capped and malformed lengths get a clean error; a corrupt Claude
 Desktop config is backed up to `.corrupt.bak` before the wizard writes a fresh one instead of being

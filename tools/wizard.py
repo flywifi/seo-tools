@@ -3437,9 +3437,10 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
     'network_path', 'unreachable' (each has a sentence in _DRIVE_HUB_WHY).
     Surrounding spaces and double quotes are removed first (Explorer's "Copy as path" adds the
     quotes), and on Windows a long-path or device prefix (_strip_device_prefix). With allow_drive
-    (the Drive hub and import routes, P102), on Windows a folder inside a
-    Google Drive for desktop drive's My Drive or Shared drives folder is accepted too
-    (on_google_drive); that root folder itself is refused as 'drive_root', the way the home
+    (the Drive hub and import routes, P102), on Windows a folder inside a My Drive or Shared
+    drives folder at the root of a drive other than the system drive, the layout Google Drive for
+    desktop mounts, is accepted too (on_google_drive; which program made the drive is not checked);
+    that root folder itself is refused as 'drive_root', the way the home
     folder is. On Windows a network path is refused as 'network_path' from its text, before any
     filesystem call, unless the home folder is itself one (_network_path): resolving a path on a
     slow or offline server blocks, and the wizard answers one request at a time. A drive letter
@@ -5642,13 +5643,17 @@ def _selftest_p101() -> int:
     # (a \\?\G: Drive folder is accepted, \\.\UNC\ is a network share); elsewhere the text is kept.
     _pref_d = {f: _hub_d(f, allow_drive=True) for f in (
         "\\\\?\\G:\\My Drive\\Creator OS", "//?/G:/My Drive/Creator OS", "\\\\.\\G:\\My Drive\\Creator OS",
-        "\\\\?\\UNC\\nas\\share\\hub", "\\\\.\\UNC\\nas\\share\\hub", "\\\\?\\G:\\My Drive")}
+        "\\\\?\\UNC\\nas\\share\\hub", "\\\\.\\UNC\\nas\\share\\hub", "\\\\?\\G:\\My Drive",
+        "\\\\?\\unc\\nas\\share\\hub", "\\\\.\\unc\\nas\\share\\hub", "//./unc/nas/share/hub")}
     _pref_want = {"\\\\?\\G:\\My Drive\\Creator OS": (True, "G:\\My Drive\\Creator OS", ""),
                   "//?/G:/My Drive/Creator OS": (True, "G:\\My Drive\\Creator OS", ""),
                   "\\\\.\\G:\\My Drive\\Creator OS": (True, "G:\\My Drive\\Creator OS", ""),
                   "\\\\?\\UNC\\nas\\share\\hub": (False, "\\\\nas\\share\\hub", "network_path"),
                   "\\\\.\\UNC\\nas\\share\\hub": (False, "\\\\nas\\share\\hub", "network_path"),
-                  "\\\\?\\G:\\My Drive": (False, "G:\\My Drive", "drive_root")}
+                  "\\\\?\\G:\\My Drive": (False, "G:\\My Drive", "drive_root"),
+                  "\\\\?\\unc\\nas\\share\\hub": (False, "\\\\nas\\share\\hub", "network_path"),
+                  "\\\\.\\unc\\nas\\share\\hub": (False, "\\\\nas\\share\\hub", "network_path"),
+                  "//./unc/nas/share/hub": (False, "\\\\nas\\share\\hub", "network_path")}
     _pref_posix = _confined_folder("\\\\?\\G:\\x", allow_drive=True, osname="posix", realpath=lambda q: q,
                                    isdir=lambda q: q == "\\\\?\\G:\\x", home="/home/me")
     check(_pref_d == _pref_want and _pref_posix == (False, "\\\\?\\G:\\x", "outside_home"),

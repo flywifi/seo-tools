@@ -233,7 +233,8 @@ def selftest():
                 [{"id": "st1", "title": "Stair rise", "text": "stair riser height limit"}]),
                 encoding="utf-8")
             (SOURCES / "keywords.json").write_text(json.dumps(
-                [{"id": "kw1", "title": "Fall decor", "text": "fall entryway decor at the caf\u00e9"}]), encoding="utf-8")
+                [{"id": "kw1", "title": "Fall decor", "text": "fall entryway decor at the caf\u00e9"},
+                 {"id": "kw2", "title": "Riser only", "text": "a riser on its own"}]), encoding="utf-8")
             out = io.StringIO()
             with file_hash.windows_paths(), contextlib.redirect_stdout(out):
                 build()
@@ -242,7 +243,8 @@ def selftest():
                 conn.close()
                 keys = sorted(current_state())
                 fresh = verify()
-            ok(f"{mode}: a build with Windows paths stores sources with forward slashes", stored == want)
+            ok(f"{mode}: a build with Windows paths stores sources with forward slashes",
+               stored == sorted(want + [want[1]]))  # keywords.json holds two records
             ok(f"{mode}: the baseline it writes has forward-slash keys",
                keys == want and sorted(json.loads(BASELINE.read_text(encoding="utf-8"))) == want)
             ok(f"{mode}: verify passes on the baseline the build wrote", fresh == 0)
@@ -269,14 +271,21 @@ def selftest():
                     ops = [query(s, 5, True) for s in ("AND OR NOT", "stair OR", "NEAR")]
                     words = query("stair riser", 5, True)
                     accented = query("caf\u00e9", 5, True)
+                    partial = query("entry", 5, True)
                 raised = None
             except sqlite3.Error as exc:
-                ops, words, accented, raised = None, None, None, exc
+                ops, words, accented, partial, raised = None, None, None, None, exc
             ok(f"{mode}: a search made of AND, OR, NOT or NEAR answers without an FTS5 error ({raised})",
                raised is None and all(isinstance(r, list) for r in ops)
                and [r["source"] for r in words] == [want[0]])
             ok(f"{mode}: a word with a letter beyond ASCII is searched whole",
                accented is not None and [r["source"] for r in accented] == [want[1]])
+            # Each word must match (a record with only "riser" is not a hit for "stair riser", checked
+            # above), and in FTS5 a word matches whole words only, so "entry" does not find "entryway"
+            # (LIKE matches any substring).
+            ok(f"{mode}: two search words both have to match; in FTS5 a word is not a prefix",
+               words is not None and len(words) == 1
+               and (not fts or (partial is not None and partial == [])))
             (SOURCES / "keywords.json").write_text(json.dumps(
                 [{"id": "kw1", "title": "Fall decor", "text": "changed"}]), encoding="utf-8")
             out = io.StringIO()

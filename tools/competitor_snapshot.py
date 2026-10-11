@@ -46,6 +46,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 
 import source_currency as SC  # noqa: E402
+from atomic_io import locked as _locked  # noqa: E402
 import parse_competitor_meta as PM  # noqa: E402
 import injection_scan as IS  # noqa: E402
 import secret_scan as SSC  # noqa: E402
@@ -66,7 +67,9 @@ class LocalListError(ValueError):
 
 def _load_local() -> dict:
     """The creator's competitor list, {"sources": [...]}, empty when the file is absent. A file that
-    does not parse as that shape raises LocalListError naming it, so nothing is written over it."""
+    does not parse as that shape raises LocalListError naming it, so nothing is written over it. A
+    caller that saves the list reads it under _locked(LOCAL_COMPETITORS), so an add and a fetch
+    running at the same time do not lose each other's change."""
     try:
         data = SC.load_registry(LOCAL_COMPETITORS)
     except ValueError as exc:
@@ -363,6 +366,11 @@ def cmd_add_competitor(args) -> int:
     platform = getattr(args, "platform", None) or _guess_platform(url)
     custom_id = getattr(args, "id", None) or f"competitor-{_slugify(url)}"
 
+    with _locked(LOCAL_COMPETITORS):  # read, add and save as one step (a fetch stamps this list too)
+        return _add_to_local(url, platform, custom_id)
+
+
+def _add_to_local(url, platform, custom_id) -> int:
     local = _load_local()
     sources = _merged_registry(local)["sources"]
 
@@ -410,16 +418,17 @@ def cmd_add_competitor(args) -> int:
 def _mark_checked(src_id: str, changed: bool = False) -> None:
     """Stamp a fetched page's check date (and change date) in the local competitor list: on the
     creator's entry, or on a record of the id alone for a canonical entry, which _merged_registry
-    reads back. source-registry.json is not written."""
-    local = _load_local()
-    entry = next((s for s in local["sources"] if s.get("id") == src_id), None)
-    if entry is None:
-        entry = {"id": src_id}
-        local["sources"].append(entry)
-    entry["last_checked"] = SC.today_str()
-    if changed:
-        entry["last_changed_detected"] = SC.today_str()
-    _save_local(local)
+    reads back. source-registry.json is not written. The list is read and saved under its lock."""
+    with _locked(LOCAL_COMPETITORS):
+        local = _load_local()
+        entry = next((s for s in local["sources"] if s.get("id") == src_id), None)
+        if entry is None:
+            entry = {"id": src_id}
+            local["sources"].append(entry)
+        entry["last_checked"] = SC.today_str()
+        if changed:
+            entry["last_changed_detected"] = SC.today_str()
+        _save_local(local)
 
 
 def cmd_fetch(args) -> int:
@@ -885,14 +894,47 @@ def selftest() -> int:
          "category": COMPETITOR_CATEGORY, "check_interval_days": 3, "last_checked": "2026-01-01"},
         {"id": "seo-one", "name": "SEO page", "url": "https://example.com/seo", "category": "seo-authority"}]}
     _writes, _real_load, _real_save = [], SC.load_registry, SC.save_registry
+    _held = []  # ("load" or "save", whether the local list's lock was held) per local list access
+
+    def _lock_free(path):
+        """True when no handle holds <path>.lock, the file atomic_io.locked locks (none can before
+        its folder exists)."""
+        import os as _os_l
+        if not Path(path).parent.is_dir():
+            return True
+        with open(str(path) + ".lock", "a+") as fh:
+            try:
+                if _os_l.name == "nt":
+                    import msvcrt
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(fh, fcntl.LOCK_UN)
+                return True
+            except OSError:
+                return False
 
     def _fake_load(path=None):
+        if path is not None and Path(path).name == "competitors.local.json":
+            _held.append(("load", not _lock_free(path)))
         return json.loads(json.dumps(_canon)) if path is None else _real_load(path)
 
     def _fake_save(data, path=None):
         _writes.append(None if path is None else Path(path).name)
+        if path is not None and Path(path).name == "competitors.local.json":
+            _held.append(("save", not _lock_free(path)))
         if path is not None:
             _real_save(data, path)
+
+    def _saved_under_lock(events):
+        """Each save of the local list happened under its lock, right after a load under it."""
+        saves = [i for i, (kind, _) in enumerate(events) if kind == "save"]
+        return bool(saves) and all(events[i][1] and i > 0 and events[i - 1] == ("load", True)
+                                   for i in saves)
 
     def _run(argv):
         out, err = _io.StringIO(), _io.StringIO()
@@ -911,6 +953,7 @@ def selftest() -> int:
              _RestoreGlobals(_g, _saved_g):
             _rc1, _out1, _ = _run(["--add-competitor", "https://www.youtube.com/@newone",
                                    "--platform", "youtube"])
+            _held_add, _held[:] = list(_held), []
             _saved = json.loads(_local.read_text(encoding="utf-8")) if _local.is_file() else {}
             _new_id = (_saved.get("sources") or [{}])[0].get("id")
             check("add_competitor saves the page to the local competitor list and writes no other file",
@@ -938,8 +981,14 @@ def selftest() -> int:
                 (_snaps / _sid / "raw.html").write_text(
                     "<html><head><title>Lamp build</title></head></html>", encoding="utf-8")
                 return subprocess.CompletedProcess(argv, 0, "", "")
+            _held[:] = []
             with _mock.patch.object(subprocess, "run", _fake_acquire):
                 _rc5, _out5, _ = _run(["--fetch"])
+            _held_fetch = list(_held)
+            check("add_competitor, and fetch for each page it stamps, read and save the local list "
+                  "while holding its lock",
+                  _held_add == [("load", True), ("save", True)] and _saved_under_lock(_held_fetch)
+                  and sum(1 for kind, _ in _held_fetch if kind == "save") == 2)
             _stamps = {x["id"]: x for x in json.loads(_local.read_text(encoding="utf-8"))["sources"]}
             _today = SC.today_str()
             check("fetch reads both lists and stamps each page in the local list, never the registry",
@@ -973,6 +1022,42 @@ def selftest() -> int:
             _con6.close()
             check("parse gives a local page the url from the local list",
                   _rc6 == 0 and _urls == ["https://www.youtube.com/@newone"])
+            _ids_before = [x["id"] for x in json.loads(_local.read_text(encoding="utf-8"))["sources"]]
+            _local.write_text("\ufeff" + _local.read_text(encoding="utf-8"), encoding="utf-8")
+            _rcb, _, _errb = _run(["--add-competitor", "https://www.youtube.com/@marked",
+                                   "--platform", "youtube"])
+            _rawb = _local.read_bytes()
+            _ids_after = [x["id"] for x in json.loads(_rawb.decode("utf-8-sig"))["sources"]]
+            check("a local list saved with a UTF-8 byte-order mark is read: the add keeps its entries "
+                  "and saves the list without the mark",
+                  _rcb == 0 and not _rawb.startswith(b"\xef\xbb\xbf") and _ids_after[:-1] == _ids_before
+                  and len(_ids_after) == len(_ids_before) + 1 and "Traceback" not in _errb)
+            # An add while another writer holds the list (as a fetch's stamp does) waits for it, then
+            # reads its change: the list ends with both entries.
+            import threading as _th_l
+            import time as _time_l
+            _go, _added = _th_l.Event(), []
+
+            def _hold_and_stamp():
+                with _locked(LOCAL_COMPETITORS):
+                    _lst = _load_local()
+                    _go.set()
+                    _time_l.sleep(0.5)
+                    _lst["sources"].append({"id": "competitor-held", "url": "https://www.youtube.com/@held"})
+                    _save_local(_lst)
+            _holder = _th_l.Thread(target=_hold_and_stamp)
+            _holder.start()
+            _go.wait(10)
+            _adder = _th_l.Thread(target=lambda: _added.append(_run(
+                ["--add-competitor", "https://www.youtube.com/@waited", "--platform", "youtube"])))
+            _adder.start()
+            _holder.join(20)
+            _adder.join(20)
+            _urls_c = [x.get("url") for x in json.loads(_local.read_text(encoding="utf-8"))["sources"]]
+            check("an add while another writer holds the local list waits, and the list keeps both "
+                  "entries",
+                  [r[0] for r in _added] == [0] and "https://www.youtube.com/@held" in _urls_c
+                  and "https://www.youtube.com/@waited" in _urls_c)
             _local.write_text("{oops", encoding="utf-8")
             _rc7, _out7, _err7 = _run(["--add-competitor", "https://www.youtube.com/@third"])
             _rc8, _, _err8 = _run(["--report"])

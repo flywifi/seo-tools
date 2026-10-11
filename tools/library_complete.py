@@ -77,9 +77,10 @@ def match_media(export_dir, records, prober=_mp.probe):
     # clean-envelope guarantee became vacuous. Probe the directory explicitly so a bad path
     # raises OSError on every supported interpreter and main() wraps it in the envelope. A
     # MISSING directory stays an empty worklist (the 3.12 rglob semantics the selftests pin).
-    if any(len(part) > 255 for part in export.parts):
-        # A name part over 255 characters cannot exist; Windows with long paths off reports it as
-        # missing, so refuse it here, as ENAMETOOLONG does elsewhere (P102).
+    if any(len(part.encode("utf-16-le", "surrogatepass")) // 2 > 255 for part in export.parts):
+        # A name part over 255 UTF-16 code units (Windows' measure; an emoji counts two) cannot
+        # exist; Windows with long paths off reports it as missing, so refuse it here, as
+        # ENAMETOOLONG does elsewhere (P102).
         raise OSError(errno.ENAMETOOLONG, "file name too long", str(export))
     try:
         os.stat(export)
@@ -409,14 +410,16 @@ def selftest():
        "in a temporary folder and closed after the error",
        rc == 1 and "next_step" in buf.getvalue() and _db_used and _closed)
     import file_hash as _fh_lp  # P102: Windows with long paths off reports the long name as missing
+    _lp_errnos = []
     with _fh_lp.long_paths_off():
-        try:
-            match_media("x" * 300, [])
-            _lp_errno = None
-        except OSError as exc:
-            _lp_errno = exc.errno
-    ok("a >255-character export folder is refused where the system reports it missing (P102)",
-       _lp_errno == errno.ENAMETOOLONG)
+        for _lp_name in ("x" * 300, "x" * 300 + "/inner", "\U0001F600" * 200):
+            try:
+                match_media(_lp_name, [])
+                _lp_errnos.append(None)
+            except OSError as exc:
+                _lp_errnos.append(exc.errno)
+    ok("a >255-unit export folder (a long name, as a parent folder, or 200 emoji) is refused where "
+       "the system reports it missing (P102)", _lp_errnos == [errno.ENAMETOOLONG] * 3)
     ok("main switches a redirected stdout to UTF-8 (P102: titles with an emoji on Windows)",
        "utf8_stdio" in main.__code__.co_names)
 

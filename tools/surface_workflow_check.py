@@ -1602,8 +1602,10 @@ def _pins_isolation(m):
     out = []
     # A computer without HOME (Windows usually has none) takes only the "unset" restore branch, so a
     # restore that skips HOME or saves it as None would pass; give HOME a value for this pin (P102).
+    # The stand-in is a folder outside the box, so an Isolation that leaves HOME alone is seen.
     host_home = os.environ.get("HOME")
-    os.environ["HOME"] = host_home or str(box.root / "host-home")
+    stand_in = None if host_home is not None else tempfile.mkdtemp(prefix="sw-home-")
+    os.environ["HOME"] = host_home if host_home is not None else stand_in
     try:
         real = {k: getattr(m.pm, k) for k in ("STATE_PATH", "CONTEXT_DIR", "LOG_DIR")}
         real_ledger, real_home = m.ib.LEDGER_PATH, os.environ.get("HOME")
@@ -1641,6 +1643,8 @@ def _pins_isolation(m):
             os.environ["HOME"] = host_home
         elif "HOME" in os.environ:
             del os.environ["HOME"]
+        if stand_in is not None:
+            shutil.rmtree(stand_in, ignore_errors=True)
     out.append(("box-removed", not box.root.exists()))
     return out
 

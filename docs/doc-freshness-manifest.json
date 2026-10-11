@@ -10,7 +10,7 @@
     },
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
-        "tools/surface_workflow_check.py": "fffd63feb863cbb95856b5d202bca6fdf33b545bb06a36c189c7894b78648940",
+        "tools/surface_workflow_check.py": "87944c0bc3eef97e027f8c1de9540f2517a9ec953bf4d8e84e3eb6454a14dd08",
         "skills/creator-core/evals/surface-workflows.json": "8f2a12501f9778d386be9eed62b0d68336ebf54f32c28d5414b9546936cdb5fc"
       }
     },
@@ -23,7 +23,7 @@
     "docs/CURRENCY.md": {
       "sources": {
         "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
-        "tools/source_currency.py": "d44fd741c486d5462556732dabfe036b40c06f7b5387198acc12fa017567e367",
+        "tools/source_currency.py": "4dc2ccb3e0ce88df3eae527ed36155db4c53508743a106b468132f8092d869a8",
         "tools/sync_check.py": "885fcd75cfe40a5495a45de3d344a08519cbf968696c3e6c0597ea608429d306"
       }
     },
@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "7ac0c7b7d5c41ca072f931d2a50f3f1fe0b5414a5433be9b5ae3630d0a1aaa6d",
+        "tools/wizard.py": "b8b3d381c74c5e3c965dbb36c7caea72d537ead01e8d46e3bc8198b111bdb5bd",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "918da5cde4ff429b3df06f43cdbbb45b7bc93f14c7b4c0673483d3cdd5ca592a"
+        "tools/mcp_server.py": "36fad680b9cc1bc72c713afbf04a032442b2d549f69cfdf3f8805d31f7e586bf"
       }
     },
     "docs/TRANSITIONS.md": {
@@ -133,7 +133,7 @@
       "sources": {
         "shared/schemas/compute-job.json": "30d19c83cf5cf5911beda6201c65a6e70b4631bce8c5856c5fadcb8ad9cfbcb0",
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
-        "tools/handoff/runner.py": "7f44aef1e65eb112689a7bb8d79f202dcd9c0c8abcf725555b62779e8d5d113e",
+        "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
         "tools/handoff/watcher.py": "01c535786a4006160b078fab19d5e37167dc5cc6504fca22ee7192a7f9ce2874",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "b7e62f31f5832eedc8e14564dbca2823ff601e21a254465ce97c6466e3d76a6e",
@@ -144,7 +144,7 @@
     "tools/handoff/MAINTAINER_README.md": {
       "sources": {
         "tools/handoff/queue.py": "798d41a4789d6f1ee5f188ebf124351195cecc49dc8d1ebe582d26c1f2730224",
-        "tools/handoff/runner.py": "7f44aef1e65eb112689a7bb8d79f202dcd9c0c8abcf725555b62779e8d5d113e",
+        "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
         "tools/handoff/watcher.py": "01c535786a4006160b078fab19d5e37167dc5cc6504fca22ee7192a7f9ce2874",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
         "tools/handoff/inbox.py": "b7e62f31f5832eedc8e14564dbca2823ff601e21a254465ce97c6466e3d76a6e",
