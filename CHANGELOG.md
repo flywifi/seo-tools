@@ -270,14 +270,20 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   name bound to one, or a folder listing a loop takes them from (`<path>.glob(...)`, directly,
   through `sorted()` or a slice, or through a function of the module that returns one), and the
   files it reads with `read_text()` through a name bound to such a path
-  (`sync_check._ct_sources`). The knowledge files and the combined file the wizard stages for upload,
-  and the two instruction files it pastes from, are in the scan set, and `_CREATOR_TEXT_FLOOR`
-  names five of them. The self-proof adds cases for these forms and for a copy in test code, a
-  `.local.` file and a file the listing does not match (ADR 0081).
+  (`sync_check._ct_sources`); a `.json` file read through such a name is scanned as data, and a
+  `.py` one as a program. A module whose folder listing has an empty or absolute pattern, or one
+  with a `..` part, is reported instead of followed (`sync_check._ct_listable`). The knowledge
+  files and the combined file the wizard stages for upload, and the two instruction files it
+  pastes from, are in the scan set, and `_CREATOR_TEXT_FLOOR` names five of them. The self-proof
+  adds cases for these forms, for `shutil` imported under another name, a listing beside an MCP
+  module, a copy in test code, a `.local.` file, a file the listing does not match, a `..`
+  listing, and copied, static and text files read past their first line; the forms the scan does
+  not follow are listed in ADR 0081.
 - P102 (knowledge files without em dashes): the em dashes in the knowledge files the setup wizard
   stages for upload to a Project (`02-brand-voice.md`, `03-platform-seo.md`, `07-pipeline-spokes.md`
-  and `08-key-atoms.md` under `implementation/claude/project/knowledge/`) become colons, commas,
-  semicolons, parentheses or full stops, and `creator-os-combined.md` is rebuilt from them.
+  and `08-key-atoms.md` under `implementation/claude/project/knowledge/`) are rewritten without
+  them (with punctuation, or a joining word in five places), and `creator-os-combined.md` is rebuilt
+  from them.
 - P102 (Windows install scope): `docs/INSTALL-SCOPE.md` gains a Windows section: where the repo's
   `.venv`, the Python install manager, Git for Windows from a standard account, Scoop and the
   Node.js it installs, whisper.cpp models, Playwright's browser and the Claude Desktop settings file
@@ -413,15 +419,23 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ### Fixed
 - P102 (launcher check with MinGit): `battery.bash_for_syntax` falls back to `usr\bin\sh.exe` of the
-  Git that `git --exec-path` names when that Git has no `bash.exe` (MinGit ships `sh.exe`, bash in
-  POSIX mode, in its place), so on a Windows computer with MinGit the launcher syntax check runs
-  instead of reporting that it did not run. `install_hooks._shell` takes the hooks' `sh` from it
-  and no longer looks for that file itself.
+  Git that `git --exec-path` names when that Git has no `bash.exe`, the layout MinGit's file list
+  (git-for-windows build-extra, `make-file-list.sh`) gives: it drops `usr/bin/bash.exe` and keeps
+  `sh.exe`, bash run as sh. With that Git the launcher syntax check runs where it reported that it
+  did not run; a Git with both files still gives `bash.exe`, and the BusyBox MinGit, which has
+  neither, still reports that the check did not run. `install_hooks._shell` takes the hooks'
+  `sh` from it and no longer looks for that file itself.
 - P102 (competitor pages): `tools/parse_competitor_meta.py` reads a YouTube watch page's chapters
-  from `multiMarkersPlayerBarRenderer` (the `DESCRIPTION_CHAPTERS` entry of its `markersMap`) before
-  the older `chapteredPlayerBarRenderer`; a channel page's space-separated keywords become one tag per
-  word or quoted phrase, with the words after an unterminated quote (a truncated attribute) split on
-  spaces; and keyword and og values are HTML-unescaped once, so `&amp;` reads as `&`.
+  from `multiMarkersPlayerBarRenderer` (the `DESCRIPTION_CHAPTERS` entry of its `markersMap` when it
+  has chapters, else the first entry that has them) before `chapteredPlayerBarRenderer`; a channel
+  page's space-separated keywords become one tag per word or double-quoted phrase in one pass, an
+  apostrophe or a backslash staying part of its word and a quote that never closes skipped; a value
+  with a comma outside its quoted phrases splits there. Keyword, og and canonical-link values are
+  read whole when the other quote character appears inside them (a title such as Kid's Room) and
+  are HTML-unescaped once, so `&amp;` reads as `&`. `PARSER_VERSION` is `2026-10-11.1`, so
+  `competitor_snapshot.py --parse` reads saved pages again instead of keeping their old readings,
+  and the selftest's `_READING` pin fails when what the parser extracts from its fixture pages
+  changes and the version and the recorded sha256 are not both updated.
 - P102 (DuckDB connector): Claude Desktop's DuckDB entry
   (`implementation/claude/desktop/claude_desktop_config_snippet.json`) runs the PyPI package with
   `uvx mcp-server-motherduck --db-path :memory: --read-write`. It named

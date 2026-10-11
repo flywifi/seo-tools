@@ -53,7 +53,8 @@ re.search(r"var ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|</script>)", h
 
 **YouTube — chapter markers:**
 ```python
-# Primary: playerOverlays path via _find_in_dict(initial_data, "chapteredPlayerBarRenderer", ...)
+# Primary: multiMarkersPlayerBarRenderer -> markersMap via _player_bar_chapters(initial_data)
+# Then: _find_in_dict(initial_data, "chapteredPlayerBarRenderer", ...)
 # Fallback: timestamp regex on description text
 re.findall(r"^(\d+:\d+(?::\d+)?)\s+(.+)$", description, re.MULTILINE)
 ```
@@ -132,7 +133,9 @@ detection.
 
 When `parse_competitor_meta.py` is updated:
 - **Bump `PARSER_VERSION` in `parse_competitor_meta.py`** if extraction behaviour changed. Without
-  the bump, `--parse` treats existing rows as current and your fix never reaches stored data.
+  the bump, `--parse` treats existing rows as current and your fix never reaches stored data. The
+  selftest's `_READING` pin fails when what the parser extracts from its fixture pages changes:
+  bump the version, then record it and the sha256 the failing check prints in `_READING`.
 - Run `python3 tools/competitor_snapshot.py --parse` to re-parse all saved HTML with the new logic
   (rows read by the older version are superseded in place; the output reports how many)
 - Update `evals/evals.json` if output shape changes

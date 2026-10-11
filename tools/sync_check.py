@@ -2428,9 +2428,15 @@ def _selfproof():
     # On an empty tree the live check names each place the formatting rule lists.
     with tempfile.TemporaryDirectory() as td_floor:
         floor_msgs = _creator_text_problems(td_floor)
+    # The list is written out here, not read from _CREATOR_TEXT_FLOOR, so dropping a floor entry fails.
     floor_named = len(floor_msgs) == 1 and all(f in floor_msgs[0] for f in (
         "tools/wizard.py", "tools/dashboard/server.py", "tools/dashboard/static/app.js", "tools/mcp_server.py",
-        "tools/setup.py", "tools/update.py", "creator-os-config.json", "shared/connectors/connectors.json"))
+        "tools/setup.py", "tools/update.py", "creator-os-config.json", "shared/connectors/connectors.json",
+        "implementation/claude/project/knowledge/01-creator-core.md",
+        "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
+        "implementation/claude/project/creator-os-combined.md",
+        "implementation/claude/project/system-prompt.md",
+        "implementation/gpt/project/project-instructions.md"))
     return 0 if (not found and named and not _selftest_guard_wiring() and not _install_scope_selfproof()
                  and not creator_text and reports and floor_named) else 1
 
@@ -4668,6 +4674,13 @@ def _ct_read_paths(tree, skip_lines=()):
 _CT_COPY_FUNCS = ("copyfile", "copy", "copy2")
 
 
+def _ct_listable(pattern):
+    """True for a glob pattern the scan follows: not empty, not absolute (a leading slash or
+    backslash, or a drive letter), and with no '..' part, so a listing stays under its folder."""
+    return bool(pattern) and not re.match(r"[/\\]|[A-Za-z]:", pattern) \
+        and ".." not in re.split(r"[/\\]", pattern)
+
+
 def _ct_sources(tree, skip_lines=()):
     """{(how, base, rel, pattern)} for the files a module copies or reads through a name, outside
     the lines in skip_lines (test code): the source of each shutil.copyfile, copy or copy2 call
@@ -4883,9 +4896,10 @@ def _ct_json_hits(src):
 def _creator_text_scan(root):
     """(scanned, hits, unread): the derived scan set of invariant 62 under root, {rel: kind};
     [(rel, line or None, fragment)] for the em dashes in it; and the files that could not be read
-    (in the set and not UTF-8 text, or Python or JSON that does not parse, and a tools/ module that
-    does not parse, which discovery cannot classify), which the invariant reports rather than
-    skips. Derived from the tree:
+    (in the set and not UTF-8 text, or Python or JSON that does not parse, a tools/ module that
+    does not parse, which discovery cannot classify, and a page or MCP module with a folder listing
+    the scan does not follow, _ct_listable), which the invariant reports rather than skips.
+    Derived from the tree:
       pages     modules under tools/ with a top-level class whose base is written as a name ending
                 in RequestHandler;
       static    the files of a static/ folder beside a page module, at any depth (a file with a NUL
@@ -4895,9 +4909,9 @@ def _creator_text_scan(root):
       programs  .py files a page or mcp module builds a path to from ROOT or HERE (what it runs),
                 and the local modules it imports (text it shows from them);
       commands  tools/<x>.py files a page or mcp literal names (what it tells the creator to run);
-      data      .json files a page or mcp module builds a path to, and the .json files a program or
-                a command builds from HERE (beside itself), when the name holds no '.local.' (an
-                ignored file);
+      data      .json files a page or mcp module builds a path to or reads through a name
+                (_ct_sources), and the .json files a program or a command builds from HERE (beside
+                itself), when the name holds no '.local.' (an ignored file);
       text      other files a page or mcp module reads into its text: read_text() on a path it
                 builds from ROOT or HERE, or on a name bound to such a path (_ct_sources), and
                 the .md and .txt files named in another tools module's literal table that it reads
@@ -4936,6 +4950,7 @@ def _creator_text_scan(root):
                     scanned.setdefault(f.relative_to(root).as_posix(), "static")
     for p in mcps:
         scanned.setdefault(p.relative_to(root).as_posix(), "mcp")
+    unfollowed = []  # page and MCP modules with a folder listing the scan does not follow
 
     def resolve(base, rel, module):
         full = (root / rel) if base == "ROOT" else (module.parent / rel)
@@ -4961,16 +4976,27 @@ def _creator_text_scan(root):
         for how, base, rel, pattern in sorted(_ct_sources(tree, test), key=str):
             if pattern is None:
                 found = [resolve(base, rel, p)]
+            elif not _ct_listable(pattern):
+                unfollowed.append(p.relative_to(root).as_posix())  # reported with the unread files
+                continue
             else:
                 folder = (root / rel) if base == "ROOT" else (p.parent / rel)
-                listed = sorted(folder.glob(pattern)) if folder.is_dir() else []
+                try:
+                    listed = sorted(folder.glob(pattern)) if folder.is_dir() else []
+                except (ValueError, NotImplementedError, OSError):
+                    unfollowed.append(p.relative_to(root).as_posix())
+                    continue
                 found = [resolve("ROOT", os.path.relpath(f, root), p) for f in listed]
             for hit in found:
                 if hit is None or ".local." in Path(hit).name:
                     continue
                 if how == "copied":
                     scanned.setdefault(hit, "copied")
-                elif not hit.endswith((".py", ".json")):
+                elif hit.endswith(".py"):  # read through a name, as a built path to it would be
+                    scanned.setdefault(hit, "program")
+                elif hit.endswith(".json"):
+                    scanned.setdefault(hit, "data")
+                else:
                     scanned.setdefault(hit, "text")
         for hit in sorted(_ct_table_paths(tree, root, test, trees)):
             if ".local." not in Path(hit).name:
@@ -5035,7 +5061,7 @@ def _creator_text_scan(root):
             tools_fns = _ct_tool_functions(tree) if kind in ("mcp", "page") else set()
             hits += [(rel, ln, frag) for ln, frag in _ct_literal_hits(src, tree, include_docs=tools_fns,
                                                                        nodes=walked.get(str(path)))]
-    return scanned, hits, sorted(set(unread) | set(undiscovered))
+    return scanned, hits, sorted(set(unread) | set(undiscovered) | set(unfollowed))
 
 
 def _ct_fixture(t, em, d):
@@ -5051,11 +5077,16 @@ def _ct_fixture(t, em, d):
     (t / "shared" / "x").mkdir(parents=True)
     (t / "impl" / "upload").mkdir(parents=True)
     (t / "impl" / "direct").mkdir()
+    (t / "impl" / "jsons").mkdir()
+    (t / "impl" / "mods").mkdir()
+    (t / "tools" / "srvdocs").mkdir()
+    (t / "outside").mkdir()
     files = {
         "tools/web/page.py": (
             '"""Page module ' + em + ' its docstring is maintainer text."""\n'
             "import http.server\n"
             "import shutil\n"
+            "import shutil as sh\n"
             "ROOT = None\n"
             "from shutil import copyfile as _copy\n"
             'UPLOAD_DIR = ROOT / "impl" / "upload"\n'
@@ -5106,6 +5137,11 @@ def _ct_fixture(t, em, d):
             '        _copy(ROOT / "impl" / "fromcopy.md", "x.md")\n'
             '        for g in sorted((ROOT / "impl" / "direct").glob("*.txt")):\n'
             '            shutil.copy(g, "staged")\n'
+            '        sh.copyfile(ROOT / "impl" / "shcopy.md", "x.md")\n'
+            '        for j in sorted((ROOT / "impl" / "jsons").glob("*.json")):\n'
+            '            cfg = j.read_text(encoding="utf-8")\n'
+            '        for mod in sorted((ROOT / "impl" / "mods").glob("*.py")):\n'
+            '            mod_src = mod.read_text(encoding="utf-8")\n'
             "        return body, paste, boxes, pasted\n"
             "def selftest():\n"
             "    import testlib\n"
@@ -5121,13 +5157,15 @@ def _ct_fixture(t, em, d):
         "tools/web/static/app.js": "/* app T20 " + em + " comment */\n",
         "tools/web/static/index.html": "<p>T21 " + em + " page</p>\n",
         "tools/web/static/style.css": "/* T22 " + em + " style */\n",
-        "tools/web/static/sub/x.js": "// T23 " + em + " nested\n",
+        "tools/web/static/sub/x.js": "// one\n// two\n// T23 " + em + " nested\n",
         "tools/sock.py": (
             "import socketserver\n"
             "class _M:\n    def tool(self, *a):\n        return lambda f: f\n"
             "mcp = _M()\n"
             "class S(socketserver.StreamRequestHandler):\n"
             "    def handle(self):\n"
+            '        for c in (ROOT / "impl").glob("../outside/*.md"):\n'
+            '            c.read_text(encoding="utf-8")\n'
             '        return "sock T24 ' + em + ' text"\n'
             "@mcp.tool()\n"
             "def sock_tool():\n"
@@ -5152,6 +5190,8 @@ def _ct_fixture(t, em, d):
             '    return "ok"\n'
             "def helper():\n"
             '    """Helper docstring ' + em + ' maintainer text."""\n'
+            '    for h in sorted((HERE / "srvdocs").glob("*.md")):\n'
+            '        h.read_text(encoding="utf-8")\n'
             '    return "helper reply T13 ' + em + ' shown"\n'
             "async def helper_async():\n"
             '    """Async helper docstring ' + em + ' maintainer text."""\n'
@@ -5190,11 +5230,16 @@ def _ct_fixture(t, em, d):
         "impl/upload/02-b.md": "T41 Second upload file " + em + "\n",
         "impl/upload/notes.md": "Not matched by the listing " + em + "\n",
         "impl/upload/03-c.local.md": "Local upload file " + em + "\n",
-        "impl/combined.md": "T42 Combined file " + em + "\n",
+        "impl/combined.md": "first line\nsecond line\nT42 Combined file " + em + "\n",
         "impl/paste-a.md": "T43 First paste " + em + "\n",
-        "impl/paste-b.md": "T44 Second paste " + em + "\n",
+        "impl/paste-b.md": "one\ntwo\nT44 Second paste " + em + "\n",
         "impl/fromcopy.md": "T45 From-import copy " + em + "\n",
         "impl/direct/one.txt": "T46 Direct listing " + em + "\n",
+        "impl/shcopy.md": "T47 Copied as sh " + em + "\n",
+        "tools/srvdocs/a.md": "T48 Beside the MCP module " + em + "\n",
+        "impl/jsons/a.json": json.dumps({"note": "T49 read through a listing " + em + " as data"}),
+        "impl/mods/m.py": 'MESSAGE = "T50 read through a listing ' + em + ' as a program"\n',
+        "outside/x.md": "Outside the listing folder " + em + "\n",
         "impl/testcopy.md": "Copied only by test code " + em + "\n",
         "impl/box.txt": "T36 Box text file " + em + " shown.\n",
         "impl/testread.md": "Read only by test code " + em + "\n",
@@ -5234,12 +5279,13 @@ def _ct_fixture(t, em, d):
              "tools/web/static/U16.JS": "static", "tools/web/static/u16.css": "static",
              "impl/upload.md": "copied", "impl/upload/01-a.md": "copied", "impl/upload/02-b.md": "copied",
              "impl/combined.md": "copied", "impl/fromcopy.md": "copied", "impl/direct/one.txt": "copied",
-             "impl/paste-a.md": "text", "impl/paste-b.md": "text"}
+             "impl/paste-a.md": "text", "impl/paste-b.md": "text", "impl/shcopy.md": "copied",
+             "tools/srvdocs/a.md": "text", "impl/jsons/a.json": "data", "impl/mods/m.py": "program"}
     absent = {"tools/unreached.py", "shared/x/cache.local.json", "cache.local.json", "fixture.json",
               "tools/testonly.py", "shared/x/hop2.py", "tools/testlib.py", "impl/testread.md",
               "impl/notes.local.md", "impl/upload/notes.md", "impl/upload/03-c.local.md",
-              "impl/testcopy.md"}
-    tokens = {f"T{n:02d}" for n in range(1, 47)} - {"T05", "T09"}
+              "impl/testcopy.md", "outside/x.md"}
+    tokens = {f"T{n:02d}" for n in range(1, 51)} - {"T05", "T09"}
     return kinds, absent, tokens
 
 
@@ -5257,7 +5303,9 @@ def _creator_text_findings(root, floor):
                    f"stages for upload")
     for rel in unread:
         out.append(f"creator-text: {rel}: could not be read (not UTF-8 text, or Python or JSON that "
-                   f"does not parse); fix the file so the check can read it")
+                   f"does not parse), or lists a folder with a glob pattern the check does not "
+                   f"follow (empty, absolute, or with a '..' part); fix the file so the check can "
+                   f"read it")
     for rel, line, frag in hits:
         where = f"{rel}:{line}" if line else rel
         out.append(f"creator-text: {where}: an em dash in creator-facing text ({frag.strip()!r}); use a "
@@ -5274,6 +5322,13 @@ def _creator_text_selfproof():
     import tempfile
     d = "\\u2014"  # written as an escape here, so this module's own text stays clean
     em = d.encode().decode("unicode_escape")
+    listable = {pat: _ct_listable(pat) for pat in (
+        "", "/etc/*", "\\\\srv\\x", "C:x", "c:/x", "../x", "a/../b", "a\\..\\b", "..",
+        "*.md", "[0-9][0-9]-*.md", "**/*.json", "a..b.md", "sub/*.txt")}
+    if [pat for pat, ok in listable.items() if ok] != ["*.md", "[0-9][0-9]-*.md", "**/*.json", "a..b.md",
+                                                     "sub/*.txt"]:
+        return (f"creator-text: self-proof failed -- _ct_listable gives {listable} (an empty, absolute "
+                f"or '..' pattern must be refused, a pattern under its folder followed)")
     with tempfile.TemporaryDirectory() as td:
         t = Path(td)
         kinds, absent, tokens = _ct_fixture(t, em, d)
@@ -5283,15 +5338,16 @@ def _creator_text_selfproof():
         if absent & set(scanned):
             return (f"creator-text: self-proof failed -- {sorted(absent & set(scanned))} was scanned (an "
                     f"unreached file, a .local. file, a path or a command named in test code, a file "
-                    f"copied only by test code or not matched by its listing, or a second import hop)")
+                    f"copied only by test code or not matched by its listing, a file a '..' listing "
+                    f"reaches, or a second import hop)")
         want_unread = sorted(["bad.json", "shared/x/badprog.py", "tools/broken.py", "tools/sub/broken2.py",
                               "tools/web/static/legacy.html", "tools/web/static/u16.html",
-                              "tools/web/static/U16.JS", "tools/web/static/u16.css"])
+                              "tools/web/static/U16.JS", "tools/web/static/u16.css", "tools/sock.py"])
         if unread != want_unread:
             return (f"creator-text: self-proof failed -- unread files {unread}, expected {want_unread} (JSON "
                     f"and Python that do not parse, a page module and a module in a tools/ subfolder "
-                    f"that do not parse, a cp1252 static file, and UTF-16 static files with .html, "
-                    f"upper-case .JS and .css suffixes)")
+                    f"that do not parse, a cp1252 static file, UTF-16 static files with .html, "
+                    f"upper-case .JS and .css suffixes, and a page module with a '..' folder listing)")
         got, wrong = [], []
         for rel, line, frag in hits:
             m = _CREATOR_DASH_RE.search(frag)
@@ -5334,25 +5390,34 @@ def check_creator_text_dashes():
     class whose base is written as a name ending in RequestHandler) and their static files, the MCP
     server's tool descriptions and replies (modules with <server>.tool functions), the programs
     those modules run, the local modules they import and the scripts their text tells the creator
-    to run, the JSON files they read, with the JSON a program or a command keeps beside itself, and
-    the text files they read into a page or a reply (read_text() on a path they build, or a file
-    named in another module's table they read). Python text is read as written: string literals
+    to run, the JSON files they build a path to or read through a name, with the JSON a program or
+    a command keeps beside itself, the text files they read into a page or a reply (read_text() on
+    a path they build or on a name bound to one, or a file named in another module's table they
+    read), and the files they copy with shutil.copyfile, copy or copy2 (the files the wizard stages
+    for upload). A name is followed when an assignment with that one name as its target binds it
+    (to such a path, a listing or another such name), or when it is the one-name target of a for
+    loop over <path>.glob("<pattern>"), directly, through sorted() or a slice, or through a
+    function of the module that returns one. Python text is read as written: string literals
     outside docstrings (a tool function's docstring is its description, and a module docstring the
     module prints is its output, so both are read) and outside test code, with an em dash written as
     a Python escape or built with chr() read as data. HTML entities for the character count, a
     numeric one with or without its semicolon. Docstrings, Python comments, test code, escapes and
     .local. files are the cuts, each a case in the self-proof that runs first; a file in the set that
-    cannot be read, and a tools/ module that does not parse, are reported. Every path in
-    _CREATOR_TEXT_FLOOR must be in the derived set and read. Limits: a program reached through a
-    path built another way (a variable, os.path.join), read_text() on a path held in a variable, a
-    table read through 'from x import NAME', a function docstring handed to argparse, a second hop
-    (a program that a program runs, a module that an imported module imports), a handler base
-    imported under another name or a handler class nested in a function, a tool registered without
-    a decorator, and escapes in static files (a JavaScript or CSS escape) are not followed;
-    a file a page copies without reading it is not read; a test helper not named selftest, and code
-    under an indented '# --- selftest' marker, are read like the rest. The wizard's selftest
-    renders each screen in its default state and fails on an em dash, or one of its entities, in
-    its HTML, which also covers text such a screen takes from a module when it renders."""
+    cannot be read, a tools/ module that does not parse, and a module with a folder listing whose
+    pattern is empty, absolute or has a '..' part, are reported. Every path in _CREATOR_TEXT_FLOOR
+    must be in the derived set and read. Limits (ADR 0081): a program reached through a path built
+    another way (os.path.join), a name bound by an annotated or a chained assignment, a parameter,
+    a copy given its source as src=, a loop with a tuple target (enumerate), a listing through
+    list(), rglob, os.listdir or glob.glob, a receiver that is an attribute (self.SRC.read_text()),
+    shutil.copytree, read_bytes() or open() on a bound name, a table read through
+    'from x import NAME', a function docstring handed to argparse, a second hop (a program that a
+    program runs, a module that an imported module imports), a handler base imported under another
+    name or a handler class nested in a function, a tool registered without a decorator, and
+    escapes in static files (a JavaScript or CSS escape) are not followed; a test helper not named
+    selftest, and code under an indented '# --- selftest' marker, are read like the rest. The
+    wizard's selftest renders each screen in its default state and fails on an em dash, or one of
+    its entities, in its HTML, which also covers text such a screen takes from a module when it
+    renders."""
     for msg in _creator_text_problems(ROOT):
         problem(msg)
 
