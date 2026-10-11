@@ -1875,6 +1875,19 @@ def _write_storage_folder(folder: str):
     return written, prior_folder
 
 
+def _import_example() -> str:
+    """An unzipped export folder written the way this system writes paths (P102)."""
+    return {"windows": r"C:\Users\you\Downloads\Takeout",
+            "mac": "/Users/you/Downloads/Takeout"}.get(_os(), "/home/you/Downloads/Takeout")
+
+
+def _hub_example(folder_name) -> str:
+    """The synced hub folder written the way this system's Google Drive for desktop shows it (P102)."""
+    if _os() == "windows":
+        return f"G:\\My Drive\\{folder_name}"
+    return f"/Users/you/Library/CloudStorage/GoogleDrive-you@example.com/My Drive/{folder_name}"
+
+
 def _screen_storage_folder(saved: str = "", error: str = "", folder: str = "") -> str:
     """Item 7c: the folder-permission consent step. Registers a filesystem MCP scoped to that folder.
     A native folder picker (Browse...) fills the path; the text field stays as the always-works floor."""
@@ -2830,7 +2843,7 @@ copy lives:</p>
 {cand_block}
 <form method="POST" action="/api/set-drive-hub">
   <label for="folder">Full path to the synced "{folder_name}" folder</label>
-  <input type="text" id="folder" name="folder" placeholder="/Users/you/Library/CloudStorage/GoogleDrive-you@example.com/My Drive/{folder_name}" required>
+  <input type="text" id="folder" name="folder" placeholder="{html.escape(_hub_example(folder_name))}" required>
   <button class="btn btn-primary" type="submit" style="margin-top:12px">Connect this folder</button>
 </form>
 <p class="hint">Saved locally in creator-os-config.local.json (never committed). Credentials never
@@ -3270,7 +3283,7 @@ Creator OS shows you what it found first &mdash; nothing is saved until you appr
     <label style="display:inline;font-weight:400;margin-left:14px"><input type="checkbox" name="platforms" value="pinterest"> Pinterest</label>
   </div>
   <label for="folder">Full path to your unzipped export folder</label>
-  <input type="text" id="folder" name="folder" value="{fesc}" placeholder="/Users/you/Downloads/Takeout" required>
+  <input type="text" id="folder" name="folder" value="{fesc}" placeholder="{html.escape(_import_example())}" required>
   <button class="btn btn-primary" type="submit" style="margin-top:12px">Scan this folder</button>
 </form>
 <div class="note"><strong>If a download will not open</strong> ("not a valid zip", "file is corrupt"):
@@ -3369,6 +3382,21 @@ def on_google_drive(path, isdir=os.path.isdir, system_drive=None):
     return "" if m.group(3) else "drive_root"
 
 
+# A long-path (\\?\) or device (\\.\) prefix on a drive letter or on UNC\ (P102).
+_DEVICE_PREFIX_RE = re.compile(r"^\\\\[?.]\\(?:(UNC)\\|(?=[A-Za-z]:))", re.IGNORECASE)
+
+
+def _strip_device_prefix(folder):
+    r"""A Windows path without its long-path or device prefix, with "/" read as "\":
+    \\?\G:\x becomes G:\x and \\?\UNC\server\share becomes \\server\share, so the folder rules read
+    the path File Explorer shows (P102). Other text is returned as it is."""
+    f = str(folder).replace("/", "\\")
+    m = _DEVICE_PREFIX_RE.match(f)
+    if not m:
+        return folder
+    return ("\\\\" if m.group(1) else "") + f[m.end():]
+
+
 def _network_path(folder) -> bool:
     """True for a Windows network path (\\\\server\\share, //server/share, \\\\?\\UNC\\...), read from the
     text alone: resolving one can block for a long time on a slow or offline server. A long-path
@@ -3405,9 +3433,11 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
     able to point the recursive import glob or the filesystem-MCP root at arbitrary
     paths like '/', '/etc', or '~/.ssh'. We resolve symlinks (realpath) BEFORE the
     containment test so '~/x/../../etc' cannot escape. reason is '' on success, else one
-    of: 'empty', 'not_dir', 'outside_home', 'home_root', 'drive_root'.
+    of: 'empty', 'not_dir', 'outside_home', 'home_root', 'drive_root', 'system_drive',
+    'network_path', 'unreachable' (each has a sentence in _DRIVE_HUB_WHY).
     Surrounding spaces and double quotes are removed first (Explorer's "Copy as path" adds the
-    quotes). With allow_drive (the Drive hub route only, P102), on Windows a folder inside a
+    quotes), and on Windows a long-path or device prefix (_strip_device_prefix). With allow_drive
+    (the Drive hub and import routes, P102), on Windows a folder inside a
     Google Drive for desktop drive's My Drive or Shared drives folder is accepted too
     (on_google_drive); that root folder itself is refused as 'drive_root', the way the home
     folder is. On Windows a network path is refused as 'network_path' from its text, before any
@@ -3421,11 +3451,13 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
     folder = folder.strip().strip('"').strip() if isinstance(folder, str) else folder
     if not folder:
         return False, "", "empty"
+    if (os.name if osname is None else osname) == "nt":
+        folder = _strip_device_prefix(folder)
     if ((os.name if osname is None else osname) == "nt" and _network_path(folder)
             and not _network_path(os.path.expanduser("~") if home is None else home)):
         return False, folder, "network_path"
     if (os.name if osname is None else osname) == "nt":
-        letter = _DRIVE_LETTER_RE.match(folder.replace("/", "\\"))
+        letter = _DRIVE_LETTER_RE.match(folder)  # after _strip_device_prefix, the letter leads
         home_letter = _DRIVE_LETTER_RE.match(
             str(os.path.expanduser("~") if home is None else home).replace("/", "\\"))
         if (letter and (_drive_type if drive_type is None else drive_type)(letter.group(1).upper()) == _DRIVE_REMOTE
@@ -3456,22 +3488,28 @@ def _confined_folder(folder, *, allow_home=False, allow_drive=False, osname=None
 
 
 def _drive_hub_folder(folder):
-    """The /api/set-drive-hub folder rule: _confined_folder with the Drive for desktop folders
-    allowed on Windows (P102)."""
+    """The folder rule of /api/set-drive-hub and /api/run-import: _confined_folder with the Drive for
+    desktop folders allowed on Windows (P102)."""
     return _confined_folder(folder, allow_home=False, allow_drive=True)
 
 
+# What the Drive hub screen says for each reason _confined_folder gives (P102): a sentence, never
+# the reason code itself.
 _DRIVE_HUB_WHY = {
-    "drive_root": " (that is the whole Drive; make a folder inside it, such as My Drive\\Creator OS, "
-                  "and use that)",
-    "network_path": " (a network share cannot be the Drive hub; use the folder Google Drive for "
-                    "desktop shows, such as G:\\My Drive\\Creator OS)",
-    "unreachable": " (Windows could not reach that folder; reconnect its drive, or use the folder "
-                   "Google Drive for desktop shows, such as G:\\My Drive\\Creator OS)",
-    "system_drive": " (that is a folder named My Drive on this computer's system drive, not Google "
-                    "Drive; use the drive letter Google Drive for desktop shows, often G:)",
-    "outside_home": " (use a folder in your user folder, or on Windows a folder inside the My Drive "
-                    "folder of the drive letter Google Drive for desktop shows)",
+    "empty": "Enter the full path of the hub folder.",
+    "not_dir": "No folder was found at that path. Check it, or create the folder first, then paste "
+               "its full path.",
+    "home_root": "That is your whole home folder. Make a folder inside it and use that.",
+    "drive_root": "That is the whole Drive. Make a folder inside it, such as My Drive\\Creator OS, "
+                  "and use that.",
+    "network_path": "A network share cannot be the Drive hub. Use the folder Google Drive for desktop "
+                    "shows, such as G:\\My Drive\\Creator OS.",
+    "unreachable": "Windows could not reach that folder. Reconnect its drive, or use the folder Google "
+                   "Drive for desktop shows, such as G:\\My Drive\\Creator OS.",
+    "system_drive": "That is a folder named My Drive on this computer's system drive, not Google Drive. "
+                    "Use the drive letter Google Drive for desktop shows, often G:.",
+    "outside_home": "Use a folder in your home folder, or on Windows a folder inside the My Drive "
+                    "folder of the drive letter Google Drive for desktop shows.",
 }
 
 
@@ -3489,7 +3527,7 @@ def _import_targets(folder, kind):
     # Defense in depth: never enumerate outside the user's home tree, even if a caller
     # passed an unconfined path. The HTTP handler also gates with _confined_folder, but the
     # recursive glob must not trust its caller. realpath resolves symlinks before the test.
-    ok_folder, _real, _why = _confined_folder(folder, allow_home=True)
+    ok_folder, _real, _why = _confined_folder(folder, allow_home=True, allow_drive=True)
     if not ok_folder:
         return []
     if kind == "dir":
@@ -3945,34 +3983,37 @@ anything, and closing this window does not stop the work.</p>
             self._send(_screen_transitions(q.get("frm", [""])[0], q.get("to", [""])[0]))
             return
 
-        routes: dict[str, str | None] = {
-            "/": _screen_welcome(),
-            "/claude": _screen_claude(),
-            "/bring": _screen_bring(),
-            "/claudeai": _screen_claudeai(),
-            "/desktop": _screen_desktop(),
-            "/creator-os-server": _screen_creator_os_server(),
-            "/google": _screen_google(),
-            "/microsoft": _screen_microsoft(),
-            "/done": _screen_done(),
-            "/publishing-setup": _screen_publishing_setup(),
-            "/publishing-setup/youtube": _screen_publishing_youtube(),
-            "/publishing-setup/instagram": _screen_publishing_instagram(),
-            "/publishing-setup/tiktok": _screen_publishing_tiktok(),
-            "/publishing-setup/pinterest": _screen_publishing_pinterest(),
-            "/freshness-setup": _screen_freshness(),
-            "/storage-folder": _screen_storage_folder(),
-            "/brand-deals": _screen_brand_deals(),
-            "/import": _screen_import(),
-            "/setup-computer": _screen_setup_computer(),
-            "/doctor": _screen_doctor(),
-            "/updates": _screen_updates(),
-            "/drive-hub": _screen_drive_hub(),
-            "/compute": _screen_compute(),
-            "/inbox": _screen_inbox(),
+        # Each path names its screen function, and only the requested one is built (P102): the
+        # doctor and the setup screens start programs, and a page request, /favicon.ico included,
+        # built every screen.
+        routes = {
+            "/": _screen_welcome,
+            "/claude": _screen_claude,
+            "/bring": _screen_bring,
+            "/claudeai": _screen_claudeai,
+            "/desktop": _screen_desktop,
+            "/creator-os-server": _screen_creator_os_server,
+            "/google": _screen_google,
+            "/microsoft": _screen_microsoft,
+            "/done": _screen_done,
+            "/publishing-setup": _screen_publishing_setup,
+            "/publishing-setup/youtube": _screen_publishing_youtube,
+            "/publishing-setup/instagram": _screen_publishing_instagram,
+            "/publishing-setup/tiktok": _screen_publishing_tiktok,
+            "/publishing-setup/pinterest": _screen_publishing_pinterest,
+            "/freshness-setup": _screen_freshness,
+            "/storage-folder": _screen_storage_folder,
+            "/brand-deals": _screen_brand_deals,
+            "/import": _screen_import,
+            "/setup-computer": _screen_setup_computer,
+            "/doctor": _screen_doctor,
+            "/updates": _screen_updates,
+            "/drive-hub": _screen_drive_hub,
+            "/compute": _screen_compute,
+            "/inbox": _screen_inbox,
         }
         if path in routes:
-            self._send(routes[path])
+            self._send(routes[path]())
         elif path == "/quit":
             if _job_status("vc_runtime")["running"]:
                 # P102: quitting mid-install would end the job thread before it deletes its folder.
@@ -4170,18 +4211,23 @@ anything, and closing this window does not stop the work.</p>
                 return
 
             # action == scan
-            # Confine the scan to the user's home tree (realpath, symlink-resolved). A folder
-            # field or CSRF POST must not drive a recursive read of /, /etc, ~/.ssh, etc.
-            ok_folder, expanded, why = _confined_folder(folder, allow_home=False)
+            # Confine the scan to the user's home tree (realpath, symlink-resolved), or on Windows a
+            # Google Drive for desktop folder (the hub's rule, P102). A folder field or CSRF POST must
+            # not drive a recursive read of /, /etc, ~/.ssh, etc.
+            ok_folder, expanded, why = _drive_hub_folder(folder)
             if not ok_folder:
                 if why in _FOLDER_REACH_WHY:
                     self._send(_screen_import(folder=folder, error=_FOLDER_REACH_WHY[why]))
                     return
+                if why in ("drive_root", "system_drive"):
+                    self._send(_screen_import(folder=folder, error=html.escape(_DRIVE_HUB_WHY[why])))
+                    return
                 if why == "outside_home" or why == "home_root":
                     self._send(_screen_import(folder=folder, error=(
-                        "For your safety, Creator OS only scans a folder inside your home directory. "
-                        "Move the unzipped export under your home folder (for example ~/Downloads/) "
-                        "and enter that path.")))
+                        "For your safety, Creator OS scans a folder inside your home folder, or on "
+                        "Windows a folder inside My Drive or Shared drives on the drive letter Google "
+                        "Drive for desktop shows. Move the unzipped export into one (for example "
+                        f"{html.escape(_import_example())}) and enter that path.")))
                     return
                 hint = ""
                 # On macOS a Files-and-Folders (TCC) denial makes a real folder look "not found".
@@ -4315,7 +4361,7 @@ anything, and closing this window does not stop the work.</p>
             folder = data.get("folder", "").strip()
             ok_folder, realpath, why = _drive_hub_folder(folder)
             if not ok_folder:
-                self._send(_screen_drive_hub(error=f"That folder cannot be used: {html.escape(why)}"
+                self._send(_screen_drive_hub(error="That folder cannot be used. "
                                              + _DRIVE_HUB_WHY.get(why, "")), status=400)
                 return
             try:
@@ -5446,11 +5492,13 @@ def _selftest_p101() -> int:
             shutil.rmtree(_store_rt, ignore_errors=True)
     _hub_body_rt = next((b for r, st, b in _sent_rt if r == "/api/set-drive-hub"), "")
     check(all(_kept_rt.get(r) for r in ("/api/write-google", "/api/write-microsoft", "/api/write-storage-folder"))
-          and _hub_seen_rt == ["G:\\My Drive"] and "that is the whole Drive" in _hub_body_rt
+          and _hub_seen_rt == ["G:\\My Drive"]
+          and "That folder cannot be used. That is the whole Drive." in _hub_body_rt
+          and "drive_root" not in _hub_body_rt
           and "notification area" in _done_rt and "Cmd-Q" not in _done_rt,
           f"a settings route drops the servers already there, the hub route skips the Drive folder rule "
           f"or its explanation, or /done shows another system's restart step ({_kept_rt}, {_hub_seen_rt}, "
-          f"{'that is the whole Drive' in _hub_body_rt}, {'notification area' in _done_rt})")
+          f"{'That is the whole Drive' in _hub_body_rt}, {'notification area' in _done_rt})")
     # P102: on Windows a network path is refused from its text, before anything resolves it (a slow
     # or offline server blocks realpath, and the wizard answers one request at a time).
     def _no_fs_n(_p):
@@ -5469,6 +5517,7 @@ def _selftest_p101() -> int:
     _posix_n = _confined_folder("//nas/share", osname="posix", realpath=lambda p: p, isdir=lambda p: False,
                                 home="/home/me")
     check(_refused_n == ["network_path"] * len(_net_n) and not any(_network_path(f) for f in _local_n)
+          and all(_network_path(f) for f in _net_n)
           and _unc_home_n[2] != "network_path" and _posix_n[2] == "not_dir"
           and "network share" in _DRIVE_HUB_WHY.get("network_path", ""),
           f"a network path is resolved or accepted on Windows, a local path reads as one, or the rule "
@@ -5497,6 +5546,9 @@ def _selftest_p101() -> int:
                 for f in ("C:\\Users\\me\\hub", "Q:\\x")]
     _home_z_m = _confined_folder("Z:\\home\\me\\hub", realpath=_rp_m,
                                  **dict(_m, home="z:\\home\\me"))[2]  # the home letter in lower case
+    # A home folder written with a long-path or device prefix is still read as on its drive letter.
+    _home_pref_m = [_confined_folder("Z:\\home\\me\\hub", realpath=_rp_m, **dict(_m, home=_h))[2]
+                    for _h in ("\\\\?\\Z:\\home\\me", "\\\\.\\Z:\\home\\me")]
     _posix_m = _confined_folder("Z:\\share", realpath=lambda _p: _p, isdir=lambda _p: False,
                                 home="/home/me", osname="posix", drive_type=lambda _l: 4)[2]
     _offline_res_m = _confined_folder("Y:\\gone", realpath=_offline_m, **_m)
@@ -5537,6 +5589,7 @@ def _selftest_p101() -> int:
     _screens_m = {(r, w): b for r, w, b in _sent_m}
     check(_mapped_m == ["network_path"] * 6 and _mapped_calls_m == []
           and "network_path" not in _local_m and _home_z_m != "network_path" and _posix_m != "network_path"
+          and "network_path" not in _home_pref_m
           and _offline_res_m == (False, "Y:\\gone", "unreachable")
           and _dt_api_m == 4 and _dt_seen_m == ["Z:\\"] and _dt_none_m == 0
           and "unreachable" in _DRIVE_HUB_WHY
@@ -5584,6 +5637,130 @@ def _selftest_p101() -> int:
           and _posix_d[2] == "outside_home"
           and _kw_d == [{"allow_home": False, "allow_drive": True}],
           f"the Drive hub folder rule is wrong on Windows ({_bad_d}, {_case_d}, {_plain_d}, {_posix_d})")
+
+    # P102 push 4c: on Windows a long-path or device prefix is read as the path File Explorer shows
+    # (a \\?\G: Drive folder is accepted, \\.\UNC\ is a network share); elsewhere the text is kept.
+    _pref_d = {f: _hub_d(f, allow_drive=True) for f in (
+        "\\\\?\\G:\\My Drive\\Creator OS", "//?/G:/My Drive/Creator OS", "\\\\.\\G:\\My Drive\\Creator OS",
+        "\\\\?\\UNC\\nas\\share\\hub", "\\\\.\\UNC\\nas\\share\\hub", "\\\\?\\G:\\My Drive")}
+    _pref_want = {"\\\\?\\G:\\My Drive\\Creator OS": (True, "G:\\My Drive\\Creator OS", ""),
+                  "//?/G:/My Drive/Creator OS": (True, "G:\\My Drive\\Creator OS", ""),
+                  "\\\\.\\G:\\My Drive\\Creator OS": (True, "G:\\My Drive\\Creator OS", ""),
+                  "\\\\?\\UNC\\nas\\share\\hub": (False, "\\\\nas\\share\\hub", "network_path"),
+                  "\\\\.\\UNC\\nas\\share\\hub": (False, "\\\\nas\\share\\hub", "network_path"),
+                  "\\\\?\\G:\\My Drive": (False, "G:\\My Drive", "drive_root")}
+    _pref_posix = _confined_folder("\\\\?\\G:\\x", allow_drive=True, osname="posix", realpath=lambda q: q,
+                                   isdir=lambda q: q == "\\\\?\\G:\\x", home="/home/me")
+    check(_pref_d == _pref_want and _pref_posix == (False, "\\\\?\\G:\\x", "outside_home"),
+          f"a long-path or device prefix is not read as the plain path on Windows, or is changed "
+          f"elsewhere ({ {k: v for k, v in _pref_d.items() if v != _pref_want[k]} }, {_pref_posix})")
+    # Every reason the folder rule can give (read from _confined_folder and on_google_drive) has one
+    # sentence, and the hub screen shows that sentence, never the reason code.
+    import ast as _ast_w
+    _reasons_w = set()
+    for _fn_w in _ast_w.parse(pathlib.Path(__file__).read_text(encoding="utf-8")).body:
+        if isinstance(_fn_w, _ast_w.FunctionDef) and _fn_w.name in ("_confined_folder", "on_google_drive"):
+            for _ret_w in (n for n in _ast_w.walk(_fn_w) if isinstance(n, _ast_w.Return) and n.value):
+                _vals_w = (_ret_w.value.elts[2:3] if isinstance(_ret_w.value, _ast_w.Tuple)
+                           else [_ret_w.value])
+                for _v_w in _vals_w:
+                    _reasons_w |= {c.value for c in _ast_w.walk(_v_w)
+                                   if isinstance(c, _ast_w.Constant) and isinstance(c.value, str) and c.value}
+    _hub_err_w, _saved_w = {}, {k: globals()[k] for k in ("_drive_hub_folder", "_screen_drive_hub",
+                                                           "_screen_import")}
+    _imp_err_w, _imp_seen_w = {}, []
+
+    def _post_w(route, form):
+        _h = _Handler.__new__(_Handler)
+        _h.path, _h.headers = route, {}
+        _h._read_form = lambda: dict(form)
+        _h._read_body = lambda: urllib.parse.urlencode(form)
+        _box = []
+        _h._send = lambda body, status=200, content_type="text/html": _box.append(body)
+        _h._redirect = lambda location: _box.append(location)
+        _h.do_POST()
+        return _box[-1] if _box else None
+    _saved_os_w = _OS_OVERRIDE
+    try:
+        globals()["_screen_drive_hub"] = lambda error="", **kw: error
+        globals()["_screen_import"] = lambda folder="", error="", **kw: error
+        for _r_w in sorted(_reasons_w):
+            globals()["_drive_hub_folder"] = (lambda _r: lambda folder: _imp_seen_w.append(folder)
+                                              or (False, folder, _r))(_r_w)
+            _hub_err_w[_r_w] = _post_w("/api/set-drive-hub", {"folder": "G:\\x"})
+            _OS_OVERRIDE = "windows"
+            _imp_err_w[_r_w] = _post_w("/api/run-import", {"action": "scan", "folder": "G:\\x",
+                                                           "platforms": "youtube"})
+            _OS_OVERRIDE = _saved_os_w
+    finally:
+        _OS_OVERRIDE = _saved_os_w
+        globals().update(_saved_w)
+    _bad_w = sorted(r for r in _reasons_w
+                    if r not in _DRIVE_HUB_WHY or r in _hub_err_w.get(r, r)
+                    or _hub_err_w.get(r) != "That folder cannot be used. " + _DRIVE_HUB_WHY[r])
+    check(_reasons_w >= {"empty", "not_dir", "home_root", "drive_root", "system_drive", "outside_home",
+                         "network_path", "unreachable"}
+          and set(_DRIVE_HUB_WHY) == _reasons_w and not _bad_w
+          and all(t[:1].isupper() and t.endswith(".") for t in _DRIVE_HUB_WHY.values()),
+          f"a folder rule reason has no sentence, or the hub screen shows a reason code instead "
+          f"({sorted(_reasons_w)}, {_bad_w})")
+    # The import screen uses the hub's rule (a Drive for desktop folder is scanned on Windows), with
+    # a sentence for the Drive reasons and an example written for this system; the scan's file
+    # search allows the same folders, and the storage screen keeps the home-only rule.
+    _kw_w = {}
+    _real_cf_w = _confined_folder
+    globals()["_confined_folder"] = lambda folder, **kw: _kw_w.setdefault("targets", kw) and (False, folder, "x")
+    try:
+        _import_targets("G:\\My Drive\\Exports", "dir")
+        globals()["_confined_folder"] = lambda folder, **kw: _kw_w.setdefault("storage", kw) and (False, folder, "x")
+        _post_w("/api/write-storage-folder", {"folder": "G:\\My Drive\\Exports"})
+    finally:
+        globals()["_confined_folder"] = _real_cf_w
+    check(_imp_seen_w.count("G:\\x") == 2 * len(_reasons_w)
+          and _imp_err_w["drive_root"] == html.escape(_DRIVE_HUB_WHY["drive_root"])
+          and _imp_err_w["system_drive"] == html.escape(_DRIVE_HUB_WHY["system_drive"])
+          and "C:\\Users\\you\\Downloads\\Takeout" in _imp_err_w["outside_home"]
+          and "~/Downloads" not in _imp_err_w["outside_home"]
+          and _kw_w == {"targets": {"allow_home": True, "allow_drive": True}, "storage": {"allow_home": False}},
+          f"the import screen does not use the Drive hub's folder rule and sentences, or the storage "
+          f"screen does ({_kw_w}, {_imp_err_w.get('drive_root')!r}, {_imp_err_w.get('outside_home')!r})")
+    # The import and hub folder fields show an example written the way this system writes paths.
+    _ph_w = {}
+    try:
+        for _o_w in ("windows", "mac", "linux"):
+            _OS_OVERRIDE = _o_w
+            _ph_w[_o_w] = (_screen_import(), _screen_drive_hub())
+    finally:
+        _OS_OVERRIDE = _saved_os_w
+    check('placeholder="C:\\Users\\you\\Downloads\\Takeout"' in _ph_w["windows"][0]
+          and 'placeholder="/Users/you/Downloads/Takeout"' in _ph_w["mac"][0]
+          and 'placeholder="/home/you/Downloads/Takeout"' in _ph_w["linux"][0]
+          and 'placeholder="G:\\My Drive\\' in _ph_w["windows"][1]
+          and 'placeholder="/Users/you/Library/CloudStorage/' in _ph_w["mac"][1]
+          and "/Users/you/" not in _ph_w["windows"][0] + _ph_w["windows"][1],
+          "the import or hub folder field shows another system's example path")
+    # A page request builds only the screen it asks for; a path with no screen builds none.
+    _built_g, _sent_g, _built_by = [], [], {}
+    _screens_g = {k: v for k, v in globals().items() if k.startswith("_screen_") and callable(v)}
+
+    def _get_g(path):
+        _h = _Handler.__new__(_Handler)
+        _h.path, _h.headers = path, {}
+        _h._send = lambda body, status=200, content_type="text/html": _sent_g.append((path, status))
+        _h._redirect = lambda location: _sent_g.append((path, 302))
+        _h.do_GET()
+    try:
+        for _k_g in _screens_g:
+            globals()[_k_g] = (lambda _k: lambda *a, **kw: _built_g.append(_k) or f"<p>{_k}</p>")(_k_g)
+        for _p_g in ("/doctor", "/", "/favicon.ico", "/inbox"):
+            del _built_g[:]
+            _get_g(_p_g)
+            _built_by[_p_g] = list(_built_g)
+    finally:
+        globals().update(_screens_g)
+    check(_built_by == {"/doctor": ["_screen_doctor"], "/": ["_screen_welcome"], "/favicon.ico": [],
+                        "/inbox": ["_screen_inbox"]} and ("/favicon.ico", 404) in _sent_g,
+          f"a page request builds screens other than the one it asks for ({_built_by})")
 
     # P102: the retired custom GPT and Gems surfaces are gone from the options, and old links to
     # them render the door that replaced them.

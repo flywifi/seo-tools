@@ -153,6 +153,10 @@ It binds `8766`, then `8776`, then `8786`. *(tested on Windows)*
   `My Drive` or `Shared drives` folder, and refuses `My Drive` itself, a `My Drive` folder on the
   system drive, and a network share (`\\server\share`), which it refuses without opening
   <!-- verify: tools/wizard.py::on_google_drive -->.
+- The wizard's **Import** screen accepts an unzipped export inside those Drive folders by the same
+  rule, so an export saved under `G:\My Drive` can be scanned where it is; the **Choose my Creator
+  OS folder** step keeps to your user folder. A path written with the long-path prefix
+  (`\\?\G:\My Drive\...`) is read as `G:\My Drive\...`. *(not yet tested on Windows)*
 - Stream files mode *(tested on Windows)*. Mirror files mode *(not yet tested on Windows)*.
 - Keep the repository itself out of the Drive folder (Quick start step 2).
 - Update Creator OS on every computer that shares the hub before queuing work from Windows: a

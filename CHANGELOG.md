@@ -355,6 +355,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (wizard folder refusals, Drive export folders, one screen per page): the Drive hub screen
+  refuses a folder with a sentence for its reason instead of the reason code, and now has sentences
+  for an empty path, a missing folder and the home folder itself (`wizard._DRIVE_HUB_WHY`); on
+  Windows a path written with a long-path or device prefix (`\\?\G:\...`, `\\?\UNC\...`,
+  `\\.\UNC\...`) is read as the path File Explorer shows (`wizard._strip_device_prefix`). The import
+  screen scans an unzipped export by the hub's folder rule, so on Windows an export inside My Drive
+  or Shared drives on the Google Drive for desktop letter is scanned where it is; the storage folder
+  screen keeps the home-folder rule. The import and hub folder fields show an example path written
+  for the computer's system. A page request builds just the screen it asks for; before, a request
+  for any page of that table, or for an unknown path such as `/favicon.ico`, built its 24 screens,
+  the doctor's check among them (`_Handler.do_GET`).
 - P102 (competitor list kept local): `competitor_snapshot.py --add-competitor` and the
   `add_competitor` tool save a page to the creator's own list,
   `pipeline/competitor-snapshots/competitors.local.json` (gitignored), instead of the tracked
