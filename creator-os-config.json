@@ -76,7 +76,7 @@
     "duckdb_analytics": {
       "enabled": false,
       "description": "DuckDB MCP connected. Enables: analytical SQL over CSV, Parquet, and JSON files. No API key needed for local mode.",
-      "requires": "npx @motherduckdb/mcp-server-motherduck configured in Claude Desktop"
+      "requires": "uvx mcp-server-motherduck --db-path :memory: --read-write configured in Claude Desktop (needs uv)"
     },
     "stats_compass": {
       "enabled": false,

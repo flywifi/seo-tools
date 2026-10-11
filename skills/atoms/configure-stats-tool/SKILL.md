@@ -82,10 +82,25 @@ sources exactly. Do not substitute other package names.
 - Pre-installed packages in sandbox: numpy, scipy, statsmodels, scikit-learn, pandas, matplotlib.
 
 ### duckdb_analytics
-- Prerequisites: Node.js 20+.
+- Prerequisites: uv, installed as for wolfram_alpha above (it provides `uvx`).
 - Env vars: none.
-- MCP server: `@motherduckdb/mcp-server-motherduck` via `npx -y` (npm package; local mode needs no key).
-- Config note: point the server at the creator's data directory for automatic file discovery.
+- MCP server: `mcp-server-motherduck` launched via `uvx` (Python, from PyPI; not npm), with
+  `--db-path :memory: --read-write`, the local mode that needs no key. The server refuses an
+  in-memory database without `--read-write`, so a query can also write files (`COPY ... TO`);
+  the database itself is discarded when the session ends.
+- Config block:
+  ```json
+  {
+    "mcpServers": {
+      "duckdb-analytics": {
+        "command": "uvx",
+        "args": ["mcp-server-motherduck", "--db-path", ":memory:", "--read-write"]
+      }
+    }
+  }
+  ```
+- Config note: queries name files by absolute path, for example
+  `read_csv_auto('/absolute/path/to/export.csv')`; the server takes no data-folder option.
 
 ### stats_compass
 - Prerequisites: Python 3.10+ with the `stats_compass_mcp` package installed user-only (`.venv/bin/pip install stats-compass-mcp`).

@@ -86,8 +86,9 @@ If `sql` is null:
 - Prefer explicit column names over `SELECT *` for clarity.
 
 If `sql` is provided:
-- Validate that the SQL does not contain write operations (INSERT, UPDATE, DELETE, DROP, CREATE).
-  data-query is read-only.
+- Validate that the SQL does not contain write operations (INSERT, UPDATE, DELETE, DROP, CREATE,
+  ALTER, COPY, EXPORT, ATTACH, INSTALL). data-query is read-only; the DuckDB connection accepts
+  writes, so this check is what keeps a query from changing data or writing a file.
 - Validate that file paths in the SQL match `data_files`.
 
 ### Step 4: execute query

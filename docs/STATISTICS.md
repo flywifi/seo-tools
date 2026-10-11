@@ -13,7 +13,7 @@ atoms produce guidance-only output with runnable Python or R code the user can e
 | Wolfram Alpha | `wolfram_alpha` | `uvx mcp-wolfram-alpha` | Yes (free, 2000/month) | Exact symbolic math, unit conversion, distribution lookups |
 | E2B Code Interpreter | `e2b_sandbox` | `npx @e2b/mcp-server` | Yes (free tier) | Sandboxed Python with scipy, numpy, pandas, matplotlib |
 | stats-compass | `stats_compass` | `python3 -m stats_compass_mcp` | No | 50+ pandas-based tests: t-test, ANOVA, chi-square, correlation |
-| DuckDB | `duckdb_analytics` | `npx @motherduckdb/mcp-server-motherduck` | No (local) | Analytical SQL over CSV, Parquet, JSON files |
+| DuckDB | `duckdb_analytics` | `uvx mcp-server-motherduck --db-path :memory: --read-write` | No (local) | Analytical SQL over CSV, Parquet, JSON files |
 | Jupyter Notebook | `jupyter_notebook` | `python3 -m jupyter_mcp_server` | No | Persistent notebook sessions with full scientific stack |
 | R Statistics (rmcp) | `r_statistics` | rmcp | No (R required) | 52 R statistical tools for advanced modeling |
 | Monte Carlo (MCS-MCP) | `monte_carlo` | MCS-MCP | No | Probabilistic modeling, risk analysis, revenue forecasting |

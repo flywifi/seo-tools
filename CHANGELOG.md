@@ -399,6 +399,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (DuckDB connector): Claude Desktop's DuckDB entry
+  (`implementation/claude/desktop/claude_desktop_config_snippet.json`) runs the PyPI package with
+  `uvx mcp-server-motherduck --db-path :memory: --read-write`. It named
+  `npx -y @motherduckdb/mcp-server-motherduck`, which the npm registry does not have, so the server
+  did not start. The settings file's `requires` text, `docs/DEPENDENCIES.md` (DuckDB needs uv, not
+  Node.js), `docs/STATISTICS.md`, the configure-stats-tool atom and the registry's `mcp-duckdb` pin
+  follow. The server refuses an in-memory database without `--read-write`, so this connection
+  accepts writes and discards its database when the session ends; the data-query atom's list of
+  write statements adds ALTER, COPY, EXPORT, ATTACH and INSTALL, and its notes say the read-only
+  rule is the atom's own check.
 - P102 (whisper.cpp models on Windows): `transcribe.model_dir` puts downloaded whisper.cpp models in
   `.creator-os/whisper-models` under HOME, else under USERPROFILE, so on Windows, where HOME is
   normally unset, they go to `%USERPROFILE%\.creator-os\whisper-models` instead of a folder inside

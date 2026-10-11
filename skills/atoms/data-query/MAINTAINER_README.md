@@ -7,10 +7,16 @@ DuckDB MCP. Generates SQL from natural-language questions, infers schema, execut
 queries, and returns structured columnar results. Falls back to emitting the SQL for local
 execution when DuckDB is not connected.
 
+The DuckDB connection Creator OS sets up (`skills/atoms/configure-stats-tool/SKILL.md`) is an
+in-memory database started with `--read-write`, because the server refuses an in-memory database
+without it. That connection accepts writes, and a `COPY ... TO` statement writes a file on the
+computer. The read-only rule below is this atom's own check, not the server's.
+
 ## Invariants
 
-1. data-query is **read-only**. It never generates or executes INSERT, UPDATE, DELETE, DROP, or
-   CREATE statements. User-supplied SQL is validated for write operations before execution.
+1. data-query is **read-only**. It never generates or executes INSERT, UPDATE, DELETE, DROP,
+   CREATE, ALTER, COPY, EXPORT, ATTACH or INSTALL statements (the last four write files or fetch
+   extensions). User-supplied SQL is validated for write operations before execution.
 2. `rows` is empty (not populated with example data) when `computation_source` is `guidance_only`.
    Never fabricate result rows.
 3. `sql_executed` always reflects the actual SQL — whether executed or emitted for local use.
