@@ -78,7 +78,7 @@ can involve are listed under the table.
 | the repo's `.venv\` | the Python packages (`py -3 tools/setup.py --install-deps`) | `tools/setup.py::ensure_venv` |
 | the account's Python | the Python install manager's runtimes; its shortcuts go in `%LocalAppData%\Python\bin` | the Python documentation: the install manager "does not support installing runtimes per-machine" |
 | `%LOCALAPPDATA%\Programs\Git` | Git for Windows installed from a standard account | the installer's script falls back to the user's Programs folder when `C:\Program Files` is not writable; tested in Windows Sandbox |
-| `%USERPROFILE%\scoop` | Scoop, and Node.js for the Microsoft 365 lane from it (`scoop install nodejs-lts`, the wizard's Windows Node.js step) | Scoop's README: run from a regular (non-admin) PowerShell, it installs to `C:\Users\<YOUR USERNAME>\scoop`; not yet tested on Windows |
+| `%USERPROFILE%\scoop` | Scoop, and Node.js for the Microsoft 365 lane from it (`scoop install nodejs-lts`, the wizard's Windows Node.js step) | Scoop's README: run from a regular (non-admin) PowerShell, it installs to `C:\Users\<YOUR USERNAME>\scoop`; tested on Windows in Windows Sandbox, not yet from a standard account |
 | `%USERPROFILE%\.creator-os\whisper-models` | downloaded whisper.cpp models | `tools/transcribe.py::model_dir` (HOME, else USERPROFILE); the folder choice tested on Windows, a download there not yet |
 | `%USERPROFILE%\AppData\Local\ms-playwright` | Playwright's browser, which `--install-deps` downloads | Playwright's documentation (Managing browser binaries) |
 | `%APPDATA%\Claude\`, or the packaged app's `%LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude\` | the Claude Desktop settings file the wizard writes | `tools/wizard.py::_claude_config_targets` |
@@ -93,7 +93,8 @@ Machine-wide on Windows, labeled where the guidance names it:
   which the wizard's Windows Node.js step names after the Scoop route, installs to a `nodejs`
   folder under Program Files and adds it to the computer's PATH (its WiX source leaves the
   package's install scope at the WiX default, per machine, and marks its PATH entry as a system
-  one).
+  one; its SetInstallScope action keeps an earlier per-user Node.js install per-user when it
+  upgrades it).
 - The traditional python.org installer's machine-wide py launcher option and Anthropic's full
   Claude Desktop install, both labeled in `docs/SETUP_WINDOWS.md`.
 
@@ -111,7 +112,8 @@ do not show a change inside a folder that was already there, in ProgramData or i
 per-user install changes the account's own PATH,
 `[Environment]::GetEnvironmentVariable('Path', 'User')`, and leaves the four as they were.
 Installing the Visual C++ runtime from the wizard is a machine-wide change by design (the
-exceptions register above). *(not yet tested on Windows)*
+exceptions register above). *(the four lines tested on Windows in Windows PowerShell 5.1; the
+before-and-after comparison not yet tested)*
 
 ```sources
 [

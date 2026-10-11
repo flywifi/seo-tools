@@ -28,7 +28,7 @@
     "docs/DOC-MAINTENANCE.md": "d24ae8064e12c3a0883133c2e26540137dd601833f139881f3fda3061573aa60",
     "docs/DRIVE-HUB.md": "e2b3839aa588c4f3023c77c86c88f2b6003c511c396e180c190cdb3364901c3f",
     "docs/FRESHNESS.md": "cb3baa4af60adc0fa23e92b6ea90813afb4c910ff021d7369b85de38392db16b",
-    "docs/INSTALL-SCOPE.md": "b46f77c0e5366776c583640e563e91ff793f1e561de9fb7a0ca0f92d1e63dbbe",
+    "docs/INSTALL-SCOPE.md": "5d85b1b06edde9aef95bb2661814656e3056166307f2114a5f4c960be9f53697",
     "docs/MAC-VALIDATION.md": "f31107b34b665afacd43cbcfba0986f8b2ceb19b24f987aeb331368392655478",
     "docs/MACOS-MAINTENANCE.md": "9084072fbad22afed9992596318c333ea50a1cddc924abdd40df0d328f2f3424",
     "docs/PROFILE-MIRROR.md": "4a1736524c2838e9141877ff450aee3d66f3c948fa74dd2e9541229142e6364b",
@@ -90,7 +90,7 @@
     "skills/atoms/library-complete/SKILL.md": "88e8723ffe1b74784829e2021c17bf2cca2caec38ca332f063c0f182cfce734b",
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "cb99ba8a13c7b4420da2eca1fd97a6b63d9193c24a9ad7fec5111f2ab63a6da5",
-    "tools/acquire.py": "a37ac480a88ebc8da389535c9a056a3ccc5f45e75427f7af691031d945c46f5b",
+    "tools/acquire.py": "3b7684b5cdb7534d909f39dd0f1d69d5365671010341fd3646bccbda1447cfaa",
     "tools/battery.py": "b251f1de064e049cd9cdf799135023e2e6c5dff0bca67afc6669b57d3e42626a",
     "tools/claim-proof-manifest.json": "4eb185e441311cfad5a61bd78c490e0cfa599499dbc44ddd891c20ddd24f4a19",
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
@@ -108,14 +108,14 @@
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
     "tools/setup.py": "c501ad3b2b97fa38856130b1279cb52a4cd436d9546dcc7b78820be5080badf3",
     "tools/surface_workflow_check.py": "7b4939bb7258b93f7bc92ebfb97b15a0d48ccc65df125d60d4bb5f52f0fe9a36",
-    "tools/transcribe.py": "8cc8ee9d5249bfb793fd6af3b62996fda007c1916b8f0275c683a2c7a6989fdd",
+    "tools/transcribe.py": "deca9966ca3d64da1dbee47fb555c3533f2d428f01e46d16f766db18ed4ae270",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
     "tools/videoedit/compressor.py": "5aee181e13c1870836d3f17546c06efb23b299eb1162ce49f12eefbdf51f012f",
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "acbbc7812de227766ff982e32233ee4c40a91be18e8756e7ddc0321bc565507e"
+    "tools/wizard.py": "be73cb7fffef9382a7027ad3da1c8f9e9de7ccc67b6d23996866ad03d8e2680a"
   },
   "excluded": {}
 }

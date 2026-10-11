@@ -61,7 +61,7 @@
     },
     {
       "file": "implementation/gemini/system-instruction.md",
-      "sha256": "c8e4079dbaa3e4d06b4e6c3fcd051b115fc91b9e8e328211fe7bfc5b71457846"
+      "sha256": "defb86b13a35122040863b8dd5fdb498d778268cb78fcc9777e14d3bb25e0136"
     }
   ],
   "generated_by": "tools/build_freshness_bundle.py"

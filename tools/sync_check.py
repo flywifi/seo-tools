@@ -2416,7 +2416,7 @@ def _selfproof():
     creator_text = _creator_text_problems(ROOT)
     # Invariant 62 reports each problem _creator_text_problems returns (a stand-in list here).
     real_problems = globals()["_creator_text_problems"]
-    globals()["_creator_text_problems"] = lambda root: ["creator-text: stand-in problem"]
+    globals()["_creator_text_problems"] = lambda root: ["creator-text: stand-in one", "creator-text: stand-in two"]
     before = len(PROBLEMS)
     try:
         check_creator_text_dashes()
@@ -2424,9 +2424,15 @@ def _selfproof():
     finally:
         del PROBLEMS[before:]
         globals()["_creator_text_problems"] = real_problems
-    reports = reported == ["creator-text: stand-in problem"]
+    reports = reported == ["creator-text: stand-in one", "creator-text: stand-in two"]
+    # On an empty tree the live check names each place the formatting rule lists.
+    with tempfile.TemporaryDirectory() as td_floor:
+        floor_msgs = _creator_text_problems(td_floor)
+    floor_named = len(floor_msgs) == 1 and all(f in floor_msgs[0] for f in (
+        "tools/wizard.py", "tools/dashboard/server.py", "tools/dashboard/static/app.js", "tools/mcp_server.py",
+        "tools/setup.py", "tools/update.py", "creator-os-config.json", "shared/connectors/connectors.json"))
     return 0 if (not found and named and not _selftest_guard_wiring() and not _install_scope_selfproof()
-                 and not creator_text and reports) else 1
+                 and not creator_text and reports and floor_named) else 1
 
 
 def _selftest_guard_wiring():
@@ -4526,6 +4532,9 @@ _CREATOR_DASH_RE = re.compile("\u2014|&" + "mdash;|&#0*8212(?![0-9])|&#[xX]0*201
 _CREATOR_TEXT_FLOOR = ("tools/wizard.py", "tools/dashboard/server.py", "tools/dashboard/static/app.js",
                        "tools/mcp_server.py", "tools/setup.py", "tools/update.py",
                        "creator-os-config.json", "shared/connectors/connectors.json")
+# Static files with these suffixes are text: one holding a NUL byte (UTF-16, say) is reported as a
+# file the check cannot read, where an image or a font with a NUL byte is skipped as binary.
+_CT_TEXT_SUFFIXES = (".html", ".htm", ".js", ".mjs", ".css", ".svg", ".json", ".txt", ".md", ".xml")
 
 
 def _ct_source(path):
@@ -4782,13 +4791,15 @@ def _ct_json_hits(src):
 
 def _creator_text_scan(root):
     """(scanned, hits, unread): the derived scan set of invariant 62 under root, {rel: kind};
-    [(rel, line or None, fragment)] for the em dashes in it; and the files in it that could not be
-    read (not UTF-8 text, or Python that does not parse), which the invariant reports rather than
+    [(rel, line or None, fragment)] for the em dashes in it; and the files that could not be read
+    (in the set and not UTF-8 text, or Python or JSON that does not parse, and a tools/ module that
+    does not parse, which discovery cannot classify), which the invariant reports rather than
     skips. Derived from the tree:
       pages     modules under tools/ with a top-level class whose base is written as a name ending
                 in RequestHandler;
       static    the files of a static/ folder beside a page module, at any depth (a file with a NUL
-                byte in its first 8 KiB is binary and not read);
+                byte in its first 8 KiB is binary and not read, or, with a _CT_TEXT_SUFFIXES
+                suffix, reported as unread);
       mcp       modules under tools/ with top-level functions decorated <server>.tool;
       programs  .py files a page or mcp module builds a path to from ROOT or HERE (what it runs),
                 and the local modules it imports (text it shows from them);
@@ -4804,12 +4815,13 @@ def _creator_text_scan(root):
     tool functions' docstrings (their descriptions) and a module docstring the module prints
     included; static and text files whole, comments included; JSON strings."""
     root = Path(root)
-    pages, mcps = [], []
+    pages, mcps, undiscovered = [], [], []
     for p in sorted((root / "tools").rglob("*.py")):
         if "__pycache__" in p.parts:
             continue
         tree = _ct_tree(p)
         if tree is None:
+            undiscovered.append(p.relative_to(root).as_posix())  # cannot tell whether it is a page
             continue
         for node in tree.body:
             if isinstance(node, ast.ClassDef) and any(
@@ -4883,6 +4895,8 @@ def _creator_text_scan(root):
         if kind == "static":
             try:
                 if b"\0" in path.read_bytes()[:8192]:
+                    if path.suffix.lower() in _CT_TEXT_SUFFIXES:
+                        unread.append(rel)  # text that is not UTF-8 (UTF-16, say)
                     continue  # binary (an image or a font): no text to read
             except OSError:
                 pass
@@ -4910,7 +4924,7 @@ def _creator_text_scan(root):
                 continue
             tools_fns = _ct_tool_functions(tree) if kind in ("mcp", "page") else set()
             hits += [(rel, ln, frag) for ln, frag in _ct_literal_hits(src, tree, include_docs=tools_fns)]
-    return scanned, hits, unread
+    return scanned, hits, sorted(set(unread) | set(undiscovered))
 
 
 def _ct_fixture(t, em, d):
@@ -4921,6 +4935,8 @@ def _ct_fixture(t, em, d):
     amp = "&"
     (t / "tools" / "web" / "static" / "sub").mkdir(parents=True)
     (t / "tools" / "sub").mkdir(parents=True)
+    (t / "tools" / "pkg").mkdir()
+    (t / "tools" / "pkg2").mkdir()
     (t / "shared" / "x").mkdir(parents=True)
     (t / "impl").mkdir()
     files = {
@@ -4947,16 +4963,25 @@ def _ct_fixture(t, em, d):
             "second T06 " + em + " line\n"
             'third line"""\n'
             '        cafe = "caf\u00e9"; dash = "T07 ' + em + ' after non-ASCII"\n'
+            '        accents = "\u00e0\u00e8\u00e9\u00ea\u00eb\u00ee"; late = "T32 ' + em + '"\n'
             "\x0c\n"
             '        after_ff = "T08 ' + em + ' after a form feed"\n'
             '        sep = "a\u2028b"\n'
             '        after_sep = "T10 ' + em + ' after a line separator in a literal"\n'
             '        paste = (ROOT / "impl" / "paste.md").read_text(encoding="utf-8")\n'
+            '        hex_bare = "T37 ' + amp + '#x2014 without its semicolon"\n'
+            '        others = "' + amp + '#82125; and ' + amp + '#x2014a; are other characters"\n'
+            '        bad = ROOT / "shared" / "x" / "badprog.py"\n'
+            '        badjson = ROOT / "bad.json"\n'
+            '        doc_test = "Run python3 tools/testdoc.py."\n'
+            '        notes = (ROOT / "impl" / "notes.local.md").read_text(encoding="utf-8")\n'
             "        import tbl as _t\n"
             "        boxes = _t.FILES\n"
             '        shutil.copyfile(ROOT / "impl" / "upload.md", "staged.md")\n'
             "        return body, paste, boxes\n"
             "def selftest():\n"
+            "    import testlib\n"
+            '    test_read = (ROOT / "impl" / "testread.md").read_text(encoding="utf-8")\n'
             '    fixture = ROOT / "fixture.json"\n'
             '    named = "python3 tools/testonly.py"\n'
             '    return "test code ' + em + ' passes", fixture, named\n'
@@ -4982,6 +5007,10 @@ def _ct_fixture(t, em, d):
         "tools/server.py": (
             "HERE = None\nROOT = None\n"
             "import shared.x.lib as _lib\n"
+            "from fromlib import TEXT\n"
+            "from pkg import mod\n"
+            "import pkg2\n"
+            "import crmod\n"
             "class _M:\n    def tool(self, *a):\n        return lambda f: f\n"
             "mcp = _M()\n"
             "@mcp.tool()\n"
@@ -5023,16 +5052,32 @@ def _ct_fixture(t, em, d):
                             "argparse.ArgumentParser(description=__doc__)\n"),
         "tools/testonly.py": 'print("named only in test code ' + em + '")\n',
         "tools/unreached.py": 'print("unreached ' + em + ' not scanned")\n',
-        "tools/tbl.py": 'FILES = [("impl/box.md", 10), ("impl/absent.md", 5)]\n',
+        "tools/tbl.py": 'FILES = [("impl/box.md", 10), ("impl/absent.md", 5), ("impl/box.txt", 3)]\n',
         "fixture.json": json.dumps({"note": "test fixture " + em + " not read"}),
         "impl/paste.md": "T29 Paste this " + em + " into the chat.\n",
         "impl/box.md": "T30 Box text " + em + " shown on the page.\n",
         "impl/upload.md": "Uploaded only " + em + " never shown.\n",
+        "impl/box.txt": "T36 Box text file " + em + " shown.\n",
+        "impl/testread.md": "Read only by test code " + em + "\n",
+        "impl/notes.local.md": "Local notes " + em + "\n",
+        "tools/fromlib.py": 'TEXT = "T33 from-import ' + em + ' text"\n',
+        "tools/pkg/__init__.py": "",
+        "tools/pkg/mod.py": 'MOD = "T34 package module ' + em + ' text"\n',
+        "tools/pkg2/__init__.py": 'INIT = "T35 package init ' + em + ' text"\n',
+        "tools/crmod.py": 'A = "x"\rB = "T38 ' + em + ' after a lone CR"\r',
+        "shared/x/badprog.py": "x = (\n",
+        "bad.json": '{"note": "not JSON',
+        "tools/broken.py": "import http.server\nclass P(http.server.BaseHTTPRequestHandler):\n    x = (\n",
+        "tools/testdoc.py": ('"""Usage ' + em + ' read only by its selftest."""\n'
+                             "def selftest():\n"
+                             "    return __doc__\n"),
+        "tools/testlib.py": 'TEST = "imported only by test code ' + em + '"\n',
     }
     for rel, text in files.items():
         (t / rel).write_text(text, encoding="utf-8")
     (t / "tools" / "web" / "static" / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n\0\0\0" + em.encode("utf-8"))
     (t / "tools" / "web" / "static" / "legacy.html").write_bytes(b"<p>cp1252 \x97 text</p>\n")
+    (t / "tools" / "web" / "static" / "u16.html").write_bytes(("<p>UTF-16 " + em + " text</p>\n").encode("utf-16"))
     kinds = {"tools/web/page.py": "page", "tools/sock.py": "page", "tools/server.py": "mcp",
              "tools/web/static/app.js": "static", "tools/web/static/index.html": "static",
              "tools/web/static/style.css": "static", "tools/web/static/sub/x.js": "static",
@@ -5040,14 +5085,18 @@ def _ct_fixture(t, em, d):
              "shared/x/prog.py": "program", "shared/x/lib.py": "program", "tools/tbl.py": "program",
              "tools/cmd.py": "command", "tools/sub/deep.py": "command", "tools/doccmd.py": "command",
              "settings.json": "data", "shared/x/beside.json": "data", "tools/cmd.json": "data",
-             "impl/paste.md": "text", "impl/box.md": "text"}
+             "impl/paste.md": "text", "impl/box.md": "text", "impl/box.txt": "text",
+             "tools/fromlib.py": "program", "tools/pkg/__init__.py": "program", "tools/pkg/mod.py": "program",
+             "tools/pkg2/__init__.py": "program", "tools/crmod.py": "program", "shared/x/badprog.py": "program",
+             "bad.json": "data", "tools/testdoc.py": "command", "tools/web/static/u16.html": "static"}
     absent = {"tools/unreached.py", "shared/x/cache.local.json", "cache.local.json", "fixture.json",
-              "impl/upload.md", "tools/testonly.py", "shared/x/hop2.py"}
-    tokens = {f"T{n:02d}" for n in range(1, 32)} - {"T05", "T09"}
+              "impl/upload.md", "tools/testonly.py", "shared/x/hop2.py", "tools/testlib.py",
+              "impl/testread.md", "impl/notes.local.md"}
+    tokens = {f"T{n:02d}" for n in range(1, 39)} - {"T05", "T09"}
     return kinds, absent, tokens
 
 
-def _creator_text_findings(root, floor=_CREATOR_TEXT_FLOOR):
+def _creator_text_findings(root, floor):
     """Invariant 62's problems for the tree under root, without its self-proof: the floor paths
     the derived set does not reach and read, each file in the set that could not be read, and each
     em dash it finds."""
@@ -5059,8 +5108,8 @@ def _creator_text_findings(root, floor=_CREATOR_TEXT_FLOOR):
                    f"derivation in _creator_text_scan must still find and read the local pages, the "
                    f"MCP server, setup and update and the two settings files")
     for rel in unread:
-        out.append(f"creator-text: {rel}: in the scan set but not read (not UTF-8 text, or Python or "
-                   f"JSON that does not parse); fix the file so the check can read it")
+        out.append(f"creator-text: {rel}: could not be read (not UTF-8 text, or Python or JSON that "
+                   f"does not parse); fix the file so the check can read it")
     for rel, line, frag in hits:
         where = f"{rel}:{line}" if line else rel
         out.append(f"creator-text: {where}: an em dash in creator-facing text ({frag.strip()!r}); use a "
@@ -5087,8 +5136,12 @@ def _creator_text_selfproof():
             return (f"creator-text: self-proof failed -- {sorted(absent & set(scanned))} was scanned (an "
                     f"unreached file, a .local. file, a path or a command named in test code, a file "
                     f"only copied, or a second import hop)")
-        if unread != ["tools/web/static/legacy.html"]:
-            return f"creator-text: self-proof failed -- unread files {unread}, expected the cp1252 static file"
+        want_unread = ["bad.json", "shared/x/badprog.py", "tools/broken.py", "tools/web/static/legacy.html",
+                       "tools/web/static/u16.html"]
+        if unread != want_unread:
+            return (f"creator-text: self-proof failed -- unread files {unread}, expected {want_unread} (JSON "
+                    f"and Python that do not parse, a page module that does not parse, a cp1252 and a "
+                    f"UTF-16 static file)")
         got, wrong = [], []
         for rel, line, frag in hits:
             m = _CREATOR_DASH_RE.search(frag)
@@ -5109,7 +5162,7 @@ def _creator_text_selfproof():
         if not (len(floor_msgs) == 1 and "tools/absent.py" in floor_msgs[0]
                 and "legacy.html" in floor_msgs[0] and "tools/web/page.py" not in floor_msgs[0]):
             return f"creator-text: self-proof failed -- the floor problems are {floor_msgs}"
-        if sum("in the scan set but not read" in x for x in found) != 1 \
+        if sum("could not be read" in x for x in found) != len(want_unread) \
                 or sum("an em dash in creator-facing text" in x for x in found) != len(tokens):
             return f"creator-text: self-proof failed -- the problems built from the scan are {found}"
     return None
@@ -5122,7 +5175,7 @@ def _creator_text_problems(root):
     gap = _creator_text_selfproof()
     if gap:
         return [gap]
-    return _creator_text_findings(root)
+    return _creator_text_findings(root, _CREATOR_TEXT_FLOOR)
 
 
 def check_creator_text_dashes():
@@ -5139,15 +5192,17 @@ def check_creator_text_dashes():
     a Python escape or built with chr() read as data. HTML entities for the character count, a
     numeric one with or without its semicolon. Docstrings, Python comments, test code, escapes and
     .local. files are the cuts, each a case in the self-proof that runs first; a file in the set that
-    cannot be read is reported. Every path in _CREATOR_TEXT_FLOOR must be in the derived set and
-    read. Limits: a program reached through a path built another way (a variable, os.path.join), a
-    second hop (a program that a program runs, a module that an imported module imports), a handler
-    base imported under another name or a handler class nested in a function, a tool registered
-    without a decorator, and escapes in static files (a JavaScript or CSS escape) are not followed;
+    cannot be read, and a tools/ module that does not parse, are reported. Every path in
+    _CREATOR_TEXT_FLOOR must be in the derived set and read. Limits: a program reached through a
+    path built another way (a variable, os.path.join), read_text() on a path held in a variable, a
+    table read through 'from x import NAME', a function docstring handed to argparse, a second hop
+    (a program that a program runs, a module that an imported module imports), a handler base
+    imported under another name or a handler class nested in a function, a tool registered without
+    a decorator, and escapes in static files (a JavaScript or CSS escape) are not followed;
     a file a page copies without reading it is not read; a test helper not named selftest, and code
     under an indented '# --- selftest' marker, are read like the rest. The wizard's selftest
-    renders each screen and fails on an em dash, or one of its entities, in its HTML, which also
-    covers text a screen takes from a module when it renders."""
+    renders each screen in its default state and fails on an em dash, or one of its entities, in
+    its HTML, which also covers text such a screen takes from a module when it renders."""
     for msg in _creator_text_problems(ROOT):
         problem(msg)
 

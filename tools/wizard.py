@@ -1071,14 +1071,15 @@ nvm install --lts</pre>
 <p>User-only install (stays inside your account, no administrator rights) via Scoop, which installs
 programs into <code>C:\\Users\\&lt;you&gt;\\scoop</code>. In a regular PowerShell window (not one run as
 administrator), run these three lines, then close this wizard and start it again so it sees the
-new PATH <em>(not yet tested on Windows)</em>:</p>
+new PATH <em>(tested on Windows in Windows Sandbox; not yet from a standard account)</em>:</p>
 <pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.85rem;
             overflow-x:auto;margin-bottom:14px">Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
 scoop install nodejs-lts</pre>
 <p>Machine-wide alternative (affects the whole computer): the installer from nodejs.org puts Node.js
 in a <code>nodejs</code> folder under Program Files and adds it to the computer's PATH, for every
-account on this computer.</p>
+account on this computer (a Node.js already installed for this account alone is upgraded where it
+is).</p>
 <a class="btn btn-outline" href="https://nodejs.org/en/download"
    target="_blank" style="margin-bottom:14px">Open nodejs.org downloads</a>
 <p>Choose the <strong>LTS</strong> version (20 or higher). Run the installer and accept the defaults
@@ -6460,6 +6461,10 @@ def _selftest_p101() -> int:
     check(_node_label in _node_w and "scoop install nodejs-lts" in _node_w
           and _node_w.index("scoop install nodejs-lts") < _node_w.index(_node_label)
           < _node_w.index("https://nodejs.org/en/download")
+          and "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser\n" in _node_w
+          and "Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression\n" in _node_w
+          and "In a regular PowerShell window (not one run as\nadministrator)" in _node_w
+          and "<em>(tested on Windows in Windows Sandbox; not yet from a standard account)</em>" in _node_w
           and "scoop" not in _node_pages["mac"] + _node_pages["linux"]
           and "nvm install --lts" in _node_pages["mac"] and "nvm install --lts" in _node_pages["linux"],
           "the Windows Node.js step does not lead with the Scoop route and label the nodejs.org "

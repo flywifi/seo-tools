@@ -12,9 +12,10 @@ output, the MCP server's tool descriptions and replies, the dashboard and the tw
 whose strings those show (`creator-os-config.json`, `shared/connectors/connectors.json`) carried
 76 em dashes, written as the character or as `&mdash;`, the programs and scripts those reach
 carried 5 more, the paste-in instructions the wizard shows in its copy boxes (the claude.ai
-system prompt and both versions of the ChatGPT custom instructions) carried 8, and six more tools
-carried 13 (help text, a privacy report, block advice and a detector constant, now written as the
-escape). Push 4d of P102 replaced them; a guard keeps new ones out.
+system prompt and both versions of the ChatGPT custom instructions) carried 8, the Gemini system
+instruction the docs tell creators to paste carried 4, and eight more tools carried 17 (help text, a
+privacy report, block advice and a detector constant, now written as the escape). Push 4d of P102
+replaced them; a guard keeps new ones out.
 
 ## Decision
 
@@ -46,14 +47,17 @@ test code. Two docstrings are read: a tool function's (its description) and a mo
 module prints or gives argparse as its help text (`__doc__`). Test code is a top-level function
 whose name, leading underscores aside, starts with `selftest`, and the lines from a
 `# --- selftest` marker at the start of a line down. Static and text files are read whole, comments
-included; a static file with a NUL byte in its first 8 KiB is taken as binary and not read. JSON is
-read for its strings, keys and values at any depth. The character and its HTML entities count:
+included; a static file with a NUL byte in its first 8 KiB is taken as binary and not read, unless
+its name ends in a text suffix (`.html`, `.js`, `.css`, `.svg`, `.json` and the like), when it is
+reported as a file the check cannot read. JSON is read for its strings, keys and values at any
+depth. The character and its HTML entities count:
 `&mdash;`, and `&#8212;` and `&#x2014;` with or without the semicolon, as HTML reads a numeric
 entity. An em dash a program uses as data, a detector constant or a placeholder some exports write
 for "no value", is written as the escape `\u2014`, which the guard reads as data. Docstrings,
 comments in Python, test code, escapes and `.local.` files are the cuts; each is a case in the
 self-proof that runs before the scan. A file in the scan set that cannot be read (not UTF-8, or
-Python that does not parse) is reported, not skipped. `_CREATOR_TEXT_FLOOR` lists the places the
+Python or JSON that does not parse), and a module under `tools/` that does not parse, which the
+derivation cannot classify, are reported, not skipped. `_CREATOR_TEXT_FLOOR` lists the places the
 formatting rule names for the local tools, and the build fails when the derived set no longer
 reaches one of them or cannot read it.
 
@@ -66,13 +70,17 @@ reaches one of them or cannot read it.
   name, such as `profile_mirror.py` and `update_check.py`.
 - Limits: a handler base imported under another name, a handler class defined inside a function,
   a tool registered with `add_tool` instead of the decorator, a program reached through a path
-  built another way (a variable, `os.path.join`), and a second hop (a module or program that a
-  program imports or runs, and a script a program's output names) are not followed. The
-  character built when a program runs (`chr(0x2014)`, `\N{EM DASH}`) is not seen, and a JavaScript
-  or CSS escape for it in a static file is not read as one. In a Python file, a test
+  built another way (a variable, `os.path.join`), a file read with `read_text()` on a path held in
+  a variable, a table read through `from x import NAME`, a function docstring handed to argparse
+  (`description=main.__doc__`), and a second hop (a module or program that a program imports or
+  runs, and a script a program's output names) are not followed. Python source escapes for the
+  character (`\u2014`, `\U00002014`, `\N{EM DASH}`, a bytes escape) are read as data, the character
+  built when a program runs (`chr(0x2014)`) is not seen, and a JavaScript or CSS escape for it in a
+  static file is not read as one. In a Python file, a test
   helper with another name, and code under a `# --- selftest` marker that is indented, are read
   like the rest. The knowledge files the wizard copies into the upload folder are not scanned.
-  The wizard's selftest renders each screen and fails on an em dash, or one of its entities, in
-  its HTML, which also covers text a screen takes from another module when it renders.
+  The wizard's selftest renders each screen in its default state on the system it runs on and
+  fails on an em dash, or one of its entities, in its HTML, which also covers text such a screen
+  takes from another module when it renders.
 - Maintainer text (docstrings a module does not print, comments in Python, internal docs) keeps
   its em dashes.

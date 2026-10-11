@@ -24,10 +24,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   on a path they build, or a file named in another tools module's table they read). The scan set is
   derived from the tree; docstrings, comments in Python, test code, `\u2014` escapes and `.local.`
   files are its cuts, each a case in the self-proof that runs before the scan. A file in the set
-  that cannot be read is reported, and the build fails when the derived set stops reaching or
-  reading the wizard, the dashboard, the MCP server, `setup.py`, `update.py` or the two settings
-  files (ADR 0081, which lists the forms it does not follow). The wizard's selftest renders each
-  screen and fails on an em dash, or one of those entities, in its HTML. `sync_check._selfproof`,
+  that cannot be read, and a `tools/` module that does not parse, are reported, and the build fails
+  when the derived set stops reaching or reading the wizard, the dashboard, the MCP server,
+  `setup.py`, `update.py` or the two settings files (ADR 0081, which lists the forms it does not
+  follow). The wizard's selftest renders each screen in its default state and fails on an em dash,
+  or one of those entities, in its HTML. `sync_check._selfproof`,
   the entry `tools/file_hash.py`'s mutation cases run for this module, runs the self-proof and the
   scan of the live tree too.
 - P102 (the configured hub folder name): the wizard's hub screen asks
@@ -270,25 +271,26 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   go; the machine-wide installs on Windows with their labels, the Node.js installer from nodejs.org
   among them; and four PowerShell lines to compare before and after setup, with what they do not
   show. The wizard's Windows Node.js step (the Microsoft 365 lane) leads with Scoop
-  (`scoop install nodejs-lts`, not yet tested on Windows) and labels the nodejs.org installer
-  machine-wide. `docs/SETUP_WINDOWS.md` says that Git for Windows needs no administrator account:
+  (`scoop install nodejs-lts`, tested on Windows in Windows Sandbox and not yet from a standard
+  account) and labels the nodejs.org installer machine-wide. `docs/SETUP_WINDOWS.md` says that Git for Windows needs no administrator account:
   from a standard account it installs to `%LOCALAPPDATA%\Programs\Git` and that account's PATH, run
   as an administrator it installs to `C:\Program Files\Git` (labeled machine-wide), and to open a
   new terminal from the Start menu afterwards (not yet tested on Windows). Seven sources are
   registered for these lines.
-- P102 (em dashes in creator-facing text): the wizard's pages, `setup.py` and `update.py` output,
-  the MCP tools' descriptions and replies, the messages the drift guard and the connector resolver
-  return through them, the dashboard's static files, and the string values of
-  `creator-os-config.json` and `shared/connectors/connectors.json`, and the paste-in instructions
-  the wizard shows in its copy boxes (the claude.ai system prompt and both versions of the ChatGPT
-  custom instructions), and the help text, report and advice strings of `competitor_snapshot.py`,
-  the hand-off watcher, `local_privacy.py`, `fetch_resilient.py` and `fetch_diag.py` use a colon,
-  semicolon, comma, parentheses or a full stop where they had an em dash
-  (`protocols/formatting-metadata.md`). Docstrings a module does not print, and comments, which
-  only maintainers read, keep theirs. Three values that hold the character as data, the detector
-  constants of the drift guard and of `paste_check.py` and an import placeholder some exports write
-  for "no value", are written as the escape `\u2014`. The crawl connector's note names the
-  `.venv` route (`tools/setup.py --install-deps`) for its two requirement sets.
+- P102 (em dashes in creator-facing text): an em dash becomes a colon, semicolon, comma,
+  parentheses or a full stop (`protocols/formatting-metadata.md`) in the wizard's pages, `setup.py`
+  and `update.py` output, the MCP tools' descriptions and replies, the messages the drift guard and
+  the connector resolver return through them, the dashboard's static files, the string values of
+  `creator-os-config.json` and `shared/connectors/connectors.json`, the paste-in instructions (the
+  claude.ai system prompt and both versions of the ChatGPT custom instructions, which the wizard
+  shows in its copy boxes, and the Gemini system instruction), and the help text, report and advice
+  strings of `competitor_snapshot.py`, `acquire.py`, `parse_competitor_meta.py`, the hand-off
+  watcher, `local_privacy.py`, `fetch_resilient.py` and `fetch_diag.py`. Docstrings a module does
+  not print, and comments in Python, which only maintainers read, keep theirs. Three values that
+  hold the character as data, the detector constants of the drift guard and of `paste_check.py`
+  and an import placeholder some exports write for "no value", are written as the escape
+  `\u2014`. The crawl connector's note names the `.venv` route (`tools/setup.py --install-deps`)
+  for its two requirement sets.
 - P102 (custom GPT and Gems retired): custom GPTs retire on 2026-12-11 (help article 20001519)
   and Gemini Gems become skills from November 2026 (support.google.com/gemini/answer/18560919), so
   the `chatgpt_custom_gpt` and `gemini_gems` surfaces and their five pair overrides leave
