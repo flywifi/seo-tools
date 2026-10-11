@@ -21,7 +21,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   from the tree; docstrings, comments, test code, `\u2014` escapes and `.local.` files are its cuts,
   each a case in the self-proof that runs before the scan, and the build fails when the derived set
   stops reaching the wizard, the dashboard, the MCP server, `setup.py`, `update.py` or the two
-  settings files (ADR 0081).
+  settings files (ADR 0081). `sync_check._selfproof`, the entry `tools/file_hash.py`'s mutation cases
+  run for this module, runs the self-proof and the scan of the live tree too.
 - P102 (the configured hub folder name): the wizard's hub screen asks
   `watcher.detect_mirror_candidates` for the folder named in `drive_hub.folder_name`, and the
   profile mirror's Doc lookup and its move-it messages, `project_docs.py project --api` and the
@@ -373,6 +374,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (whisper.cpp models on Windows): `transcribe.model_dir` puts downloaded whisper.cpp models in
+  `.creator-os/whisper-models` under HOME, else under USERPROFILE, so on Windows, where HOME is
+  normally unset, they go to `%USERPROFILE%\.creator-os\whisper-models` instead of a folder inside
+  the repository's `tools/`, which git did not ignore. A model downloaded there before this change is
+  not read from that folder; move it to the new one or download it again.
 - P102 (selftests on real setups and fresh clones): the watcher's selftest stands in for the
   compute hand-off gate, so it passes on a computer whose local config switches the hand-off on; the
   wizard's selftest pins the interpreter while it records tool runs, so a `.venv` adds no run; the

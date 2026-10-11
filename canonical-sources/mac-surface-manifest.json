@@ -108,7 +108,7 @@
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
     "tools/setup.py": "c501ad3b2b97fa38856130b1279cb52a4cd436d9546dcc7b78820be5080badf3",
     "tools/surface_workflow_check.py": "7b4939bb7258b93f7bc92ebfb97b15a0d48ccc65df125d60d4bb5f52f0fe9a36",
-    "tools/transcribe.py": "ca990e2a9b37078e8c00f343e8afa29225860c50344344c9c14bb5a01ffc316c",
+    "tools/transcribe.py": "3879a2972606cd23dbb6b374a4de2605194f68fa3f8ee70b727948c5f992b4d0",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
     "tools/videoedit/commandpost.py": "638252178603581c4d8a36e9e7d595e1d4621d3f9d00816d578a4ba56e70f021",
     "tools/videoedit/compressor.py": "5aee181e13c1870836d3f17546c06efb23b299eb1162ce49f12eefbdf51f012f",

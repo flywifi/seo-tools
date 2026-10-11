@@ -638,13 +638,17 @@ def load_model_allowlist(path=None):
 
 
 def model_dir(explicit=None):
-    """Where downloaded whisper.cpp models live (gitignored, local). Overridable via WHISPER_MODEL_DIR."""
+    """Where downloaded whisper.cpp models live: .creator-os/whisper-models in the home folder,
+    outside the repository. Overridable via WHISPER_MODEL_DIR. The home folder is HOME, else
+    USERPROFILE (Windows, where HOME is normally unset and Path.home() reads USERPROFILE); with
+    neither set, the folder of this file."""
     if explicit:
         return Path(explicit)
     env = os.environ.get("WHISPER_MODEL_DIR")
     if env:
         return Path(env)
-    return Path(os.environ.get("HOME") or str(HERE)) / ".creator-os" / "whisper-models"
+    home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or str(HERE)
+    return Path(home) / ".creator-os" / "whisper-models"
 
 
 def _sha256_file(path, chunk=1 << 20):
@@ -1333,6 +1337,36 @@ def selftest():
     finally:
         import shutil as _sh
         _sh.rmtree(tmp, ignore_errors=True)
+
+    # P102: the model folder is in the home folder: HOME, else USERPROFILE (Windows leaves HOME
+    # unset), else beside this file; WHISPER_MODEL_DIR and an explicit folder come first.
+    _md_keys = ("WHISPER_MODEL_DIR", "HOME", "USERPROFILE")
+    _md_saved = {k: os.environ.get(k) for k in _md_keys}
+    _md_seen = {}
+    try:
+        for _md_case, _md_env in (("home", {"HOME": "/h/home"}),
+                                  ("userprofile", {"USERPROFILE": "/h/profile"}),
+                                  ("empty-home", {"HOME": "", "USERPROFILE": "/h/profile"}),
+                                  ("both", {"HOME": "/h/home", "USERPROFILE": "/h/profile"}),
+                                  ("neither", {}),
+                                  ("override", {"WHISPER_MODEL_DIR": "/h/models", "HOME": "/h/home"})):
+            for k in _md_keys:
+                os.environ.pop(k, None)
+            os.environ.update(_md_env)
+            _md_seen[_md_case] = model_dir()
+        _md_seen["explicit"] = model_dir("/h/explicit")
+    finally:
+        for k, v in _md_saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    _md_tail = Path(".creator-os") / "whisper-models"
+    ok("model_dir: HOME, else USERPROFILE (Windows), else this file's folder; the override first",
+       _md_seen == {"home": Path("/h/home") / _md_tail, "userprofile": Path("/h/profile") / _md_tail,
+                    "empty-home": Path("/h/profile") / _md_tail, "both": Path("/h/home") / _md_tail,
+                    "neither": HERE / _md_tail, "override": Path("/h/models"),
+                    "explicit": Path("/h/explicit")})
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

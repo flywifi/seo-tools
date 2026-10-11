@@ -2389,8 +2389,9 @@ def _migration_gaps(pdir, by_key, root=None):
 
 def _selfproof():
     """0 when invariant 33's checks report nothing on the live tree, invariant 14's guard wiring
-    checks pass their cases and invariant 59's detector proves itself (_install_scope_selfproof);
-    the entry the committed mutation cases in tools/file_hash.py run for this module, which has no
+    checks pass their cases, invariant 59's detector proves itself (_install_scope_selfproof) and
+    invariant 62 proves itself and finds nothing on the live tree (_creator_text_problems); the
+    entry the committed mutation cases in tools/file_hash.py run for this module, which has no
     selftest()."""
     before = len(PROBLEMS)
     check_migration_manifest()
@@ -2411,7 +2412,8 @@ def _selfproof():
         with file_hash.windows_paths():
             win_gap = _migration_gaps(t / "pipeline", {}, root=t)
     named = win_gap == [("pipeline/x/a.template.json", "1.0")]
-    return 0 if not found and named and not _selftest_guard_wiring() and not _install_scope_selfproof() else 1
+    return 0 if (not found and named and not _selftest_guard_wiring() and not _install_scope_selfproof()
+                 and not _creator_text_problems(ROOT)) else 1
 
 
 def _selftest_guard_wiring():
@@ -4840,21 +4842,30 @@ def check_creator_text_dashes():
     self-proof that runs first. Every path in _CREATOR_TEXT_FLOOR must be in the derived set.
     Limits: a program reached through a path built another way (a variable, os.path.join) and a
     second hop (a program a program runs) are not followed."""
+    for msg in _creator_text_problems(ROOT):
+        problem(msg)
+
+
+def _creator_text_problems(root):
+    """Invariant 62's problems for the tree under root: the self-proof's gap, else the floor paths
+    the derived set misses and each em dash it finds. _selfproof runs it on the live tree, so the
+    committed mutation cases for this invariant are scored against the self-proof and the scan."""
     gap = _creator_text_selfproof()
     if gap:
-        problem(gap)
-        return
-    scanned, hits = _creator_text_scan(ROOT)
+        return [gap]
+    scanned, hits = _creator_text_scan(root)
+    out = []
     missing = [rel for rel in _CREATOR_TEXT_FLOOR if rel not in scanned]
     if missing:
-        problem(f"creator-text: the derived scan set no longer reaches {missing}; the derivation in "
-                f"_creator_text_scan must still find the local pages, the MCP server, setup and "
-                f"update and the two settings files")
+        out.append(f"creator-text: the derived scan set no longer reaches {missing}; the derivation in "
+                   f"_creator_text_scan must still find the local pages, the MCP server, setup and "
+                   f"update and the two settings files")
     for rel, line, frag in hits:
         where = f"{rel}:{line}" if line else rel
-        problem(f"creator-text: {where}: an em dash in creator-facing text ({frag.strip()!r}); use a "
-                f"comma, colon, semicolon, parentheses or a full stop (protocols/formatting-metadata.md), "
-                f"or the escape \\u2014 where the character is data")
+        out.append(f"creator-text: {where}: an em dash in creator-facing text ({frag.strip()!r}); use a "
+                   f"comma, colon, semicolon, parentheses or a full stop "
+                   f"(protocols/formatting-metadata.md), or the escape \\u2014 where the character is data")
+    return out
 
 
 def check_install_scope():
