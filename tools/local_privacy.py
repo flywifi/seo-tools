@@ -107,7 +107,7 @@ def main(argv) -> int:
         print(json.dumps(r, indent=2))
         return 0 if r["ok"] or not r["git_checked"] else 1
 
-    print("Creator OS — local-context privacy report")
+    print("Creator OS: local-context privacy report")
     print("=" * 44)
     if not r["git_checked"]:
         print("git is unavailable here, so the tracked-file check was skipped.")
@@ -116,7 +116,7 @@ def main(argv) -> int:
         for f in r["local_only_files"]:
             print(f"  - {f}")
     else:
-        print("  (none yet — you have not created any real context files)")
+        print("  (none yet: you have not created any real context files)")
     print("\nThese never enter git and are never pushed. `git pull` and repo updates leave them")
     print("untouched. Only the blank templates below are committed:")
     for t in r["committed_templates_safe_to_share"]:

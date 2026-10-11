@@ -116,7 +116,11 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
 ## Non-negotiables (enforced by the drift guard / Quality Gates)
 - No em dashes in user-facing output (scripts, captions, pitch copy, media kit sections, pin titles).
   Internal docs (SKILL.md, engine files, protocol files, architecture docs) may use em dashes freely.
-  The drift guard enforces this for `examples/` only. See `protocols/formatting-metadata.md`.
+  The drift guard enforces this for `examples/` (invariant 4) and for the local tools'
+  creator-facing text (invariant 62: the wizard's and the dashboard's pages, the MCP tools'
+  descriptions and replies, the programs, modules and scripts those run, import or name, and the
+  JSON and text files they read).
+  See `protocols/formatting-metadata.md`.
 - Write ranges with "to" everywhere, including internal docs (`protocols/formatting-metadata.md`).
 - Never fabricate data, metrics, rates, brands, or sources (`protocols/no-fabrication.md`). Null and
   flag instead.

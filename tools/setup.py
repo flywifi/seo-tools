@@ -35,7 +35,7 @@ def _created(label: str) -> None:
 
 
 def _skip(label: str) -> None:
-    print(f"  [skip] {label} — already exists", flush=True)
+    print(f"  [skip] {label}: already exists", flush=True)
 
 
 def _run(cmd: list) -> int:
@@ -137,7 +137,7 @@ def _install_playwright_browser(python: str) -> tuple:
             capture_output=True, text=True, timeout=60,
         )
         if probe.returncode == 3:
-            return None, "playwright package not installed — skipped browser download"
+            return None, "playwright package not installed; skipped browser download"
         r = subprocess.run(
             [py, "-m", "playwright", "install", "chromium"],
             capture_output=True, text=True, timeout=1800,
@@ -235,14 +235,14 @@ def run_install_deps(as_json: bool = False) -> int:
     else:
         for r in results:
             if r["ok"] is True:
-                _ok(f"{r['item']} — {r['desc']}")
+                _ok(f"{r['item']}: {r['desc']}")
             elif r["ok"] is None:
                 _skip(f"{r['item']} ({r['detail']})")
             else:
-                _say(f"  [fail] {r['item']} — {r['desc']}")
+                _say(f"  [fail] {r['item']}: {r['desc']}")
                 if r["detail"]:
                     _say(f"         {r['detail']}")
-        _say("\nSystem binaries (Node.js, ffmpeg) are NOT installed here — they need your OS package")
+        _say("\nSystem binaries (Node.js, ffmpeg) are NOT installed here; they need your OS package")
         _say("manager. Run 'python3 tools/transcribe.py doctor' for the exact command for your machine,")
         _say("or use the wizard's 'Set up my computer' screen (python3 tools/wizard.py).")
     hard_fail = any(r["ok"] is False for r in results)
@@ -329,7 +329,7 @@ def create_voice_profile_local() -> None:
     # Create a clean copy with empty arrays
     stub = {
         "_comment": "Your real phrases and voice patterns. voice-engine.md loads this file first.",
-        "_gitignore_note": "This file is gitignored. Add as many phrases as you like — git pull never overwrites it.",
+        "_gitignore_note": "This file is gitignored. Add as many phrases as you like; git pull never overwrites it.",
         "actual_phrases": [],
         "opening_hooks": [],
         "cta_patterns": [],
@@ -373,7 +373,7 @@ def create_setup_context_local() -> None:
 def build_cache() -> None:
     cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not cache_script.exists():
-        _say("  [warn] shared/cache/cache.py not found — skipping cache build.")
+        _say("  [warn] shared/cache/cache.py not found; skipping cache build.")
         return
     db = ROOT / "shared" / "cache" / "index.local.db"
     if db.exists():
@@ -390,7 +390,7 @@ def build_cache() -> None:
 def run_drift_guard() -> None:
     sync_script = ROOT / "tools" / "sync_check.py"
     if not sync_script.exists():
-        _say("  [warn] tools/sync_check.py not found — skipping drift check.")
+        _say("  [warn] tools/sync_check.py not found; skipping drift check.")
         return
     rc = _run([PYTHON, str(sync_script)])
     if rc == 0:
@@ -402,10 +402,10 @@ def run_drift_guard() -> None:
 def print_next_steps() -> None:
     _say("""
 Next steps:
-  1. Fill in your local data files (all gitignored — never committed):
-       pipeline/user-context/channel-context.local.json   — subscriber count, avg views
-       pipeline/user-context/voice-profile.local.json     — add real phrases as you produce content
-       pipeline/user-context/content-calendar.local.json  — add upcoming video entries
+  1. Fill in your local data files (all gitignored, never committed):
+       pipeline/user-context/channel-context.local.json   (subscriber count, avg views)
+       pipeline/user-context/voice-profile.local.json     (add real phrases as you produce content)
+       pipeline/user-context/content-calendar.local.json  (add upcoming video entries)
 
   2. Install the optional dependencies (free, cross-platform, no keys):
        python3 tools/setup.py --install-deps
@@ -418,7 +418,7 @@ Next steps:
        Each flag's "requires" field in creator-os-config.json explains what to install.
 
   3. For Claude Projects (no install needed):
-       Follow docs/DEPLOYMENT.md Option B — upload the 8 files from
+       Follow docs/DEPLOYMENT.md Option B: upload the 8 files from
        implementation/claude/project/knowledge/ and paste the system prompt.
 
   4. To pull future updates:
@@ -1301,7 +1301,7 @@ def main() -> None:
         # Standalone dependency install (also used by the wizard's "Set up my computer" screen).
         sys.exit(run_install_deps(as_json="--json" in argv))
 
-    _say("Creator OS — first-time setup")
+    _say("Creator OS: first-time setup")
     _say("=" * 40)
 
     check_python()

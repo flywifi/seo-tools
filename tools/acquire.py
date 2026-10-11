@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""acquire.py — all-in redundant acquisition for ONE public URL (token-free, max-success).
+"""acquire.py: all-in redundant acquisition for ONE public URL (token-free, max-success).
 
 Ported from educator-tools-k12-public/tools/acquire.py for use in Creator OS competitive
-intelligence. Gathers (each independent — one failing never stops the others):
+intelligence. Gathers (each independent; one failing never stops the others):
   1. browser_headers   full-browser-header GET                 -> raw.html
   2. render            REAL Chromium: runs JS/WASM/SPA          -> rendered.html
                        captures the page's OWN xhr/fetch data    + network/*

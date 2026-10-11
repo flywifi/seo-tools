@@ -11,7 +11,8 @@ load: on every output, and before producing any downloadable file
 - Never use em dashes in any user-facing output (scripts, captions, pitch paragraphs, pin titles,
   media kit copy, any content the creator or her audience will read). Use commas, parentheses, periods, or
   rephrasing instead. Internal documentation (SKILL.md files, engine docs, protocol files,
-  architecture docs) may use em dashes as standard prose punctuation.
+  architecture docs) may use em dashes as standard prose punctuation. The drift guard checks the
+  committed examples/ content (invariant 4) and the local tools' creator-facing text (invariant 62).
 - Never use en dashes for ranges anywhere. Write ranges with "to" (for example, "1 to 3 hours,"
   "$50 to $150," "15 to 60 seconds").
 - See shared/voice-engine.md for the full anti-AI pattern list and voice guidance.

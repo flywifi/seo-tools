@@ -13,6 +13,24 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P102 (creator-facing text has no em dash): drift invariant 62
+  (`sync_check.check_creator_text_dashes`) fails the build on an em dash, `&mdash;`, or `&#8212;` or
+  `&#x2014;` with or without the semicolon, in the local tools' creator-facing text: the string
+  literals of the web page modules (a top-level class whose base is written as a name ending in
+  `RequestHandler`) and their static files, read whole; the MCP tools' descriptions and replies; the
+  programs those modules run and the local modules they import; the scripts their text names; a
+  module docstring a module prints or gives argparse; the JSON files they read, with the JSON a
+  program keeps beside itself; and the text files they read into a page or a reply (`read_text()`
+  on a path they build, or a file named in another tools module's table they read). The scan set is
+  derived from the tree; docstrings, comments in Python, test code, `\u2014` escapes and `.local.`
+  files are its cuts, each a case in the self-proof that runs before the scan. A file in the set
+  that cannot be read, and a `tools/` module that does not parse, are reported, and the build fails
+  when the derived set stops reaching or reading the wizard, the dashboard, the MCP server,
+  `setup.py`, `update.py` or the two settings files (ADR 0081, which lists the forms it does not
+  follow). The wizard's selftest renders each screen in its default state and fails on an em dash,
+  or one of those entities, in its HTML. `sync_check._selfproof`,
+  the entry `tools/file_hash.py`'s mutation cases run for this module, runs the self-proof and the
+  scan of the live tree too.
 - P102 (the configured hub folder name): the wizard's hub screen asks
   `watcher.detect_mirror_candidates` for the folder named in `drive_hub.folder_name`, and the
   profile mirror's Doc lookup and its move-it messages, `project_docs.py project --api` and the
@@ -247,6 +265,32 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (Windows install scope): `docs/INSTALL-SCOPE.md` gains a Windows section: where the repo's
+  `.venv`, the Python install manager, Git for Windows from a standard account, Scoop and the
+  Node.js it installs, whisper.cpp models, Playwright's browser and the Claude Desktop settings file
+  go; the machine-wide installs on Windows with their labels, the Node.js installer from nodejs.org
+  among them; and four PowerShell lines to compare before and after setup, with what they do not
+  show. The wizard's Windows Node.js step (the Microsoft 365 lane) leads with Scoop
+  (`scoop install nodejs-lts`, tested on Windows in Windows Sandbox and not yet from a standard
+  account) and labels the nodejs.org installer machine-wide. `docs/SETUP_WINDOWS.md` says that Git for Windows needs no administrator account:
+  from a standard account it installs to `%LOCALAPPDATA%\Programs\Git` and that account's PATH, run
+  as an administrator it installs to `C:\Program Files\Git` (labeled machine-wide), and to open a
+  new terminal from the Start menu afterwards (not yet tested on Windows). Seven sources are
+  registered for these lines.
+- P102 (em dashes in creator-facing text): an em dash becomes a colon, semicolon, comma,
+  parentheses or a full stop (`protocols/formatting-metadata.md`) in the wizard's pages, `setup.py`
+  and `update.py` output, the MCP tools' descriptions and replies, the messages the drift guard and
+  the connector resolver return through them, the dashboard's static files, the string values of
+  `creator-os-config.json` and `shared/connectors/connectors.json`, the paste-in instructions (the
+  claude.ai system prompt and both versions of the ChatGPT custom instructions, which the wizard
+  shows in its copy boxes, and the Gemini system instruction), and the help text, report and advice
+  strings of `competitor_snapshot.py`, `acquire.py`, `parse_competitor_meta.py`, the hand-off
+  watcher, `local_privacy.py`, `fetch_resilient.py` and `fetch_diag.py`. Docstrings a module does
+  not print, and comments in Python, which only maintainers read, keep theirs. Three values that
+  hold the character as data, the detector constants of the drift guard and of `paste_check.py`
+  and an import placeholder some exports write for "no value", are written as the escape
+  `\u2014`. The crawl connector's note names the `.venv` route (`tools/setup.py --install-deps`)
+  for its two requirement sets.
 - P102 (custom GPT and Gems retired): custom GPTs retire on 2026-12-11 (help article 20001519)
   and Gemini Gems become skills from November 2026 (support.google.com/gemini/answer/18560919), so
   the `chatgpt_custom_gpt` and `gemini_gems` surfaces and their five pair overrides leave
@@ -355,6 +399,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (whisper.cpp models on Windows): `transcribe.model_dir` puts downloaded whisper.cpp models in
+  `.creator-os/whisper-models` under HOME, else under USERPROFILE, so on Windows, where HOME is
+  normally unset, they go to `%USERPROFILE%\.creator-os\whisper-models` instead of a folder inside
+  the repository's `tools/`, which git did not ignore. A model downloaded there before this change is
+  not read from that folder; move it to the new one or download it again. Git now ignores that old
+  folder (`tools/.creator-os/`), so a model left there does not show as a new file. The selftest
+  checks the order, and that `fetch_model` and the doctor's model lookup use the folder when given
+  none.
 - P102 (selftests on real setups and fresh clones): the watcher's selftest stands in for the
   compute hand-off gate, so it passes on a computer whose local config switches the hand-off on; the
   wizard's selftest pins the interpreter while it records tool runs, so a `.venv` adds no run; the
@@ -444,6 +496,24 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (`selftest_sweep.TOOL_TIMEOUTS`). Its selftest runs the committed mutation rows; at 1,022 rows
   a GitHub Windows runner took longer than 900 s, and the Windows CI job failed. The job's
   45-minute limit still bounds a hang.
+- P102 (file_hash child limit): `file_hash --selftest` gives a child process 600 s, up from
+  240 s (`file_hash._CHILD_TIMEOUT`). A child of drift guard rows runs `sync_check._selfproof`
+  once per row, and that entry scans the live tree for invariant 62, so a child of 12 such rows
+  can need more than 240 s on a loaded Windows computer. The limit bounds one child; the
+  selftest sweep's cap for the tool bounds the whole run. Invariant 62's scan keeps a module's
+  parsed tree and its walk for the rest of the scan; its result on the live tree is unchanged
+  and its self-proof passes as before. The self-proof also reads a module in a `tools/`
+  subfolder that does not parse, and UTF-16 static files with upper-case `.JS` and `.css`
+  suffixes, each reported as unread.
+- P102 (file_hash cap and worker count): the selftest sweep's cap for `tools/file_hash.py` grows
+  in proportion when its mutation run uses fewer than four child processes at a time
+  (`selftest_sweep._tool_timeout`, which reads `file_hash.mutant_jobs()`): 3600 s with two, 7200 s
+  with one, and 1800 s with four or more. The 1800 s were set from runs with four at a time, the
+  CPU count of GitHub's runners for a public repository. Where `mutant_jobs()` is lower (a computer
+  whose `os.cpu_count()` is below four, or `CREATOR_OS_FILE_HASH_JOBS` set lower for a computer
+  with little memory) the same rows take longer in proportion, and the sweep could stop a run that
+  was still passing its rows. A `file_hash.py` that does not import gives the four-worker cap, so
+  the sweep still runs that target and reports it.
 - P102 (zip member names zipfile cannot decode): a zip whose member name carries the UTF-8 flag
   but is not valid UTF-8 made zipfile raise UnicodeDecodeError, which `classify.zip_kind` did not
   catch, so one such zip in the Inbox stopped the whole scan, and `import_parse`'s zip parsers

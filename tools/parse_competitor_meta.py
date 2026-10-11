@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""parse_competitor_meta.py — extract structured metadata from saved competitor HTML files.
+"""parse_competitor_meta.py: extract structured metadata from saved competitor HTML files.
 
 Reads raw.html (or rendered.html as fallback) saved by acquire.py and extracts:
 
@@ -30,7 +30,7 @@ All platforms:
   - content_hash: sha256 of raw HTML (for change detection)
 
 Returns a flat dict suitable for insertion into the competitor_pages SQLite table.
-Never fabricates values — absent fields are returned as None.
+Never fabricates values; absent fields are returned as None.
 """
 from __future__ import annotations
 

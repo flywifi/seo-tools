@@ -557,17 +557,17 @@ def _render_install_deps_result(res: dict) -> str:
     rows = ""
     for r in res.get("results", []):
         if r.get("ok") is True:
-            rows += f"<li>&#10003; <strong>{r.get('item')}</strong> &mdash; {r.get('desc','')}</li>"
+            rows += f"<li>&#10003; <strong>{r.get('item')}</strong>: {r.get('desc','')}</li>"
         elif r.get("ok") is None:
-            rows += f"<li>&bull; <strong>{r.get('item')}</strong> &mdash; skipped ({r.get('detail','')})</li>"
+            rows += f"<li>&bull; <strong>{r.get('item')}</strong>: skipped ({r.get('detail','')})</li>"
         else:
-            rows += (f"<li>&#10007; <strong>{r.get('item')}</strong> &mdash; did not install. "
+            rows += (f"<li>&#10007; <strong>{r.get('item')}</strong>: did not install. "
                      f"<span style=\"color:#7a5a5a\">{(r.get('detail') or '')[:200]}</span></li>")
     any_fail = any(r.get("ok") is False for r in res.get("results", []))
     head = ("Some tools did not install (see below). Creator OS still works; you can retry, or "
             "install those from a terminal with <code>python3 tools/setup.py --install-deps</code>."
             if any_fail else "All free tools are installed. Node.js and ffmpeg install through "
-            "your operating system &mdash; see <a href=\"/doctor\">Check my setup</a>.")
+            "your operating system; see <a href=\"/doctor\">Check my setup</a>.")
     return _screen_setup_computer(saved=f"{head}<ul style='margin-top:10px'>{rows}</ul>")
 
 def _render_fetch_model_result(res: dict) -> str:
@@ -706,7 +706,7 @@ does not lose your progress.</p>
 <a class="btn btn-secondary" href="/chatgpt-setup"><strong>ChatGPT</strong> (guided: the wizard
 copies, stages, and verifies)</a>
 <a class="btn btn-outline" href="/transitions">I use <strong>more than one</strong>, or I am switching</a>
-<p class="hint">Using <strong>Gemini</strong>? Choose "more than one" &mdash; the Gemini path is there. Not
+<p class="hint">Using <strong>Gemini</strong>? Choose "more than one": the Gemini path is there. Not
 sure which you have? Pick the one whose name you recognize; you can change it later.</p>
 <hr>
 <h2>Set up this computer</h2>
@@ -807,13 +807,13 @@ the wizard copies the pastes, stages the upload folder, and verifies the result<
   Microsoft connector. If you need Outlook or Excel integration, you will need to use
   Claude Desktop instead.
 </div>
-<a class="btn btn-success" href="/done">Done here &mdash; show me what to try</a>
+<a class="btn btn-success" href="/done">Done here, show me what to try</a>
 <a class="btn btn-outline" href="/">Back</a>
 """, dots=["done", "active", "dot", "dot"])
 
 def _screen_desktop(error: str = "") -> str:
     uv_status = '<span class="check">&#10003;</span> uv is installed' if _has_uv() \
-                else '&#9744; uv not yet installed (the wizard installs it for you &mdash; no action needed)'
+                else '&#9744; uv not yet installed (the wizard installs it for you; no action needed)'
     node_v = _node_version()
     node_status = f'<span class="check">&#10003;</span> Node.js {node_v} is installed' if _node_ok() \
                   else '&#9744; Node.js 20+ not found (only needed for Microsoft 365; skip if you use Google)'
@@ -825,7 +825,7 @@ def _screen_desktop(error: str = "") -> str:
         creator_os_status = ('<p style="margin-bottom:6px">&#9744; An entry exists in your config '
                              'but has not been verified this session.</p>')
     else:
-        creator_os_status = ('<p style="margin-bottom:6px">&#9744; Not installed yet &mdash; this '
+        creator_os_status = ('<p style="margin-bottom:6px">&#9744; Not installed yet. This '
                              'is what puts Creator OS itself into Claude Desktop.</p>')
     return _page("Claude Desktop Setup", f"""
 <h1>Claude Desktop Setup</h1>
@@ -902,7 +902,7 @@ def _screen_creator_os_server(result: dict | None = None) -> str:
                 count_line = (f"{n} tools answered (count not cross-checked against the "
                               "repo's canonical count).")
             else:
-                count_line = (f"{n} tools answered (expected {exp} &mdash; if you just updated, "
+                count_line = (f"{n} tools answered (expected {exp}; if you just updated, "
                               "rerun the check after a fresh install of the free tools).")
             status_html = f"""<div class="success-box"><strong>Installed and verified.</strong>
 {count_line} Now <strong>{_restart_step()}</strong>.
@@ -964,7 +964,7 @@ No Google Cloud setup, no copying keys. Turn it on inside Claude and sign in onc
   <li>Find <strong>Google</strong> / <strong>Google Workspace</strong> and click <strong>Connect</strong>.</li>
   <li>Sign in with your Google account and click <strong>Allow</strong>.</li>
 </ol>
-<a class="btn btn-primary" href="/done">I connected Google in Claude &mdash; show me what to try</a>
+<a class="btn btn-primary" href="/done">I connected Google in Claude, show me what to try</a>
 <div class="note">The built-in connector covers Gmail, Calendar, and Drive/Docs/Sheets. It does not
 cover Microsoft/Outlook (use the Microsoft 365 step for that).</div>
 <hr>
@@ -974,7 +974,7 @@ Google locally on this computer (Google Cloud Console)</summary>
 <p>Only needed if you specifically want the Google MCP server running on this machine (for example,
 to script Google from local tools). It requires a one-time Google Cloud Console project. Most people
 should use the built-in connector above instead.</p>
-<h2>Step 1 &mdash; Get your Google credentials (one time only)</h2>
+<h2>Step 1: Get your Google credentials (one time only)</h2>
 <ol class="steps">
   <li>Open <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>
       and sign in with your Google account.</li>
@@ -993,7 +993,7 @@ should use the built-in connector above instead.</p>
 </ol>
 <div class="note">These credentials stay on your computer only. They are never sent to
 Creator OS servers or committed to git.</div>
-<h2>Step 2 &mdash; Paste your credentials</h2>
+<h2>Step 2: Paste your credentials</h2>
 <form method="POST" action="/api/write-google">
   <label for="client_id">Google Client ID</label>
   <input type="text" id="client_id" name="client_id"
@@ -1024,7 +1024,7 @@ with your Google account. Click <strong>Allow</strong> when prompted.</p>
 </ul>
 <a class="btn btn-primary" href="/microsoft">Also connect Microsoft 365</a>
 <a class="btn btn-secondary" href="/publishing-setup">Set up social media publishing</a>
-<a class="btn btn-success" href="/done">I&#8217;m done &mdash; show me what to try</a>
+<a class="btn btn-success" href="/done">I&#8217;m done, show me what to try</a>
 """, dots=["done", "done", "done", "active"])
 
 def _screen_microsoft(error: str = "", installing: bool = False) -> str:
@@ -1039,7 +1039,7 @@ def _screen_microsoft(error: str = "", installing: bool = False) -> str:
     return _page("Connect Microsoft 365", f"""
 <h1>Connect Microsoft 365</h1>
 <p>Creator OS will be able to read your Outlook email, calendar, Excel spreadsheets,
-and OneDrive documents. <strong>No credentials needed upfront</strong> &mdash; you will
+and OneDrive documents. <strong>No credentials needed upfront</strong>: you will
 sign in to your Microsoft account the first time you use it in Claude Desktop.</p>
 {err_html}{install_note}
 <div class="success-box">
@@ -1068,8 +1068,19 @@ nvm install --lts</pre>
             overflow-x:auto;margin-bottom:14px">brew install node</pre>"""
     elif os_name == "windows":
         node_install = """
-<p>Download and install Node.js from the official site:</p>
-<a class="btn btn-primary" href="https://nodejs.org/en/download"
+<p>User-only install (stays inside your account, no administrator rights) via Scoop, which installs
+programs into <code>C:\\Users\\&lt;you&gt;\\scoop</code>. In a regular PowerShell window (not one run as
+administrator), run these three lines, then close this wizard and start it again so it sees the
+new PATH <em>(tested on Windows in Windows Sandbox; not yet from a standard account)</em>:</p>
+<pre style="background:#f3ecec;padding:12px;border-radius:8px;font-size:.85rem;
+            overflow-x:auto;margin-bottom:14px">Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+scoop install nodejs-lts</pre>
+<p>Machine-wide alternative (affects the whole computer): the installer from nodejs.org puts Node.js
+in a <code>nodejs</code> folder under Program Files and adds it to the computer's PATH, for every
+account on this computer (a Node.js already installed for this account alone is upgraded where it
+is).</p>
+<a class="btn btn-outline" href="https://nodejs.org/en/download"
    target="_blank" style="margin-bottom:14px">Open nodejs.org downloads</a>
 <p>Choose the <strong>LTS</strong> version (20 or higher). Run the installer and accept the defaults
 (keep "Add to PATH" checked). If Windows SmartScreen warns, click <strong>More info</strong> then
@@ -1098,13 +1109,13 @@ sudo pacman -S nodejs npm</pre>"""
 <h1>Node.js is needed for Microsoft 365</h1>
 <p>The Microsoft 365 connector requires <strong>Node.js version 20 or higher</strong>. It is free and
 takes about 2 minutes to install. Google, Wolfram, and the rest of Creator OS do <strong>not</strong>
-need it &mdash; if you are only connecting Google you can skip this entirely.</p>
+need it; if you are only connecting Google you can skip this entirely.</p>
 {recheck_note}
 {node_install}
 <hr>
 <p>Once Node.js is installed, click below and the wizard will re-check automatically:</p>
 <form method="POST" action="/api/recheck-node">
-  <button class="btn btn-primary" type="submit">I've installed it &mdash; re-check</button>
+  <button class="btn btn-primary" type="submit">I've installed it, re-check</button>
 </form>
 <a class="btn btn-outline" href="/desktop">Back</a>
 """, dots=["done", "done", "active", "dot"])
@@ -1126,7 +1137,7 @@ with your Microsoft account. Follow the prompts to allow access.</p>
 </ul>
 <a class="btn btn-primary" href="/google">Also connect Google Workspace</a>
 <a class="btn btn-secondary" href="/publishing-setup">Set up social media publishing</a>
-<a class="btn btn-success" href="/done">I&#8217;m done &mdash; show me what to try</a>
+<a class="btn btn-success" href="/done">I&#8217;m done, show me what to try</a>
 """, dots=["done", "done", "done", "active"])
 
 def _screen_publishing_setup(error: str = "") -> str:
@@ -1341,11 +1352,11 @@ def _instagram_form() -> str:
 <h2>Instagram App Credentials</h2>
 <form method="POST" action="/api/write-publishing">
   <input type="hidden" name="platform" value="instagram">
-  <label for="ig_client_id">Instagram App ID (Client ID) &mdash; for the Connect flow</label>
+  <label for="ig_client_id">Instagram App ID (Client ID), for the Connect flow</label>
   <input type="text" id="ig_client_id" name="client_id" placeholder="1234567890">
   <label for="ig_client_secret">Instagram App Secret</label>
   <input type="password" id="ig_client_secret" name="client_secret" placeholder="app secret">
-  <label for="ig_account_id">Instagram account id (ig_user_id) &mdash; optional if you use Connect</label>
+  <label for="ig_account_id">Instagram account id (ig_user_id), optional if you use Connect</label>
   <input type="text" id="ig_account_id" name="account_id" placeholder="17841400...">
   <label for="ig_access_token">Or paste a long-lived Access Token (with the account id above)</label>
   <input type="text" id="ig_access_token" name="access_token" placeholder="IGAA...">
@@ -1505,7 +1516,7 @@ def _pinterest_form() -> str:
 <h2>Pinterest App Credentials</h2>
 <form method="POST" action="/api/write-publishing">
   <input type="hidden" name="platform" value="pinterest">
-  <label for="pin_client_id">App ID (Client ID) &mdash; for the durable Connect flow</label>
+  <label for="pin_client_id">App ID (Client ID), for the durable Connect flow</label>
   <input type="text" id="pin_client_id" name="client_id" placeholder="1234567">
   <label for="pin_client_secret">App Secret (Client Secret)</label>
   <input type="password" id="pin_client_secret" name="client_secret" placeholder="pinterest app secret">
@@ -1793,7 +1804,7 @@ If a tool does not appear afterward, check <code>""" + html.escape(_claude_log_h
   <li>"What brand emails or partnership offers did I get this week?"</li>
   <li>"What&#8217;s on my content calendar for the next two weeks?"</li>
   <li>"Pull my latest analytics from the tracking spreadsheet."</li>
-  <li>"I got an email from West Elm about a collab &mdash; add it to the deal pipeline."</li>
+  <li>"I got an email from West Elm about a collab. Add it to the deal pipeline."</li>
   <li>"Plan a seasonal home decor project video for my YouTube channel."</li>
 </ul>
 <div class="success-box">
@@ -1824,14 +1835,14 @@ def _screen_freshness(saved: str = "") -> str:
     )
     saved_html = f'<div class="note" style="background:#eef7ee">{saved}</div>' if saved else ""
     return _page("Freshness &amp; Data Store", f"""
-<h1>Keep your data fresh &mdash; your way</h1>
+<h1>Keep your data fresh, your way</h1>
 {_local_precondition_note()}
 <p>Choose where your <strong>own</strong> refreshed reference data (platform specs, rates, API
 versions, code editions) is stored. Creator OS keeps it current on your machine and in the store you
 pick.</p>
 <div class="note"><strong>Your data stays yours.</strong> The system never pushes, proposes, or nags
 anything to GitHub. Downloading a newer shared baseline from the repo is always an optional choice you
-make on your own &mdash; nobody sends you homework.</div>
+make on your own; nobody sends you homework.</div>
 {saved_html}
 <form method="POST" action="/api/write-freshness">
   <label>Where do you MOSTLY use Creator OS? (This only sets where this computer stores its files; if you use two AIs, pick cross platform.)</label>
@@ -1902,7 +1913,7 @@ def _screen_storage_folder(saved: str = "", error: str = "", folder: str = "") -
     return _page("Choose my Creator OS folder", f"""
 <h1>Choose the folder Creator OS may use</h1>
 {_local_precondition_note()}
-<p>Pick <strong>one</strong> folder on this computer for Creator OS to read and write &mdash; your
+<p>Pick <strong>one</strong> folder on this computer for Creator OS to read and write: your
 exports, library, and refreshed data live here. Claude's filesystem connector is scoped to this folder
 only; it cannot see anything outside it.</p>
 {saved_html}
@@ -1982,12 +1993,12 @@ def _screen_brand_deals(saved: str = "") -> str:
     rate_card = ROOT / "pipeline" / "finance" / "rate-card.local.json"
     profile = ROOT / "pipeline" / "user-context" / "creator-profile.local.json"
     rc_state = ('<span class="check">found</span>' if rate_card.exists() else
-                '<strong style="color:#cc2222">missing</strong> &mdash; copy '
+                '<strong style="color:#cc2222">missing</strong>: copy '
                 '<code>pipeline/finance/rate-card.template.json</code> to '
                 '<code>pipeline/finance/rate-card.local.json</code> and fill in your real rates '
                 '(gitignored; never committed)')
     pf_state = ('<span class="check">found</span>' if profile.exists() else
-                '<strong style="color:#cc2222">missing</strong> &mdash; copy '
+                '<strong style="color:#cc2222">missing</strong>: copy '
                 '<code>pipeline/user-context/creator-profile.template.json</code> to '
                 '<code>pipeline/user-context/creator-profile.local.json</code> (or run the ChatGPT '
                 'profile import: <code>implementation/gpt/profile-import/PROMPT.md</code>, one run '
@@ -2003,7 +2014,7 @@ def _screen_brand_deals(saved: str = "") -> str:
         except (OSError, json.JSONDecodeError):
             tmpl_rows.append(f"<code>{tf.name}</code> (unreadable)")
     tmpl_state = ("<br>".join(tmpl_rows) if tmpl_rows else
-                  '<strong style="color:#cc2222">none saved</strong> &mdash; copy a starter from '
+                  '<strong style="color:#cc2222">none saved</strong>: copy a starter from '
                   '<code>pipeline/templates/</code> (contract base, rate card display, analytics '
                   'overview, terms) to a <code>.local.json</code> and fill it, or ask for '
                   'template-ingest to propose one from an old document (you save it by hand; '
@@ -3268,7 +3279,7 @@ data.</li>
 <li><strong>Pinterest:</strong> Settings &rarr; Privacy and data &rarr; Request your data.</li>
 </ul>
 <p><strong>2. Scan your folder.</strong> Pick the platforms in it and paste the unzipped folder path.
-Creator OS shows you what it found first &mdash; nothing is saved until you approve.</p>
+Creator OS shows you what it found first; nothing is saved until you approve.</p>
 <form method="POST" action="/api/pick-folder" style="margin-bottom:8px">
   <input type="hidden" name="target" value="import">
   <button class="btn btn-outline" type="submit">Browse&hellip; (open a folder picker)</button>
@@ -3776,7 +3787,7 @@ def _screen_doctor(saved: str = "", error: str = "") -> str:
     rows = ""
     for s in d.get("steps", []):
         mark = "ok" if s.get("ok") else "needs setup"
-        rows += f"<li><strong>{s.get('what_it_is','')}</strong> &mdash; {mark}. <span style=\"color:#7a5a5a\">{s.get('why','')}</span>"
+        rows += f"<li><strong>{s.get('what_it_is','')}</strong>: {mark}. <span style=\"color:#7a5a5a\">{s.get('why','')}</span>"
         if not s.get("ok") and s.get("next_command"):
             rows += f"<pre>{s['next_command']}</pre>"
         rows += "</li>"
@@ -3883,7 +3894,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 <meta http-equiv="refresh" content="3;url=/job-wait?name={name}">
 <h1>{label}&hellip;</h1>
 <p>This can take a few minutes the first time (the bigger downloads are a headless browser or a
-speech model). This page refreshes by itself every few seconds &mdash; you do not need to do
+speech model). This page refreshes by itself every few seconds; you do not need to do
 anything, and closing this window does not stop the work.</p>
 <div class="note">Still working. Last checked just now.</div>"""))
                 return
@@ -4289,7 +4300,7 @@ anything, and closing this window does not stop the work.</p>
                             'pattern check, shown so you can review before saving; it does not block '
                             f'the import.<ul>{items}</ul></div>')
             preview = (f'<div class="success-box"><strong>Found {len(records)} video(s)</strong> '
-                       f'({revenue} with revenue). Nothing is saved yet &mdash; review and approve below.'
+                       f'({revenue} with revenue). Nothing is saved yet. Review and approve below.'
                        '<ul><li>' + "</li><li>".join(html.escape(n) for n in notes) + "</li></ul></div>" + pat_html +
                        '<form method="POST" action="/api/run-import">'
                        '<input type="hidden" name="action" value="approve">'
@@ -6435,6 +6446,29 @@ def _selftest_p101() -> int:
     check(all(html.escape(_hostile_ib) in _pg and "<img src=x" not in _pg for _pg in _pages_ib)
           and "Found 1 video(s)" in _pages_ib[1] and "No videos found" in _pages_ib[0],
           "the import scan page shows a parser note without escaping it")
+    # P102: on Windows the Node.js step leads with Scoop, which installs for this account, and labels
+    # the nodejs.org installer machine-wide; the other systems keep their steps.
+    _saved_os_node = _OS_OVERRIDE
+    try:
+        _node_pages = {}
+        for _node_os in ("windows", "mac", "linux"):
+            _OS_OVERRIDE = _node_os
+            _node_pages[_node_os] = _screen_node_missing()
+    finally:
+        _OS_OVERRIDE = _saved_os_node
+    _node_w = _node_pages["windows"]
+    _node_label = "Machine-wide alternative (affects the whole computer): the installer from nodejs.org"
+    check(_node_label in _node_w and "scoop install nodejs-lts" in _node_w
+          and _node_w.index("scoop install nodejs-lts") < _node_w.index(_node_label)
+          < _node_w.index("https://nodejs.org/en/download")
+          and "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser\n" in _node_w
+          and "Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression\n" in _node_w
+          and "In a regular PowerShell window (not one run as\nadministrator)" in _node_w
+          and "<em>(tested on Windows in Windows Sandbox; not yet from a standard account)</em>" in _node_w
+          and "scoop" not in _node_pages["mac"] + _node_pages["linux"]
+          and "nvm install --lts" in _node_pages["mac"] and "nvm install --lts" in _node_pages["linux"],
+          "the Windows Node.js step does not lead with the Scoop route and label the nodejs.org "
+          "installer machine-wide, or another system's step changed")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:
@@ -6738,8 +6772,10 @@ def _selftest() -> int:
 
     # P85-4a: render EVERY screen function with defaults (empty-string args where required),
     # enumerated from the module namespace so a new screen cannot dodge the sweep. A screen must
-    # return non-empty HTML with no traceback text.
+    # return non-empty HTML with no traceback text, and (P102) no em dash, as the character or as
+    # one of the HTML entities a browser shows as one, from its own text or a file it reads.
     import inspect as _inspect
+    _dash_forms = re.compile("\u2014|&" + "mdash;|&#0*8212(?![0-9])|&#[xX]0*2014(?![0-9a-fA-F])")
     rendered = 0
     for _name, _fn in sorted(globals().items()):
         if not (_name.startswith("_screen_") and callable(_fn)):
@@ -6753,6 +6789,9 @@ def _selftest() -> int:
             rendered += 1
             check(bool(_html_out) and "Traceback" not in _html_out,
                   f"screen {_name} rendered empty or with a traceback")
+            _dash = _dash_forms.search(_html_out or "")
+            check(_dash is None, f"screen {_name} shows an em dash: "
+                  + (repr(_html_out[max(0, _dash.start() - 30):_dash.end() + 30]) if _dash else ""))
         except Exception as exc:  # noqa: BLE001
             check(False, f"screen {_name} raised: {exc}")
 

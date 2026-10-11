@@ -74,6 +74,10 @@ pipeline/construction-library/
 .harvest-cache/
 snapshots-log.json
 
+# P102: speech-to-text models downloaded before transcribe.model_dir read USERPROFILE (Windows)
+# went here; the folder they now go to is outside the repository.
+tools/.creator-os/
+
 # Contract-artifact store (P23): raw contract text and per-contract records
 # (committed: only pipeline/contracts/contract.template.json and the deal-playbook template).
 # Covered by pipeline/**/*.local.* above; listed here so the intent is explicit: contract TEXT is never committed.

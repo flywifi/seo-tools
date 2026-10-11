@@ -34,7 +34,7 @@ import sys
 # protocols/formatting-metadata.md "Punctuation (hard rules)": never em dashes in user-facing
 # output; ranges are written with "to" (the en dash is the range tell). Same literals as
 # tools/sync_check.py invariant 4.
-EM_DASH = "—"
+EM_DASH = "\u2014"
 EN_DASH = "–"
 
 # shared/voice-engine.md "Anti-AI pattern list (hard rules for published voice)",

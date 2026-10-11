@@ -72,9 +72,9 @@ def canonical_sources_changed(old_sha: str, new_sha: str) -> bool:
 def rebuild_cache() -> None:
     cache_script = ROOT / "shared" / "cache" / "cache.py"
     if not cache_script.exists():
-        print("  [warn] shared/cache/cache.py not found — skipping cache rebuild.", flush=True)
+        print("  [warn] shared/cache/cache.py not found; skipping cache rebuild.", flush=True)
         return
-    print("  Canonical sources changed — rebuilding keyword cache...", flush=True)
+    print("  Canonical sources changed; rebuilding keyword cache...", flush=True)
     rc, _ = _run([PYTHON, str(cache_script), "--build"])
     if rc == 0:
         print("  [ok] Keyword cache rebuilt.", flush=True)
@@ -85,7 +85,7 @@ def rebuild_cache() -> None:
 def run_drift_guard() -> None:
     sync_script = ROOT / "tools" / "sync_check.py"
     if not sync_script.exists():
-        print("  [warn] tools/sync_check.py not found — skipping.", flush=True)
+        print("  [warn] tools/sync_check.py not found; skipping.", flush=True)
         return
     rc, _ = _run([PYTHON, str(sync_script)])
     if rc == 0:
@@ -95,7 +95,7 @@ def run_drift_guard() -> None:
 
 
 def main() -> None:
-    print("Creator OS — update", flush=True)
+    print("Creator OS: update", flush=True)
     print("=" * 40, flush=True)
 
     before_sha = get_head_sha()
@@ -108,7 +108,7 @@ def main() -> None:
     if updated and canonical_sources_changed(before_sha, after_sha):
         rebuild_cache()
     elif updated:
-        print("  Canonical sources unchanged — no cache rebuild needed.", flush=True)
+        print("  Canonical sources unchanged; no cache rebuild needed.", flush=True)
 
     print("\nDone.", flush=True)
 

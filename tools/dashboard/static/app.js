@@ -1,4 +1,4 @@
-/* Creator OS Scheduling Dashboard — vanilla JS, no dependencies */
+/* Creator OS Scheduling Dashboard: vanilla JS, no dependencies */
 
 const App = (function () {
   "use strict";

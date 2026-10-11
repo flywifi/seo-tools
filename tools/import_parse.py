@@ -49,7 +49,7 @@ def _num(v):
     if v is None:
         return None
     s = str(v).strip().replace(",", "").replace("$", "").replace("%", "").strip()
-    if s == "" or s.lower() in ("n/a", "na", "-", "—"):
+    if s == "" or s.lower() in ("n/a", "na", "-", "\u2014"):
         return None
     try:
         f = float(s)
