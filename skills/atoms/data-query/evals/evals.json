@@ -4,7 +4,7 @@
     "description": "Natural-language query — top 10 videos by watch time generates valid DuckDB SQL and returns results",
     "input": {
       "query_description": "What are my top 10 videos by watch time this quarter?",
-      "data_files": ["youtube_export_q2_2026.csv"],
+      "data_files": ["/absolute/path/to/youtube_export_q2_2026.csv"],
       "sql": null
     },
     "expected": {
@@ -27,7 +27,7 @@
     "description": "DuckDB not connected — guidance-only output with SQL and empty rows",
     "input": {
       "query_description": "Average CTR by content pillar",
-      "data_files": ["youtube_analytics.csv"],
+      "data_files": ["/absolute/path/to/youtube_analytics.csv"],
       "sql": null
     },
     "expected": {
@@ -49,8 +49,8 @@
     "description": "User-supplied SQL with DROP TABLE rejected — read-only enforcement",
     "input": {
       "query_description": "Clean up old data",
-      "data_files": ["youtube_export.csv"],
-      "sql": "DROP TABLE IF EXISTS old_data; SELECT * FROM read_csv_auto('youtube_export.csv')"
+      "data_files": ["/absolute/path/to/youtube_export.csv"],
+      "sql": "DROP TABLE IF EXISTS old_data; SELECT * FROM read_csv_auto('/absolute/path/to/youtube_export.csv')"
     },
     "expected": {
       "retrieval_gaps": "contains rejection note about write operation (DROP) in user SQL",
@@ -60,6 +60,24 @@
       "execution of DROP TABLE statement",
       "sql_executed containing DROP, INSERT, UPDATE, DELETE, or CREATE",
       "no error or warning about the write operation in user SQL"
+    ]
+  },
+  {
+    "id": "dq-004",
+    "description": "Bare file name in data_files: the atom asks for the file's absolute path instead of querying the bare name",
+    "input": {
+      "query_description": "How many Shorts did I publish each month?",
+      "data_files": ["youtube_export.csv"],
+      "sql": null
+    },
+    "expected": {
+      "retrieval_gaps": "names youtube_export.csv as a path that is not absolute",
+      "response": "asks the creator for the absolute path of youtube_export.csv"
+    },
+    "prohibit": [
+      "sql_executed naming the bare file name youtube_export.csv",
+      "rows from a query on a file named by a bare or relative path",
+      "a folder guessed for the file instead of asking the creator"
     ]
   }
 ]

@@ -19,7 +19,8 @@ computer. The read-only rule below is this atom's own check, not the server's.
    LOAD, SET, PRAGMA or CALL (COPY, EXPORT, ATTACH, INSTALL, LOAD and the logging settings are
    among the statements that write files or fetch extensions); eval dq-003 covers DROP. User-
    supplied SQL is validated before execution. A first read of an `.xlsx` file still installs
-   DuckDB's excel extension, which no statement list catches.
+   DuckDB's excel extension, which this statement list does not catch, since that read is a
+   plain SELECT.
 2. `rows` is empty (not populated with example data) when `computation_source` is `guidance_only`.
    Never fabricate result rows.
 3. `sql_executed` always reflects the actual SQL — whether executed or emitted for local use.
@@ -27,8 +28,10 @@ computer. The read-only rule below is this atom's own check, not the server's.
 
 ## Failure modes
 
-1. **Invalid file path.** The file does not exist or is not a supported format. Noted in
-   `retrieval_gaps`; the atom proceeds with remaining valid files.
+1. **Invalid file path.** The file does not exist, is not a supported format, or is named by a
+   bare file name or a relative path. Noted in `retrieval_gaps`; for a path that is not
+   absolute the atom asks the creator for the absolute path. The atom proceeds with the
+   remaining valid files.
 2. **DuckDB not connected.** Guidance-only output: SQL is emitted, rows are empty. The user can
    run the SQL locally.
 3. **Large result set.** If row_count > 100, results are truncated to 100 rows with the total
@@ -41,6 +44,7 @@ computer. The read-only rule below is this atom's own check, not the server's.
 | 1 | Natural-language query generates valid SQL | dq-001 |
 | 2 | DuckDB not connected — guidance-only SQL | dq-002 |
 | 3 | Write operation in user SQL rejected | dq-003 |
+| 4 | Bare file name: asks for the absolute path | dq-004 |
 
 ## Update checklist
 

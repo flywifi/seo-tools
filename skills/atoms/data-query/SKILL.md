@@ -46,15 +46,16 @@ need to write SQL. When DuckDB is not connected, it emits the SQL for the user t
 ```json
 {
   "query_description": "string — natural-language description of what the user wants to know",
-  "data_files": ["path/to/file1.csv", "path/to/file2.csv"],
+  "data_files": ["/absolute/path/to/file1.csv", "/absolute/path/to/file2.csv"],
   "sql": "string | null"
 }
 ```
 
 - `query_description`: required. The user's question in plain language. Used to generate SQL if
   `sql` is null, and always included in the output for traceability.
-- `data_files`: required. One or more paths to local data files (CSV, TSV, Parquet, JSON, or
-  Excel). DuckDB reads these directly. If a path is invalid, report it in `retrieval_gaps`.
+- `data_files`: required. One or more absolute paths to local data files (CSV, TSV, Parquet,
+  JSON, or Excel). DuckDB reads these directly. If a path is invalid or not absolute, report it
+  in `retrieval_gaps`.
 - `sql`: optional. If provided, execute this SQL directly (after safety validation). If null,
   generate SQL from `query_description` and the inferred schema.
 
@@ -63,6 +64,9 @@ need to write SQL. When DuckDB is not connected, it emits the SQL for the user t
 ### Step 1: validate data files
 
 For each path in `data_files`:
+- Check that the path is absolute, not a bare file name or a path relative to a folder. For one
+  that is not, ask the creator for the file's absolute path; until they give it, note the path
+  in `retrieval_gaps` and leave the file out.
 - Check that the file exists and is a supported format (CSV, TSV, Parquet, JSON, XLSX).
 - If a file does not exist or is unsupported, note it in `retrieval_gaps` and proceed with the
   remaining files.
@@ -83,7 +87,8 @@ If DuckDB is not connected:
 If `sql` is null:
 - Generate a DuckDB-compatible SQL query from `query_description` and the inferred schema.
 - Use `read_csv_auto('path')` for CSV files, `read_parquet('path')` for Parquet, etc.
-- Name each file by its absolute path: the DuckDB server's working folder is not the creator's.
+- Name each file by its absolute path from Step 1: the DuckDB server's working folder may not
+  be the creator's.
 - Prefer explicit column names over `SELECT *` for clarity.
 
 If `sql` is provided:
