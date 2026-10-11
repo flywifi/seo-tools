@@ -91,13 +91,16 @@ sources exactly. Do not substitute other package names.
   `--db-path :memory: --read-write`, the local mode that needs no key. The server refuses an
   in-memory database without `--read-write`; with it, a query can change the database and write
   files (`COPY ... TO`), and the database lasts as long as the server process.
-- Config block, with `uvx` replaced by its absolute path, since Claude Desktop may not see your
-  terminal's PATH (on a Mac it starts servers with a narrow PATH) and setup does not add its
-  `.venv` to PATH. For the uv that setup installs, the path is `<repo>/.venv/bin/uvx` on a Mac or
-  Linux and `<repo>\.venv\Scripts\uvx.exe` on Windows, where `<repo>` is the Creator OS folder;
-  for a uv installed another way, it is the path `which uvx` (Mac, Linux) or `where.exe uvx`
-  (Windows, in PowerShell or Command Prompt) prints. In the JSON file, write a Windows path's
-  backslashes doubled, as in `\\.venv\\Scripts\\uvx.exe`:
+- Config block, with `uvx` replaced by its absolute path: Claude Desktop starts servers with its
+  own PATH, not your terminal's (on a Mac a narrow one), and setup does not add its `.venv` to
+  PATH, so a bare `uvx` may not start. For the uv that setup installs, the path is
+  `<repo>/.venv/bin/uvx` on a Mac or Linux and `<repo>\.venv\Scripts\uvx.exe` on Windows, where
+  `<repo>` is the Creator OS folder; for a uv installed another way, it is the path `which uvx`
+  prints (Mac, Linux) or, on Windows, `where.exe uvx` (Command Prompt or PowerShell; in PowerShell
+  type the `.exe`, since plain `where` there is a different command that prints nothing). In the
+  JSON file, write a Windows path with doubled backslashes, as in `\\.venv\\Scripts\\uvx.exe`, or
+  with forward slashes; single backslashes (as in `\.venv`) make the whole file invalid JSON, and
+  Claude Desktop then starts none of the servers in it:
   ```json
   {
     "mcpServers": {

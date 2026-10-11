@@ -405,8 +405,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `npx -y @motherduckdb/mcp-server-motherduck`, which the npm registry does not have, so the server
   did not start. The settings file's `requires` text, `docs/DEPENDENCIES.md` (DuckDB needs uv, not
   Node.js), `docs/STATISTICS.md`, the configure-stats-tool atom (with where to find the absolute
-  path of `uvx`: setup's `.venv`, or what `which uvx` or `where.exe uvx` prints; its eval and its
-  prerequisite checks), setup's uv label and the registry's `mcp-duckdb` pin follow.
+  path of `uvx`: setup's `.venv`, or what `which uvx` or `where.exe uvx` prints, and that a Windows
+  path in the JSON file takes doubled backslashes or forward slashes; its eval and its prerequisite
+  checks), setup's uv label and the registry's `mcp-duckdb` pin follow.
   The server refuses an in-memory database without `--read-write`, so this connection accepts
   writes, and its database lasts as long as the server process. The data-query atom's check also
   refuses SQL containing ALTER, TRUNCATE, MERGE, COPY, EXPORT, IMPORT, ATTACH, INSTALL, LOAD, SET,
