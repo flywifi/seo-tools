@@ -496,6 +496,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (`selftest_sweep.TOOL_TIMEOUTS`). Its selftest runs the committed mutation rows; at 1,022 rows
   a GitHub Windows runner took longer than 900 s, and the Windows CI job failed. The job's
   45-minute limit still bounds a hang.
+- P102 (file_hash child limit): `file_hash --selftest` gives a child process 600 s, up from
+  240 s (`file_hash._CHILD_TIMEOUT`), inside the sweep's 1800 s for that tool. A child of drift
+  guard rows runs `sync_check._selfproof` once per row, and that entry scans the live tree for
+  invariant 62; on a GitHub Windows runner such a child ran past 240 s and the Windows CI job
+  failed. Invariant 62's scan keeps a module's parsed tree and its walk for the rest of the scan;
+  its result on the live tree is unchanged and its self-proof passes as before.
 - P102 (zip member names zipfile cannot decode): a zip whose member name carries the UTF-8 flag
   but is not valid UTF-8 made zipfile raise UnicodeDecodeError, which `classify.zip_kind` did not
   catch, so one such zip in the Inbox stopped the whole scan, and `import_parse`'s zip parsers

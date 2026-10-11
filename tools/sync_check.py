@@ -4546,14 +4546,21 @@ def _ct_source(path):
         return None
 
 
-def _ct_tree(path):
+def _ct_tree(path, cache=None):
+    """The module parsed, or None when it cannot be read or parsed; with cache (a dict one scan
+    keeps), each path is parsed once per scan."""
+    if cache is not None and str(path) in cache:
+        return cache[str(path)]
+    tree = None
     src = _ct_source(path)
-    if src is None:
-        return None
-    try:
-        return ast.parse(src)
-    except (SyntaxError, ValueError):
-        return None
+    if src is not None:
+        try:
+            tree = ast.parse(src)
+        except (SyntaxError, ValueError):
+            tree = None
+    if cache is not None:
+        cache[str(path)] = tree
+    return tree
 
 
 def _ct_lines(src):
@@ -4581,10 +4588,11 @@ def _ct_test_lines(src, tree):
     return lines
 
 
-def _ct_docstrings(tree):
-    """{id(docstring node): the name of the function, class or module it documents}."""
+def _ct_docstrings(tree, nodes=None):
+    """{id(docstring node): the name of the function, class or module it documents}; nodes, when
+    given, is the tree's ast.walk as a list."""
     out = {}
-    for node in ast.walk(tree):
+    for node in (ast.walk(tree) if nodes is None else nodes):
         if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.body:
             first = node.body[0]
             if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) \
@@ -4593,11 +4601,11 @@ def _ct_docstrings(tree):
     return out
 
 
-def _ct_reads_doc(tree, skip_lines=()):
+def _ct_reads_doc(tree, skip_lines=(), nodes=None):
     """True when the module reads its own __doc__ outside the lines in skip_lines: it prints it, or
     hands it to argparse as the --help text, so the module docstring reaches the creator."""
     return any(isinstance(n, ast.Name) and n.id == "__doc__" and n.lineno not in skip_lines
-               for n in ast.walk(tree))
+               for n in (ast.walk(tree) if nodes is None else nodes))
 
 
 def _ct_tool_functions(tree):
@@ -4625,11 +4633,12 @@ def _ct_path_parts(node):
     return None
 
 
-def _ct_built_paths(tree, skip_lines=()):
+def _ct_built_paths(tree, skip_lines=(), nodes=None):
     """(base, 'a/b/c.ext') for each path built as ROOT / "a" / "b" / "c.ext" or HERE / ..., from
-    string parts alone, outside the lines in skip_lines (test code)."""
+    string parts alone, outside the lines in skip_lines (test code); nodes, when given, is the
+    tree's ast.walk as a list."""
     out = set()
-    for node in ast.walk(tree):
+    for node in (ast.walk(tree) if nodes is None else nodes):
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div) and node.lineno not in skip_lines:
             built = _ct_path_parts(node)
             if built:
@@ -4663,7 +4672,7 @@ def _ct_strings(value):
             yield from _ct_strings(v)
 
 
-def _ct_table_paths(tree, root, skip_lines=()):
+def _ct_table_paths(tree, root, skip_lines=(), cache=None):
     """Repo-relative .md and .txt files named in a module-level table of another tools module that
     this module reads as <alias>.<NAME>, outside the lines in skip_lines: <alias> is an
     `import <module>` or `import <module> as <alias>` of tools/<module>.py, and <NAME> is assigned a
@@ -4679,7 +4688,7 @@ def _ct_table_paths(tree, root, skip_lines=()):
              and n.value.id in aliases and n.lineno not in skip_lines}
     out = set()
     for alias, name in sorted(reads):
-        mod = _ct_tree(root / "tools" / f"{aliases[alias]}.py")
+        mod = _ct_tree(root / "tools" / f"{aliases[alias]}.py", cache)
         for stmt in (mod.body if mod is not None else []):
             if isinstance(stmt, ast.Assign) and any(getattr(tg, "id", None) == name for tg in stmt.targets):
                 try:
@@ -4728,17 +4737,18 @@ def _ct_segment(lines):
     return seg
 
 
-def _ct_literal_hits(src, tree, include_docs=()):
+def _ct_literal_hits(src, tree, include_docs=(), nodes=None):
     """(line, fragment) for each string literal, as written in the source, that carries an em dash:
     docstrings are left out except those of the functions in include_docs (and the module's when
     it reads its own __doc__), and so is test code. An f-string is read whole, so the text pieces
     inside it are not read twice."""
+    nodes = list(ast.walk(tree)) if nodes is None else nodes  # walked once, read below four times
     test = _ct_test_lines(src, tree)
-    docs = _ct_docstrings(tree)
-    include = set(include_docs) | ({"<module>"} if _ct_reads_doc(tree, test) else set())
+    docs = _ct_docstrings(tree, nodes)
+    include = set(include_docs) | ({"<module>"} if _ct_reads_doc(tree, test, nodes) else set())
     seg_of = _ct_segment(_ct_lines(src))
     inner = set()
-    for node in ast.walk(tree):
+    for node in nodes:
         if isinstance(node, ast.JoinedStr):
             for value in node.values:
                 inner.add(id(value))
@@ -4746,7 +4756,7 @@ def _ct_literal_hits(src, tree, include_docs=()):
                     inner.add(id(value.format_spec))
                     inner.update(id(v) for v in value.format_spec.values)
     hits = []
-    for node in ast.walk(tree):
+    for node in nodes:
         if not (isinstance(node, ast.JoinedStr)
                 or (isinstance(node, ast.Constant) and isinstance(node.value, str))):
             continue
@@ -4816,10 +4826,11 @@ def _creator_text_scan(root):
     included; static and text files whole, comments included; JSON strings."""
     root = Path(root)
     pages, mcps, undiscovered = [], [], []
+    trees, walked = {}, {}  # each module is parsed once per scan, and a program walked once
     for p in sorted((root / "tools").rglob("*.py")):
         if "__pycache__" in p.parts:
             continue
-        tree = _ct_tree(p)
+        tree = _ct_tree(p, trees)
         if tree is None:
             undiscovered.append(p.relative_to(root).as_posix())  # cannot tell whether it is a page
             continue
@@ -4849,7 +4860,7 @@ def _creator_text_scan(root):
         except ValueError:
             return None
     for p in pages + mcps:
-        tree = _ct_tree(p)
+        tree = _ct_tree(p, trees)
         test = _ct_test_lines(_ct_source(p), tree)
         for base, rel in sorted(_ct_built_paths(tree, test)):
             hit = resolve(base, rel, p)
@@ -4863,7 +4874,7 @@ def _creator_text_scan(root):
             hit = resolve(base, rel, p)
             if hit and not hit.endswith((".py", ".json")) and ".local." not in Path(hit).name:
                 scanned.setdefault(hit, "text")
-        for hit in sorted(_ct_table_paths(tree, root, test)):
+        for hit in sorted(_ct_table_paths(tree, root, test, trees)):
             if ".local." not in Path(hit).name:
                 scanned.setdefault(hit, "text")
         for hit in sorted(_ct_import_paths(tree, root, test)):
@@ -4880,11 +4891,12 @@ def _creator_text_scan(root):
         if kind not in ("program", "command"):
             continue
         prog = root / rel
-        tree = _ct_tree(prog)
+        tree = _ct_tree(prog, trees)
         if tree is None:
             continue
         test = _ct_test_lines(_ct_source(prog), tree)
-        for base, built in sorted(_ct_built_paths(tree, test)):
+        walked[str(prog)] = list(ast.walk(tree))
+        for base, built in sorted(_ct_built_paths(tree, test, walked[str(prog)])):
             if base == "HERE" and built.endswith(".json") and ".local." not in Path(built).name:
                 hit = resolve(base, built, prog)
                 if hit:
@@ -4918,12 +4930,13 @@ def _creator_text_scan(root):
                 hits += [(rel, ln, frag) for ln, frag in found]
         else:
             try:
-                tree = ast.parse(src)
+                tree = trees.get(str(path)) or ast.parse(src)  # a module parsed earlier in this scan
             except (SyntaxError, ValueError):
                 unread.append(rel)
                 continue
             tools_fns = _ct_tool_functions(tree) if kind in ("mcp", "page") else set()
-            hits += [(rel, ln, frag) for ln, frag in _ct_literal_hits(src, tree, include_docs=tools_fns)]
+            hits += [(rel, ln, frag) for ln, frag in _ct_literal_hits(src, tree, include_docs=tools_fns,
+                                                                       nodes=walked.get(str(path)))]
     return scanned, hits, sorted(set(unread) | set(undiscovered))
 
 
