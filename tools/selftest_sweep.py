@@ -44,11 +44,40 @@ PER_TOOL_TIMEOUT = 300
 # job's 45 minutes with the other gates.
 TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900,
                  "tools/file_hash.py": 1800}
+# file_hash's 1800 s were set from runs with four of its children at a time (GitHub's Windows and
+# Linux runners have four CPUs for a public repository). Where file_hash.mutant_jobs() is lower (a
+# computer whose os.cpu_count() is below four, or CREATOR_OS_FILE_HASH_JOBS set lower for a
+# computer with little memory) the same rows take longer in proportion, so its cap grows in that
+# proportion.
+FILE_HASH_REF_JOBS = 4
 
 
-def _tool_timeout(rel) -> int:
-    """The seconds the sweep gives one target: its TOOL_TIMEOUTS entry, else PER_TOOL_TIMEOUT."""
-    return TOOL_TIMEOUTS.get(rel, PER_TOOL_TIMEOUT)
+def _file_hash_jobs() -> int:
+    """How many children file_hash's selftest runs at a time here: file_hash.mutant_jobs(), which
+    reads CREATOR_OS_FILE_HASH_JOBS and os.cpu_count() as the child the sweep starts does (the sweep
+    passes the child its environment, not its interpreter options). FILE_HASH_REF_JOBS when
+    file_hash does not import or has no mutant_jobs, so the sweep still runs and reports its target."""
+    try:
+        try:
+            import file_hash
+        except ImportError:  # loaded by file path with tools/ not on sys.path
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import file_hash
+        return file_hash.mutant_jobs()
+    except Exception:  # noqa: BLE001 -- a file_hash that does not import fails its own target
+        return FILE_HASH_REF_JOBS
+
+
+def _tool_timeout(rel, jobs=None) -> int:
+    """The seconds the sweep gives one target: its TOOL_TIMEOUTS entry, else PER_TOOL_TIMEOUT. For
+    tools/file_hash.py, when its mutation run uses fewer than FILE_HASH_REF_JOBS children at a time
+    (jobs, else _file_hash_jobs()), the entry is multiplied by FILE_HASH_REF_JOBS over that count."""
+    limit = TOOL_TIMEOUTS.get(rel, PER_TOOL_TIMEOUT)
+    if rel == "tools/file_hash.py":
+        jobs = _file_hash_jobs() if jobs is None else jobs
+        if jobs < FILE_HASH_REF_JOBS:
+            limit = limit * FILE_HASH_REF_JOBS // max(1, jobs)
+    return limit
 
 
 def discover():
@@ -265,19 +294,88 @@ def selftest():
             return real_run(argv, **kw)
         seen.append((rel, kw.get("timeout")))
         return subprocess.CompletedProcess(argv, 0, "", "")
+    import os
+    saved_jobs = os.environ.get("CREATOR_OS_FILE_HASH_JOBS")
+    runs = {}
     try:
         subprocess.run = fake_run
         globals()["discover"] = lambda: [(ROOT / r, a) for r, a in probe.items()]
         PACKAGE_ENTRIES[:] = []
-        with contextlib.redirect_stdout(io.StringIO()):
-            run_sweep()
+        for jobs in ("4", "2"):  # file_hash's worker count, as CREATOR_OS_FILE_HASH_JOBS sets it
+            os.environ["CREATOR_OS_FILE_HASH_JOBS"] = jobs
+            del seen[:]
+            with contextlib.redirect_stdout(io.StringIO()):
+                run_sweep()
+            runs[jobs] = sorted(seen)
     finally:
         subprocess.run, globals()["discover"] = real_run, real_discover
         PACKAGE_ENTRIES[:] = real_pkgs
-    check("the sweep runs each target with its own cap (the suite 900 s, file_hash 1800 s, another "
-          "tool the default)",
-          sorted(seen) == [("tools/file_hash.py", 1800), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
-                           ("tools/surface_workflow_check.py", 900)])
+        if saved_jobs is None:
+            os.environ.pop("CREATOR_OS_FILE_HASH_JOBS", None)
+        else:
+            os.environ["CREATOR_OS_FILE_HASH_JOBS"] = saved_jobs
+    check("the sweep runs each target with its own cap (the suite 900 s, file_hash 1800 s with four "
+          "workers and 3600 s with two, another tool the default)",
+          runs == {"4": [("tools/file_hash.py", 1800), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
+                         ("tools/surface_workflow_check.py", 900)],
+                   "2": [("tools/file_hash.py", 3600), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
+                         ("tools/surface_workflow_check.py", 900)]})
+    caps = {j: _tool_timeout("tools/file_hash.py", jobs=j) for j in (1, 2, 3, 4, 8)}
+    check("file_hash's cap is 1800 s with four or more workers and grows in proportion with fewer",
+          caps == {1: 7200, 2: 3600, 3: 2400, 4: 1800, 8: 1800})
+    check("another tool's cap does not follow file_hash's worker count",
+          _tool_timeout("tools/surface_workflow_check.py", jobs=1) == 900
+          and _tool_timeout("tools/secret_scan.py", jobs=1) == PER_TOOL_TIMEOUT)
+    # With no override the count follows os.cpu_count(); a file_hash that does not import, or does
+    # not parse, gives the reference count; with tools/ off sys.path the lookup still imports it.
+    tools_dir = Path(__file__).resolve().parent
+
+    def _is_tools(entry):
+        try:
+            return Path(entry or ".").resolve() == tools_dir
+        except OSError:
+            return False
+
+    class _NoParse:
+        def find_spec(self, name, path=None, target=None):
+            if name == "file_hash":
+                raise SyntaxError("a stand-in for a file_hash.py that does not parse")
+            return None
+
+    saved_path, saved_mod = list(sys.path), sys.modules.get("file_hash")
+    saved_jobs, real_cpu = os.environ.get("CREATOR_OS_FILE_HASH_JOBS"), os.cpu_count
+    got, finder = {}, _NoParse()
+    try:
+        os.environ.pop("CREATOR_OS_FILE_HASH_JOBS", None)
+        os.cpu_count = lambda: 2
+        got["two CPUs"] = _tool_timeout("tools/file_hash.py")
+        os.cpu_count = real_cpu
+        os.environ["CREATOR_OS_FILE_HASH_JOBS"] = "2"
+        sys.modules["file_hash"] = None  # `import file_hash` raises ImportError
+        got["no import"] = _file_hash_jobs()
+        del sys.modules["file_hash"]
+        sys.meta_path.insert(0, finder)
+        got["no parse"] = _file_hash_jobs()
+        sys.meta_path.remove(finder)
+        sys.path[:] = [e for e in sys.path if not _is_tools(e)]
+        got["by path"] = _file_hash_jobs()
+    finally:
+        os.cpu_count = real_cpu
+        if finder in sys.meta_path:
+            sys.meta_path.remove(finder)
+        sys.path[:] = saved_path
+        if saved_mod is None:
+            sys.modules.pop("file_hash", None)
+        else:
+            sys.modules["file_hash"] = saved_mod
+        if saved_jobs is None:
+            os.environ.pop("CREATOR_OS_FILE_HASH_JOBS", None)
+        else:
+            os.environ["CREATOR_OS_FILE_HASH_JOBS"] = saved_jobs
+    check("file_hash's worker count follows os.cpu_count() with no override, a file_hash that does not "
+          "import or parse gives the four-worker cap, and the lookup imports it by path",
+          got == {"two CPUs": 3600, "no import": FILE_HASH_REF_JOBS, "no parse": FILE_HASH_REF_JOBS,
+                  "by path": 2})
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")
     return 0 if not failures else 1

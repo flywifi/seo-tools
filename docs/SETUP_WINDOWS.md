@@ -196,7 +196,8 @@ round-trips through the default cp1252 console.
   `usr\bin\sh.exe` of that Git <!-- verify: tools/install_hooks.py::_shell -->. On a computer with
   little memory, set `CREATOR_OS_FILE_HASH_JOBS` (for example to 2) so the mutation run in
   `tools/file_hash.py --selftest` starts fewer child processes at a time
-  <!-- verify: tools/file_hash.py::mutant_jobs -->. *(not yet tested on Windows)*
+  <!-- verify: tools/file_hash.py::mutant_jobs -->; the selftest sweep then gives it longer in
+  proportion <!-- verify: tools/selftest_sweep.py::_tool_timeout -->. *(not yet tested on Windows)*
 
 ## Declared sources (maintainers)
 

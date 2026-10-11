@@ -502,6 +502,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   invariant 62; on a GitHub Windows runner such a child ran past 240 s and the Windows CI job
   failed. Invariant 62's scan keeps a module's parsed tree and its walk for the rest of the scan;
   its result on the live tree is unchanged and its self-proof passes as before.
+- P102 (file_hash cap and worker count): the selftest sweep's cap for `tools/file_hash.py` grows
+  in proportion when its mutation run uses fewer than four child processes at a time
+  (`selftest_sweep._tool_timeout`, which reads `file_hash.mutant_jobs()`): 3600 s with two, 7200 s
+  with one, and 1800 s with four or more. The 1800 s were set from runs with four at a time, the
+  CPU count of GitHub's runners for a public repository. Where `mutant_jobs()` is lower (a computer
+  whose `os.cpu_count()` is below four, or `CREATOR_OS_FILE_HASH_JOBS` set lower for a computer
+  with little memory) the same rows take longer in proportion, and the sweep could stop a run that
+  was still passing its rows. A `file_hash.py` that does not import gives the four-worker cap, so
+  the sweep still runs that target and reports it.
 - P102 (zip member names zipfile cannot decode): a zip whose member name carries the UTF-8 flag
   but is not valid UTF-8 made zipfile raise UnicodeDecodeError, which `classify.zip_kind` did not
   catch, so one such zip in the Inbox stopped the whole scan, and `import_parse`'s zip parsers
