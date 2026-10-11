@@ -82,13 +82,17 @@ sources exactly. Do not substitute other package names.
 - Pre-installed packages in sandbox: numpy, scipy, statsmodels, scikit-learn, pandas, matplotlib.
 
 ### duckdb_analytics
-- Prerequisites: uv, installed as for wolfram_alpha above (it provides `uvx`).
+- Prerequisites: uv, which provides `uvx`. Setup's optional install (`tools/setup.py
+  --install-deps`, or the wizard's install step) adds it to the repo's `.venv` when it is not
+  installed already, on Windows too; on a Mac or Linux the installer under wolfram_alpha above
+  also works.
 - Env vars: none.
 - MCP server: `mcp-server-motherduck` launched via `uvx` (Python, from PyPI; not npm), with
   `--db-path :memory: --read-write`, the local mode that needs no key. The server refuses an
-  in-memory database without `--read-write`, so a query can also write files (`COPY ... TO`);
-  the database itself is discarded when the session ends.
-- Config block:
+  in-memory database without `--read-write`; with it, a query can change the database and write
+  files (`COPY ... TO`), and the database lasts as long as the server process.
+- Config block (replace `uvx` with its absolute path, the one `which uvx` on a Mac or Linux or
+  `where uvx` on Windows prints, since Claude Desktop starts servers with its own narrow PATH):
   ```json
   {
     "mcpServers": {
@@ -146,8 +150,8 @@ config file path:
 ### Step 2: check prerequisites
 
 For the requested tool, verify:
-- Required runtime is installed (Node.js, Python, R).
-- Required package manager is available (npm, pip).
+- Required runtime is installed (Node.js, Python, uv, R).
+- Required package manager is available (npm, pip, uv).
 - Required API key is obtainable (provide the signup URL, do not ask the user to paste keys into
   chat — instruct them to set env vars).
 

@@ -69,7 +69,7 @@ Canonical transports per `shared/connectors/connectors.json`, `docs/STATISTICS.m
 | monte-carlo | `[NEEDS VERIFICATION]` | `MCS-MCP` | runtime unconfirmed upstream |
 | scikit-learn | `[NEEDS VERIFICATION]` | `mcp-server-scikit-learn` | runtime unconfirmed upstream |
 
-**Node.js is required by exactly: microsoft-365, e2b.** NOT Google, NOT Wolfram, NOT DuckDB (all three uvx/Python).
+**Node.js is required by microsoft-365 and e2b** (monte-carlo and scikit-learn: runtime unconfirmed). Google, Wolfram and DuckDB use uvx (Python).
 
 ---
 

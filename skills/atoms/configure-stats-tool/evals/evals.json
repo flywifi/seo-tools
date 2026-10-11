@@ -30,7 +30,7 @@
       "tool": "duckdb_analytics",
       "config_block": "contains mcpServers with duckdb entry",
       "env_vars_needed": "empty object — DuckDB requires no API key",
-      "prerequisites": "includes DuckDB CLI or Python duckdb",
+      "prerequisites": "includes uv (uvx)",
       "verification_prompt": "non-empty string mentioning CSV query"
     },
     "prohibit": [

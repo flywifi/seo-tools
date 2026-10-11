@@ -83,12 +83,15 @@ If DuckDB is not connected:
 If `sql` is null:
 - Generate a DuckDB-compatible SQL query from `query_description` and the inferred schema.
 - Use `read_csv_auto('path')` for CSV files, `read_parquet('path')` for Parquet, etc.
+- Name each file by its absolute path: the DuckDB server's working folder is not the creator's.
 - Prefer explicit column names over `SELECT *` for clarity.
 
 If `sql` is provided:
-- Validate that the SQL does not contain write operations (INSERT, UPDATE, DELETE, DROP, CREATE,
-  ALTER, COPY, EXPORT, ATTACH, INSTALL). data-query is read-only; the DuckDB connection accepts
-  writes, so this check is what keeps a query from changing data or writing a file.
+- Validate that the SQL does not contain these statements: INSERT, UPDATE, DELETE, DROP, CREATE,
+  ALTER, TRUNCATE, MERGE, COPY, EXPORT, IMPORT, ATTACH, INSTALL, LOAD, SET, PRAGMA or CALL.
+  data-query is read-only by this check; the DuckDB connection accepts writes. The check does not
+  cover every way DuckDB writes: a first read of an `.xlsx` file installs DuckDB's excel
+  extension.
 - Validate that file paths in the SQL match `data_files`.
 
 ### Step 4: execute query
@@ -121,7 +124,7 @@ Structure the result as a clean columnar response. If `row_count` exceeds 100, r
     ["Thrift Flip: Vintage Dresser", 98.3, 19200, 0.065]
   ],
   "row_count": 10,
-  "sql_executed": "SELECT video_title, watch_time_hours, views, ctr FROM read_csv_auto('youtube_export.csv') WHERE upload_date >= '2026-04-01' ORDER BY watch_time_hours DESC LIMIT 10",
+  "sql_executed": "SELECT video_title, watch_time_hours, views, ctr FROM read_csv_auto('/absolute/path/to/youtube_export.csv') WHERE upload_date >= '2026-04-01' ORDER BY watch_time_hours DESC LIMIT 10",
   "schema": {
     "video_title": "VARCHAR",
     "watch_time_hours": "DOUBLE",

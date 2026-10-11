@@ -51,7 +51,7 @@
       "env": {}
     },
     "duckdb-analytics": {
-      "_comment": "Optional. Analytical SQL over CSV, Parquet and JSON files in an in-memory DuckDB database, without an API key. The server refuses an in-memory database without --read-write, so a query can also write files; the database is discarded when the session ends. Requires uv, as for google-workspace.",
+      "_comment": "Optional. Analytical SQL over CSV, Parquet and JSON files in an in-memory DuckDB database, without an API key. The server refuses an in-memory database without --read-write; with it, a query can change the database and write files, and the database lasts as long as the server process. Requires uv. Use uvx's ABSOLUTE path as the command, since Claude Desktop launches servers with its own narrow PATH: the path `which uvx` (Mac, Linux) or `where uvx` (Windows) prints, or for the uv that setup installs, REPLACE_WITH_ABSOLUTE_PATH/seo-tools/.venv/bin/uvx (on Windows .venv\\Scripts\\uvx.exe).",
       "command": "uvx",
       "args": ["mcp-server-motherduck", "--db-path", ":memory:", "--read-write"],
       "env": {}

@@ -14,9 +14,12 @@ computer. The read-only rule below is this atom's own check, not the server's.
 
 ## Invariants
 
-1. data-query is **read-only**. It never generates or executes INSERT, UPDATE, DELETE, DROP,
-   CREATE, ALTER, COPY, EXPORT, ATTACH or INSTALL statements (the last four write files or fetch
-   extensions). User-supplied SQL is validated for write operations before execution.
+1. data-query is **read-only** by its own check: its instructions refuse SQL containing INSERT,
+   UPDATE, DELETE, DROP, CREATE, ALTER, TRUNCATE, MERGE, COPY, EXPORT, IMPORT, ATTACH, INSTALL,
+   LOAD, SET, PRAGMA or CALL (COPY, EXPORT, ATTACH, INSTALL, LOAD and the logging settings are
+   among the statements that write files or fetch extensions); eval dq-003 covers DROP. User-
+   supplied SQL is validated before execution. A first read of an `.xlsx` file still installs
+   DuckDB's excel extension, which no statement list catches.
 2. `rows` is empty (not populated with example data) when `computation_source` is `guidance_only`.
    Never fabricate result rows.
 3. `sql_executed` always reflects the actual SQL — whether executed or emitted for local use.
