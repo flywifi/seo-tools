@@ -32,6 +32,7 @@ import json
 import re
 import sys
 import zipfile
+import zlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared" / "docintel"))
@@ -81,6 +82,48 @@ def _note(message):
 
 _ZIP_UNREAD_NOTE = ("this file's zip directory could not be read here (it may be an incomplete "
                     "download); unzip it and import the folder")
+
+
+# The largest zip member the importer reads (P102): the CSV and JSON files it reads are far smaller
+# in a normal export, so this stops only a pathological member, which is skipped with a note.
+MAX_MEMBER_BYTES = 256 * 1024 * 1024
+try:  # zipfile reads an LZMA member only when this module is present, and so is its error
+    import lzma as _lzma
+    _LZMA_ERRORS = (_lzma.LZMAError,)
+except ImportError:
+    _LZMA_ERRORS = ()
+# What reading a member that does not decompress raises: a CRC mismatch or a bad header
+# (BadZipFile), a corrupt deflate stream (zlib.error), a corrupt bzip2 stream or a failed read of the
+# zip file (OSError), a corrupt LZMA stream (lzma.LZMAError), a stream that ends early (EOFError), a
+# compression method this Python lacks (NotImplementedError), an encrypted member (RuntimeError).
+MEMBER_READ_ERRORS = (zipfile.BadZipFile, zlib.error, OSError, EOFError, NotImplementedError,
+                      RuntimeError) + _LZMA_ERRORS
+
+
+def _read_member(z, name):
+    """The bytes of one member of an open zip, or None with one note on stderr: a member whose
+    directory entry says it is over MAX_MEMBER_BYTES is not read (zipfile reads no more than that
+    entry's size, so the read is bounded), and one that does not decompress (MEMBER_READ_ERRORS,
+    an interrupted download) is skipped instead of stopping the import (P102)."""
+    shown = " ".join(str(name).split())[:200]  # one line, so a member name cannot add a note line
+    info = z.getinfo(name)
+    if info.file_size > MAX_MEMBER_BYTES:
+        _note(f"{shown} inside this zip is larger than {MAX_MEMBER_BYTES // (1024 * 1024)} MiB, so it "
+              f"was not read; unzip the export and import the folder")
+        return None
+    try:
+        return z.read(info)
+    except MEMBER_READ_ERRORS as exc:
+        kind = "zlib.error" if isinstance(exc, zlib.error) else type(exc).__name__
+        _note(f"{shown} inside this zip could not be read ({kind}; it may be damaged or an incomplete "
+              f"download), so it was skipped; download the export again")
+        return None
+
+
+def _member_text(z, name):
+    """The decoded text of one zip member (textdecode's reading), or None when _read_member skips it."""
+    raw = _read_member(z, name)
+    return None if raw is None else _td.decode_text(raw)[0]
 
 
 def _safe_zip(path):
@@ -190,11 +233,11 @@ def parse_youtube_studio_zip(zip_path):
         csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
         table = next((n for n in csvs if "table data" in n.lower()), None)
         if table is not None:
-            text = _td.decode_text(z.read(table))[0]
+            text = _member_text(z, table)
         else:  # fall back to any csv that has a "Content" header
             for n in csvs:
-                t = _td.decode_text(z.read(n))[0]
-                if t.splitlines() and "content" in t.splitlines()[0].lower():
+                t = _member_text(z, n)
+                if t and t.splitlines() and "content" in t.splitlines()[0].lower():
                     text = t
                     break
     return parse_youtube_studio_csv(text) if text else []
@@ -255,7 +298,9 @@ def parse_youtube_takeout(path):
             with z:
                 for n in z.namelist():
                     if "video metadata" in n.lower() and n.lower().endswith(".csv"):
-                        texts.append(_td.decode_text(z.read(n))[0])
+                        t = _member_text(z, n)
+                        if t is not None:
+                            texts.append(t)
     elif p.is_dir():
         for f in p.rglob("*.csv"):
             if "video metadata" in str(f).lower() or "video" in f.name.lower():
@@ -326,7 +371,9 @@ def parse_instagram_dyi(path):
                 for n in z.namelist():
                     b = Path(n).name.lower()
                     if n.lower().endswith(".json") and (b.startswith("posts_") or b in ("reels.json", "posts.json") or "reels" in b):
-                        texts.append(_td.decode_text(z.read(n))[0])
+                        t = _member_text(z, n)
+                        if t is not None:
+                            texts.append(t)
     elif p.is_dir():
         for f in list(p.rglob("posts_*.json")) + list(p.rglob("reels.json")) + list(p.rglob("posts.json")):
             texts.append(_td.read_text_file(f)[0])
@@ -359,18 +406,20 @@ def _is_path_text(value) -> bool:
 
 
 def _tiktok_zip_text(zip_path):
-    """(text, opened): the text of the export JSON inside a TikTok data zip (user_data_tiktok.json
-    first), or None; opened is False when _safe_zip did not open the zip, which it has said."""
+    """(text, noted): the text of the export JSON inside a TikTok data zip (user_data_tiktok.json
+    first), or None; noted is True when a note already says why there is no text (_safe_zip did not
+    open the zip, or _read_member skipped the member)."""
     z = _safe_zip(zip_path)
     if z is None:
-        return None, False
+        return None, True
     with z:
         names = z.namelist()
         for want in _TIKTOK_MEMBERS:
             for n in names:
                 if n.replace("\\", "/").rsplit("/", 1)[-1].lower() == want:
-                    return _td.decode_text(z.read(n))[0], True
-    return None, True
+                    text = _member_text(z, n)
+                    return text, text is None
+    return None, False
 
 
 def parse_tiktok_dyi(path_or_obj):
@@ -379,9 +428,9 @@ def parse_tiktok_dyi(path_or_obj):
     if isinstance(path_or_obj, (dict, list)):
         obj = path_or_obj
     elif _is_path_text(path_or_obj) and str(path_or_obj).lower().endswith(".zip"):
-        text, opened = _tiktok_zip_text(path_or_obj)
+        text, noted = _tiktok_zip_text(path_or_obj)
         if text is None:
-            if opened:  # a zip _safe_zip did not open has its own note
+            if not noted:  # _safe_zip, or _read_member for a damaged member, has said why
                 _note("no user_data_tiktok.json or user_data.json in this zip (choose JSON as the file "
                       "format when you request your TikTok data)")
             return []
@@ -715,6 +764,108 @@ def selftest():
            "CSV with a Content column", parse_youtube_studio_zip(str(_pick)) == yt)
         ok("without a Table data CSV, the first CSV whose first line names a Content column is read",
            parse_youtube_studio_zip(str(_fall)) == yt)
+
+    # P102 push 4c: a member that does not decompress, or whose directory entry is over
+    # MAX_MEMBER_BYTES, is skipped with one note naming it on one line; the zip's other members are
+    # read, and nothing raises.
+    def _zip_with(path, members, damaged=None, method=zipfile.ZIP_DEFLATED, block=False):
+        """Write a zip of members (name -> bytes) and damage `damaged`'s data: flip one byte in its
+        middle (a CRC mismatch), or with block, break the start of its compressed stream: a deflate
+        stream starts with the reserved block type, which zlib refuses; a bzip2 stream loses its
+        "BZh" mark, which bz2 refuses with OSError; an LZMA stream gets a properties byte over 224,
+        which lzma refuses with LZMAError."""
+        buf = _io_n.BytesIO()
+        try:  # invariant 35: each ZipFile call sits inside a try
+            with zipfile.ZipFile(buf, "w", method) as _zw:
+                for _n, _data in members.items():
+                    _zw.writestr(_n, _data)
+            raw = bytearray(buf.getvalue())
+            if damaged is not None:
+                with zipfile.ZipFile(_io_n.BytesIO(bytes(raw))) as _zr:
+                    _info = _zr.getinfo(damaged)
+                _off = _info.header_offset
+                _start = (_off + 30 + int.from_bytes(raw[_off + 26:_off + 28], "little")
+                          + int.from_bytes(raw[_off + 28:_off + 30], "little"))
+                if block and method == zipfile.ZIP_BZIP2:
+                    raw[_start] = 0x00  # the B of the BZh stream header
+                elif block and method == zipfile.ZIP_LZMA:
+                    raw[_start + 4] = 0xFF  # after zipfile's 4-byte LZMA header: the lc/lp/pb byte
+                elif block:
+                    raw[_start] = 0x07  # BFINAL 1, BTYPE 11: a reserved deflate block type
+                else:
+                    raw[_start + _info.compress_size // 2] ^= 0xFF
+            path.write_bytes(bytes(raw))
+        except (OSError, zipfile.BadZipFile):
+            pass  # the checks below then fail
+    _rows_csv = ("Video ID,Video title\n" + "".join(f"vid{i},Title {i}\n" for i in range(400))).encode()
+    with _tf_bom.TemporaryDirectory() as _td_dm:
+        _dm = Path(_td_dm)
+        _zip_with(_dm / "studio.zip", {"Table data.csv": yt_csv.encode() * 40}, "Table data.csv",
+                  zipfile.ZIP_STORED)
+        _studio_got = _notes_of(parse_youtube_studio_zip, str(_dm / "studio.zip"))
+        _zip_with(_dm / "takeout.zip", {"Takeout/YouTube/video metadata/videos.csv": _rows_csv,
+                                        "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
+                  "Takeout/YouTube/video metadata/videos.csv", block=True)
+        _takeout_got = _notes_of(parse_youtube_takeout, str(_dm / "takeout.zip"))
+        _zip_with(_dm / "tiktok.zip", {"user_data_tiktok.json": json.dumps(
+            {"Video": {"Videos": {"VideoList": [{"Link": f"https://x/{i}", "Date": "2026-01-01"}
+                                                for i in range(300)]}}}).encode()}, "user_data_tiktok.json")
+        _tiktok_got = _notes_of(parse_tiktok_dyi, str(_dm / "tiktok.zip"))
+        _zip_with(_dm / "named.zip", {"Table data\nnote: made-up.csv": yt_csv.encode() * 40},
+                  "Table data\nnote: made-up.csv", zipfile.ZIP_STORED)
+        _named_got = _notes_of(parse_youtube_studio_zip, str(_dm / "named.zip"))
+        _zip_with(_dm / "ig.zip", {"posts_1.json": json.dumps([{"media": [
+            {"uri": "media/posts/1.mp4", "creation_timestamp": 1772409600, "title": "x" * 5000}]}]).encode()})
+        _ig_whole = _notes_of(parse_instagram_dyi, str(_dm / "ig.zip"))
+        _zip_with(_dm / "fallback.zip", {"Chart.csv": yt_csv.encode() * 40, "Export.csv": yt_csv.encode()},
+                  "Chart.csv", zipfile.ZIP_STORED)
+        _fallback_got = _notes_of(parse_youtube_studio_zip, str(_dm / "fallback.zip"))
+        _other_methods = {}
+        for _label, _method, _mod in (("bzip2", zipfile.ZIP_BZIP2, "bz2"), ("lzma", zipfile.ZIP_LZMA, "lzma")):
+            try:
+                __import__(_mod)
+            except ImportError:  # this Python cannot write the member, so the case is skipped
+                print(f"  [skip] a damaged {_label} member: the {_mod} module is missing")
+                continue
+            _zip_with(_dm / f"takeout-{_label}.zip",
+                      {"Takeout/YouTube/video metadata/videos.csv": _rows_csv,
+                       "Takeout/YouTube/video metadata/videos (1).csv": _rows_csv},
+                      "Takeout/YouTube/video metadata/videos.csv", _method, block=True)
+            _other_methods[_label] = _notes_of(parse_youtube_takeout, str(_dm / f"takeout-{_label}.zip"))
+        _cap_saved = globals()["MAX_MEMBER_BYTES"]
+        globals()["MAX_MEMBER_BYTES"] = 1000  # under posts_1.json's size, over its compressed size
+        try:
+            _ig_capped = _notes_of(parse_instagram_dyi, str(_dm / "ig.zip"))
+        finally:
+            globals()["MAX_MEMBER_BYTES"] = _cap_saved
+        _out_cli, _err_cli = _io_n.StringIO(), _io_n.StringIO()
+        with _cl_n.redirect_stdout(_out_cli), _cl_n.redirect_stderr(_err_cli):
+            _rc_cli = main(["youtube-studio-zip", str(_dm / "studio.zip")])
+    ok("a damaged member gives [] and one note naming it, from the Studio and TikTok parsers",
+       _studio_got[0] == [] and len(_studio_got[1]) == 1 and "Table data.csv" in _studio_got[1][0]
+       and "BadZipFile" in _studio_got[1][0] and _tiktok_got[0] == [] and len(_tiktok_got[1]) == 1
+       and "user_data_tiktok.json" in _tiktok_got[1][0] and "could not be read" in _tiktok_got[1][0])
+    ok("a damaged member is skipped and the zip's other members are read",
+       len(_takeout_got[0]) == 400 and len(_takeout_got[1]) == 1
+       and "videos.csv inside this zip could not be read (zlib.error" in _takeout_got[1][0])
+    ok("a damaged bzip2 member (OSError) or LZMA member (LZMAError) is skipped with its note, and the "
+       "zip's other member is read",
+       all(len(_got[0]) == 400 and len(_got[1]) == 1
+           and f"videos.csv inside this zip could not be read ({_kind};" in _got[1][0]
+           for _label, _kind in (("bzip2", "OSError"), ("lzma", "LZMAError"))
+           for _got in [_other_methods.get(_label)] if _got is not None))  # a skipped case drops out
+    ok("a damaged CSV is passed over when the Studio parser looks for one with a Content column",
+       _fallback_got[0] == yt and len(_fallback_got[1]) == 1 and "Chart.csv" in _fallback_got[1][0])
+    ok("a member name with a line break stays on the one note line",
+       _named_got[0] == [] and len(_named_got[1]) == 1 and "made-up.csv" in _named_got[1][0])
+    ok("a member whose directory entry is over the cap is not read, with a note to unzip the export",
+       len(_ig_whole[0]) == 1 and _ig_whole[1] == [] and _ig_capped[0] == [] and len(_ig_capped[1]) == 1
+       and "larger than" in _ig_capped[1][0] and "unzip the export" in _ig_capped[1][0])
+    ok("the command line prints [] and exits 0 for a zip whose table is damaged, with one note",
+       _rc_cli == 0 and json.loads(_out_cli.getvalue()) == []
+       and [ln for ln in _err_cli.getvalue().splitlines() if ln.startswith("note: ")] == _studio_got[1]
+       and "Traceback" not in _err_cli.getvalue())
+    ok("the member cap is 256 MiB", MAX_MEMBER_BYTES == 256 * 1024 * 1024)
 
     pin = parse_pinterest_export({"pins": [{"pin_id": "998877",
                                             "metrics": {"IMPRESSION": 2400, "SAVE": 30, "VIDEO_MRC_VIEW": 400}}]})

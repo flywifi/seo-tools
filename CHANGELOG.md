@@ -355,6 +355,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (damaged or oversized export members): `import_parse` reads a zip member through
+  `_read_member`: a member whose directory entry says it is over 256 MiB (`MAX_MEMBER_BYTES`) is not
+  read, and one that does not decompress (a CRC mismatch, a corrupt deflate, bzip2 or LZMA stream,
+  a stream that ends early, as an interrupted download leaves) is skipped. A skipped member gives one `note:` line
+  naming it on one line, the zip's other members are read, and the command prints the records it
+  found and exits 0. Before, a damaged `Table data.csv` stopped the import with a `BadZipFile`
+  traceback and exit 1, and a member was read whole at any size.
 - P102 (wizard folder refusals, Drive export folders, one screen per page): the Drive hub screen
   refuses a folder with a sentence for its reason instead of the reason code, and now has sentences
   for an empty path, a missing folder and the home folder itself (`wizard._DRIVE_HUB_WHY`); on
