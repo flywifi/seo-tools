@@ -265,6 +265,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (hook command test in the guard's selftest): the test that runs the hook command wired in
+  `.claude/settings.json` under a POSIX shell, with working, failing and stdin-reading stand-in
+  Pythons on PATH, moves from `sync_check._selfproof`, which scores each of the drift guard's
+  mutation rows, to `readonly_bash_guard`'s selftest (`_selftest_hook_run`), which the selftest
+  sweep runs.
 - P102 (inbox selftest with stand-in limits): the inbox selftest's oversize-transcript checks run
   the offline screener with a 20,000-byte cut in place of its 2,000,000-byte default, and its
   export-zip checks run classify's entry limit at 50 in place of 50,000, so its test files stay

@@ -1632,6 +1632,105 @@ def _profile_mirror_mutant_survivors():
     return survivors
 
 
+def _selftest_hook_run():
+    """Names of the failing cases when the guard command wired in .claude/settings.json runs under
+    a POSIX shell: it skips a missing guard file, runs the guard with a working Python, and with
+    only failing python3, python and py on PATH refuses a guarded agent's call and passes others.
+    Printed as skipped, and counted as passing, when no shell is found. It runs in the guard's
+    own selftest, not in sync_check._selfproof, the entry each of the drift guard's mutation rows
+    runs (P102)."""
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+    ROOT = Path(__file__).resolve().parent.parent
+    AUDITOR_AGENT = GUARDED_AGENT_TYPES[0]
+    try:
+        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        cmd = next(h["command"] for e in settings["hooks"]["PreToolUse"] for h in e["hooks"]
+                   if "readonly_bash_guard.py" in h.get("command", ""))
+    except (OSError, ValueError, KeyError, TypeError, StopIteration):
+        return ["hook command not found in .claude/settings.json"]
+    sh = shutil.which("sh") if os.name != "nt" else None
+    if sh is None:
+        try:
+            import battery
+            sh = battery.bash_for_syntax()
+        except Exception:  # noqa: BLE001
+            sh = None
+    if not sh:
+        print("  [skip] guard hook run: no POSIX shell found")
+        return []
+
+    def run(payload, project, path, compact=False):
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project), PATH=path)
+        text = json.dumps(payload, separators=(",", ":") if compact else None)
+        r = subprocess.run([sh, "-c", cmd], input=text, capture_output=True, text=True, env=env,
+                           timeout=60)
+        return r.returncode, r.stderr
+
+    def call(tool, agent, command):
+        p = {"tool_name": tool, "tool_input": {"command": command}}
+        if agent:
+            p["agent_type"] = agent
+        return p
+
+    fails = []
+    real = os.environ.get("PATH", "")
+    with tempfile.TemporaryDirectory() as td:
+        stubs = Path(td) / "stubs"
+        stubs.mkdir()
+        for name in ("python3", "python", "py"):
+            (stubs / name).write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+            (stubs / name).chmod(0o755)
+        # A python3 that starts (the probe passes) but fails any script, as an old Python would.
+        broken = Path(td) / "broken"
+        broken.mkdir()
+        (broken / "python3").write_text('#!/bin/sh\n[ "$1" = "-c" ] && exit 0\nexit 1\n', encoding="utf-8")
+        (broken / "python3").chmod(0o755)
+        broken_path = str(broken) + os.pathsep + real
+        # A stand-in python3 that reads stdin before it fails, as a launcher that prompts might.
+        draining = Path(td) / "draining"
+        draining.mkdir()
+        for name, body in (("python3", "#!/bin/sh\ncat >/dev/null\nexit 1\n"), ("python", "#!/bin/sh\nexit 1\n"),
+                           ("py", "#!/bin/sh\nexit 1\n")):
+            (draining / name).write_text(body, encoding="utf-8")
+            (draining / name).chmod(0o755)
+        empty = Path(td) / "empty"
+        empty.mkdir()
+        stubbed = str(stubs) + os.pathsep + real
+        drained = str(draining) + os.pathsep + real
+        cases = [
+            ("guard file absent", call("Bash", AUDITOR_AGENT, "rm x"), empty, real, False, 0, ""),
+            ("auditor write refused by the guard", call("Bash", AUDITOR_AGENT, "rm x"), ROOT, real, False,
+             2, "readonly_bash_guard: refused"),
+            ("auditor read passes", call("Bash", AUDITOR_AGENT, "git log -1"), ROOT, real, False, 0, ""),
+            ("auditor PowerShell refused", call("PowerShell", AUDITOR_AGENT, "Get-ChildItem"), ROOT, real,
+             True, 2, "PowerShell"),
+            ("main loop write passes", call("Bash", None, "rm x"), ROOT, real, False, 0, ""),
+            ("no Python: auditor refused", call("Bash", AUDITOR_AGENT, "git status"), ROOT, stubbed, False,
+             2, "no working Python"),
+            ("no Python: compact input refused", call("Bash", AUDITOR_AGENT, "git status"), ROOT, stubbed,
+             True, 2, "no working Python"),
+            ("no Python: main loop passes", call("Bash", None, "rm x"), ROOT, stubbed, False, 0, ""),
+            ("no Python: product agent passes", call("Bash", "seo-researcher", "rm x"), ROOT, stubbed,
+             False, 0, ""),
+            ("no Python, a stand-in reads stdin: auditor refused", call("Bash", AUDITOR_AGENT, "git status"),
+             ROOT, drained, False, 2, "no working Python"),
+            ("no Python, a stand-in reads stdin: main loop passes", call("Bash", None, "rm x"), ROOT, drained,
+             False, 0, ""),
+            ("a Python that fails the guard: auditor refused", call("Bash", AUDITOR_AGENT, "git status"), ROOT,
+             broken_path, False, 2, "the guard did not run"),
+            ("a Python that fails the guard: main loop not blocked", call("Bash", None, "rm x"), ROOT,
+             broken_path, False, 1, ""),
+        ]
+        for label, payload, project, path, compact, want_rc, want_err in cases:
+            rc, err = run(payload, project, path, compact)
+            if rc != want_rc or want_err not in err:
+                fails.append(f"hook run: {label} (exit {rc})")
+    return fails
+
+
 def selftest():
     fails = []
     for c in ALLOW_CASES + KNOWN_MISSES:
@@ -1658,10 +1757,13 @@ def selftest():
         got = decide(payload)[0]
         if got != want:
             fails.append(f"decide({payload}) exit {got}, want {want}")
+    hook_run = _selftest_hook_run()
+    if hook_run:
+        fails.append(f"the wired hook command: {hook_run}")
     survivors = _profile_mirror_mutant_survivors()
     if survivors or not _PROFILE_MIRROR_MUTANTS:
         fails.append(f"profile_mirror write-verb mutations not caught: {survivors}")
-    n = len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 1
+    n = len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 2
     for f in fails:
         print(f"FAIL {f}")
     print(f"readonly_bash_guard selftest: {n - len(fails)}/{n} passed "
