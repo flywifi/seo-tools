@@ -4162,6 +4162,26 @@ _MUTANTS = (
     ('4F-L8 .py read through a name dropped', 'sync_check.py', '                    scanned.setdefault(hit, "program")\n                elif hit.endswith(".json"):', '                    pass\n                elif hit.endswith(".json"):'),
     ('4F-L9 .json read through a name dropped', 'sync_check.py', '                elif hit.endswith(".json"):\n                    scanned.setdefault(hit, "data")', '                elif hit.endswith(".json"):\n                    pass'),
     ('4F-E1 one env pass only', 'sync_check.py', '        for node in nodes * 2:', '        for node in nodes:'),
+    # P102 Push 4g: the review rows for the value pins, the stand-in limits and the selftest fixes.
+    ('G4-IS1 the default cut one byte longer', 'injection_scan.py', 'def scan_file(path, max_bytes: int = 2_000_000, trust: str = "untrusted_external") -> dict:', 'def scan_file(path, max_bytes: int = 2_000_001, trust: str = "untrusted_external") -> dict:'),
+    ('G4-IS2 the default cut halved', 'injection_scan.py', 'def scan_file(path, max_bytes: int = 2_000_000, trust: str = "untrusted_external") -> dict:', 'def scan_file(path, max_bytes: int = 1_000_000, trust: str = "untrusted_external") -> dict:'),
+    ('G4-IS3 the read capped at 1 MiB, the default kept', 'injection_scan.py', '            raw = fh.read(max_bytes + 1)\n', '            raw = fh.read(min(max_bytes, 1_048_576) + 1)\n'),
+    ('G4-CL1 the entry limit one higher', '../shared/docintel/classify.py', 'ZIP_MAX_ENTRIES = 50_000\n', 'ZIP_MAX_ENTRIES = 50_001\n'),
+    ('G4-CL2 the entry limit a tenth', '../shared/docintel/classify.py', 'ZIP_MAX_ENTRIES = 50_000\n', 'ZIP_MAX_ENTRIES = 5_000\n'),
+    ('G4-CL3 the directory limit in decimal megabytes', '../shared/docintel/classify.py', 'ZIP_MAX_DIRECTORY_BYTES = 16 * 1024 * 1024\n', 'ZIP_MAX_DIRECTORY_BYTES = 16 * 1000 * 1000\n'),
+    ('G4-CL4 the directory limit doubled', '../shared/docintel/classify.py', 'ZIP_MAX_DIRECTORY_BYTES = 16 * 1024 * 1024\n', 'ZIP_MAX_DIRECTORY_BYTES = 32 * 1024 * 1024\n'),
+    ('G4-IB1 the oversize note names 4 MB', 'handoff/inbox.py', 'reads (2 MB), so only its first part', 'reads (4 MB), so only its first part'),
+    ('G4-IB2 the split note names 4 MB', 'handoff/inbox.py', 'split it into files under 2 MB and drop', 'split it into files under 4 MB and drop'),
+    ('G4-IB3 scan asks for a larger cut', 'handoff/inbox.py', '            rec = scr.scan_file(str(p))\n', '            rec = scr.scan_file(str(p), max_bytes=4_000_000)\n'),
+    ('G4-IB4 scan asks for a smaller cut', 'handoff/inbox.py', '            rec = scr.scan_file(str(p))\n', '            rec = scr.scan_file(str(p), max_bytes=10_000)\n'),
+    ('G4-IB5 approve asks for a smaller cut', 'handoff/inbox.py', '    rec = scr.scan_file(str(path)) if scr is not None else {}\n', '    rec = scr.scan_file(str(path), max_bytes=10_000) if scr is not None else {}\n'),
+    ('G4-IB6 the inbox hard-codes the entry limit', 'handoff/inbox.py', '    refused = _classify.zip_refusal(directory)\n', '    refused = _classify.zip_refusal(directory) if directory["entries"] > 50_000 else None\n'),
+    ('G4-WZ1 a numbered credentials copy loses .bak', 'wizard.py', '.corrupt.{stamp}.{n}.bak")', '.corrupt.{stamp}.{n}")'),
+    ("G4-WZ2 only this second's credentials copies reused", 'wizard.py', '    for old in sorted(creds_path.parent.glob(f"{creds_path.name}.corrupt.*.bak")):\n', '    for old in sorted(creds_path.parent.glob(f"{creds_path.name}.corrupt.{time.strftime(\'%Y%m%d%H%M%S\')}*.bak")):\n'),
+    ('G4-WZ3 the engine probe raises on a Mac', 'wizard.py', '    cpp = _tr_stt.whisper_cpp_bin(env_paths.which, _os())\n', '    cpp = _tr_stt.whisper_cpp_bin(env_paths.which, _os()) if _os() != "mac" else 1 // 0\n'),
+    ('G4-WZ4 a found engine loses its name', 'wizard.py', '", cpp, fw\n', '", None, fw\n'),
+    ('G4-TR1 never judged as Windows', 'transcribe.py', '.lower().startswith("win")\n', '.lower().startswith("win") and False\n'),
+    ('G4-RB1 the Bash refusal says denied', 'readonly_bash_guard.py', '    return 2, (f"readonly_bash_guard: refused for the {payload.get(\'agent_type\')} agent: {why}. "', '    return 2, (f"readonly_bash_guard: denied for the {payload.get(\'agent_type\')} agent: {why}. "'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -4245,12 +4265,12 @@ def _selftest_verdict(source: str, path: Path, entry: str = "selftest", out=None
             out.append(captured.getvalue())
 
 
-@functools.lru_cache(maxsize=4)
+@functools.lru_cache(maxsize=None)
 def _function_spans(src: str):
     """(name, first line, last line) for each top-level function of src, in source order; none when
-    src does not parse. It depends on the text alone, so it is cached by the text: the anchor check
-    parses a module once per process instead of once per row and per test scope (P102). A mutant's
-    source is never passed here."""
+    src does not parse. It depends on the text alone, so it is cached by the text, one entry per
+    module text a process reads: the anchor check parses a module once per process, in a serial run
+    too, instead of once per row and per test scope (P102). A mutant's source is never passed here."""
     import ast
     try:
         tree = ast.parse(src)
@@ -4513,8 +4533,9 @@ def _runner_controls() -> list:
                                   ("once-c", "spans_once.py", "    return {0}()".format("_productioncheck"),
                                    "    return 0")], base=d)
         parsed_once = _function_spans.cache_info().misses - parsed_before
-        # P102: an async test helper counts as test code, and an anchor that starts on the line after
-        # the entry ends is production code (the first and last lines of a span are inclusive).
+        # P102: an async test helper counts as test code, an anchor that starts on the line after the
+        # entry ends is production code, and one that ends on a test function's def line is test code
+        # (the first and last lines of a span are inclusive).
         (d / "spans_async.py").write_text("x = 1\ndef selftest():\n    return 0\n"
                                           "async def _selftest_wait():\n    y = 1\n    return y\n",
                                           encoding="utf-8")
@@ -4523,6 +4544,10 @@ def _runner_controls() -> list:
                                          "def f():\n    return 1\n", encoding="utf-8")
         span_next = _run_mutants([("spans-next", "spans_next.py", "def f():\n    return 1\n",
                                    "def f():\n    return 2\n")], base=d)
+        (d / "spans_defline.py").write_text("def selftest():\n    return _selftest_checks()\nx = 1\n"
+                                            "def _selftest_checks():\n    return 0\n", encoding="utf-8")
+        span_defline = _run_mutants([("spans-defline", "spans_defline.py", "x = 1\ndef _selftest_checks():\n",
+                                      "x = 2\ndef _selftest_checks():\n")], base=d)
     labels = [g.split(" (")[0] for g in got]
     out.append(("an equivalent row is reported as a survivor", "equivalent" in labels))
     out.append(("a row that does not compile is reported invalid, not caught",
@@ -4564,6 +4589,8 @@ def _runner_controls() -> list:
                 span_async == ["spans-async (invalid: anchor in _selftest_wait(), test code)"]))
     out.append(("a row whose anchor starts on the line after the entry ends is production code: caught",
                 span_next == []))
+    out.append(("a row whose anchor ends on a test function's def line is invalid, not caught",
+                span_defline == ["spans-defline (invalid: anchor in _selftest_checks(), test code)"]))
     out.append((f"three rows of one module parse its source once ({parsed_once} parses)",
                 span_once == ["once-b", "once-c (invalid: anchor in selftest(), the test that scores it)"]
                 and parsed_once == 1))

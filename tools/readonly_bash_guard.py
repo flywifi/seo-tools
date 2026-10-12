@@ -1632,13 +1632,21 @@ def _profile_mirror_mutant_survivors():
     return survivors
 
 
+# file_hash sets this on a mutated copy of the module before it runs selftest() (P102).
+_IN_MUTANT = False
+
+
 def _selftest_hook_run():
     """Names of the failing cases when the guard command wired in .claude/settings.json runs under
     a POSIX shell: it skips a missing guard file, runs the guard with a working Python, and with
     only failing python3, python and py on PATH refuses a guarded agent's call and passes others.
-    Printed as skipped, and counted as passing, when no shell is found. It runs in the guard's
-    own selftest, not in sync_check._selfproof, the entry each of the drift guard's mutation rows
-    runs (P102)."""
+    None, printed as skipped and not counted, when no shell is found, or in a file_hash mutation
+    run, where the command would run the guard file on disk and not the mutant. It runs in the
+    guard's own selftest, not in sync_check._selfproof, the entry each of the drift guard's
+    mutation rows runs (P102)."""
+    if _IN_MUTANT:
+        print("  [skip] guard hook run: a mutation run (the wired command runs the guard file on disk)")
+        return None
     import shutil
     import subprocess
     import tempfile
@@ -1660,7 +1668,7 @@ def _selftest_hook_run():
             sh = None
     if not sh:
         print("  [skip] guard hook run: no POSIX shell found")
-        return []
+        return None
 
     def run(payload, project, path, compact=False):
         env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project), PATH=path)
@@ -1754,16 +1762,18 @@ def selftest():
         ({"tool_name": "PowerShell", "agent_type": "seo-researcher", "tool_input": {"command": "Remove-Item x"}}, 0),
     ]
     for payload, want in hook:
-        got = decide(payload)[0]
+        got, why = decide(payload)
         if got != want:
             fails.append(f"decide({payload}) exit {got}, want {want}")
+        elif got == 2 and not why.startswith("readonly_bash_guard: refused for the "):
+            fails.append(f"decide({payload}) refuses without naming the guard: {why!r}")
     hook_run = _selftest_hook_run()
     if hook_run:
         fails.append(f"the wired hook command: {hook_run}")
     survivors = _profile_mirror_mutant_survivors()
     if survivors or not _PROFILE_MIRROR_MUTANTS:
         fails.append(f"profile_mirror write-verb mutations not caught: {survivors}")
-    n = len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 2
+    n = len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 1 + (hook_run is not None)
     for f in fails:
         print(f"FAIL {f}")
     print(f"readonly_bash_guard selftest: {n - len(fails)}/{n} passed "

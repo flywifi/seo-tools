@@ -5920,7 +5920,8 @@ def _selftest_p101() -> int:
         for _os_v, _found_v in (("windows", {"main": "C:\\WINDOWS\\system32\\main.CPL"}),
                                 ("windows", {"whisper-cli": "C:\\tools\\whisper-cli.exe",
                                              "main": "C:\\WINDOWS\\system32\\main.CPL"}),
-                                ("linux", {"main": "/usr/local/bin/main"})):
+                                ("linux", {"main": "/usr/local/bin/main"}),
+                                ("mac", {"whisper-cli": "/Users/you/bin/whisper-cli"})):
             _OS_OVERRIDE = _os_v
             env_paths.which = lambda name, *a, _f=_found_v, **k: _f.get(name)
             _stt_v[len(_stt_v)] = _stt_backend_present()[:2]
@@ -5930,7 +5931,8 @@ def _selftest_p101() -> int:
             sys.modules.pop("faster_whisper", None)
         else:
             sys.modules["faster_whisper"] = _real_fw_v
-    check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main")},
+    check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main"),
+                     3: ("whisper.cpp", "whisper-cli")},
           f"the wizard's engine probe counts main.cpl as whisper.cpp on Windows, or misses a real engine ({_stt_v})")
     check(_quit_v[0] == "send" and "still running" in _quit_v[1] and _quit_shut_v is False,
           "/quit closes the wizard while the Visual C++ install runs, leaving its temporary folder")
@@ -6240,6 +6242,39 @@ def _selftest_p101() -> int:
               and _locks_c == [_cp, _cp],
               f"the credential merge does not hold its lock, or saves over a file it could not read "
               f"(refused {_refused_c}, copies {len(_copies_c)}, locks {_locks_c})")
+
+    class _MovingTime:
+        """The time module with the copies' seconds stamp one second later at each call, so a
+        refused save repeated a second later meets a copy made under an earlier stamp (P102)."""
+        def __init__(self):
+            self.calls = 0
+
+        def strftime(self, fmt, *args):
+            if fmt != "%Y%m%d%H%M%S":
+                return _real_time_c.strftime(fmt, *args)
+            self.calls += 1
+            return f"202601011200{self.calls:02d}"
+
+        def __getattr__(self, name):
+            return getattr(_real_time_c, name)
+    with _tf_u.TemporaryDirectory() as _td_m:
+        _cm = pathlib.Path(_td_m) / "pipeline" / "user-context" / "api-credentials.local.json"
+        _cm.parent.mkdir(parents=True)
+        _cm.write_text('{"youtube": {"publish": {"label": "fixture-youtube"}},', encoding="utf-8")
+        _moving_m, _refusals_m, _copies_m = _MovingTime(), 0, []
+        try:
+            _g_c["ROOT"], _g_c["time"] = pathlib.Path(_td_m), _moving_m
+            for _label_m in ("fixture-a", "fixture-b"):
+                try:
+                    _merge_api_credentials("tiktok", {"publish": {"label": _label_m}})
+                except ValueError:
+                    _refusals_m += 1
+            _copies_m = sorted(_cm.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+        finally:
+            _g_c["ROOT"], _g_c["time"] = _saved_root_c, _real_time_c
+        check(_refusals_m == 2 and len(_copies_m) == 1 and _moving_m.calls >= 1,
+              f"a refused credential save repeated a second later does not reuse its copy "
+              f"({_refusals_m} refusals, {len(_copies_m)} copies, {_moving_m.calls} stamps)")
     # P102: a credential save refused after a Connect flow is reported, and the flag is not flipped.
     _g_o = globals()
     _saved_o = {k: _g_o[k] for k in ("_oauth_publish_creds", "_merge_api_credentials", "_update_capability_flag")}

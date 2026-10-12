@@ -381,10 +381,34 @@ def selftest() -> int:
         bigf.write_text("x" * 10, encoding="utf-8")
         ok("small text file scanned", "risk_level" in scan_file(bigf, max_bytes=5))
         # P102: callers that pass no max_bytes (the inbox scan and approve) get a 2,000,000-byte
-        # cut; the inbox notes name it as 2 MB, and its selftest runs with a smaller stand-in.
+        # cut; the inbox notes name it as 2 MB, and its selftest runs with a smaller stand-in. A
+        # stand-in open records what scan_file asks the file for: one byte more than it scans, so a
+        # longer file is marked cut.
         import inspect
-        ok("scan_file cuts at 2,000,000 bytes when no max_bytes is given",
-           inspect.signature(scan_file).parameters["max_bytes"].default == 2_000_000)
+        asked = []
+
+        class _Recording:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self, size=-1):
+                asked.append(size)
+                return b"short text"
+        g_open = globals()
+        had_open, real_open = "open" in g_open, g_open.get("open")
+        g_open["open"] = lambda *a, **k: _Recording()
+        try:
+            scan_file(bigf)
+        finally:
+            if had_open:
+                g_open["open"] = real_open
+            else:
+                g_open.pop("open", None)
+        ok("scan_file asks a file for 2,000,001 bytes when no max_bytes is given (a 2,000,000-byte cut)",
+           inspect.signature(scan_file).parameters["max_bytes"].default == 2_000_000 and asked == [2_000_001])
         ok("oversize note present", scan_file(bigf, max_bytes=5).get("note", "").startswith("only the first"))
         ok("an oversize record says truncated; a whole-file record does not",
            scan_file(bigf, max_bytes=5).get("truncated") is True and "truncated" not in scan_file(bigf))

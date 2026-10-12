@@ -1289,6 +1289,18 @@ def _selftest_checks() -> int:
         ok("scan says an oversize transcript must be split, since approve does not move it",
            all("split it into files under 2 MB" in e["note"] for e in s2["needs_review"]
                if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
+        # A transcript under the screener's cut is read whole: scan proposes it and approve moves
+        # it, so a scan or approve that asked for a smaller cut than the screener's own would hold it.
+        b2n = Path(tempfile.mkdtemp()); (b2n / "Inbox").mkdir()
+        near = "".join(f"{i}\n00:00:{i % 60:02d},000 --> 00:00:{i % 60:02d},500\nline {i}\n\n"
+                       for i in range(1, 400))
+        (b2n / "Inbox" / "near.srt").write_text(near, encoding="utf-8")
+        s2n = scan(b2n, ledger={})
+        a2n = approve(b2n, s2n, ledger_path=Path(tempfile.mkdtemp()) / "b2n-ledger.json")
+        ok("a transcript under the screener's cut is proposed by scan and moved by approve",
+           cut // 2 < len(near.encode("utf-8")) < cut
+           and [e["file"] for e in s2n["proposals"]] == ["Inbox/near.srt"]
+           and a2n["moved"] == ["Inbox/near.srt"])
     finally:
         globals()["_screener"] = real_screener_cut
     import inspect as _inspect_cut
@@ -1305,7 +1317,7 @@ def _selftest_checks() -> int:
     (b3 / "Inbox" / "clip.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42cutvideo")
 
     class _CutAll:
-        def scan_file(self, path):
+        def scan_file(self, path, **_kwargs):
             return {"risk_level": "CLEAN", "total_score": 0, "patterns_detected": [], "truncated": True}
     real_screener3 = globals()["_screener"]
     globals()["_screener"] = lambda: _CutAll()
@@ -1331,7 +1343,7 @@ def _selftest_checks() -> int:
         def __init__(self, level):
             self.level = level
 
-        def scan_file(self, path):
+        def scan_file(self, path, **_kwargs):
             return {"risk_level": self.level, "total_score": 7, "patterns_detected": [], "truncated": True}
     real_screener2 = globals()["_screener"]
     try:
