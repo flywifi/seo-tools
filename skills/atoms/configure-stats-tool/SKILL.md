@@ -82,10 +82,37 @@ sources exactly. Do not substitute other package names.
 - Pre-installed packages in sandbox: numpy, scipy, statsmodels, scikit-learn, pandas, matplotlib.
 
 ### duckdb_analytics
-- Prerequisites: Node.js 20+.
+- Prerequisites: uv, which provides `uvx`. Setup's optional install (`tools/setup.py
+  --install-deps`, or the wizard's install step) adds it to the repo's `.venv` when it is not
+  installed already, on Windows too; on a Mac or Linux the installer under wolfram_alpha above
+  also works.
 - Env vars: none.
-- MCP server: `@motherduckdb/mcp-server-motherduck` via `npx -y` (npm package; local mode needs no key).
-- Config note: point the server at the creator's data directory for automatic file discovery.
+- MCP server: `mcp-server-motherduck` launched via `uvx` (Python, from PyPI; not npm), with
+  `--db-path :memory: --read-write`, the local mode that needs no key. The server refuses an
+  in-memory database without `--read-write`; with it, a query can change the database and write
+  files (`COPY ... TO`), and the database lasts as long as the server process.
+- Config block, with `uvx` replaced by its absolute path: Claude Desktop starts servers with its
+  own PATH, not your terminal's (on a Mac a narrow one), and setup does not add its `.venv` to
+  PATH, so a bare `uvx` may not start. For the uv that setup installs, the path is
+  `<repo>/.venv/bin/uvx` on a Mac or Linux and `<repo>\.venv\Scripts\uvx.exe` on Windows, where
+  `<repo>` is the Creator OS folder; for a uv installed another way, it is the path `which uvx`
+  prints (Mac, Linux) or, on Windows, `where.exe uvx` (Command Prompt or PowerShell; in PowerShell
+  type the `.exe`, since plain `where` there is a different command that prints nothing). In the
+  JSON file, write a Windows path with doubled backslashes, as in `\\.venv\\Scripts\\uvx.exe`, or
+  with forward slashes; single backslashes (as in `\.venv`) make the whole file invalid JSON, and
+  Claude Desktop then starts none of the servers in it:
+  ```json
+  {
+    "mcpServers": {
+      "duckdb-analytics": {
+        "command": "uvx",
+        "args": ["mcp-server-motherduck", "--db-path", ":memory:", "--read-write"]
+      }
+    }
+  }
+  ```
+- Config note: queries name files by absolute path, for example
+  `read_csv_auto('/absolute/path/to/export.csv')`; the server takes no data-folder option.
 
 ### stats_compass
 - Prerequisites: Python 3.10+ with the `stats_compass_mcp` package installed user-only (`.venv/bin/pip install stats-compass-mcp`).
@@ -131,8 +158,8 @@ config file path:
 ### Step 2: check prerequisites
 
 For the requested tool, verify:
-- Required runtime is installed (Node.js, Python, R).
-- Required package manager is available (npm, pip).
+- Required runtime is installed (Node.js, Python, uv, R).
+- Required package manager is available (npm, pip, uv).
 - Required API key is obtainable (provide the signup URL, do not ask the user to paste keys into
   chat — instruct them to set env vars).
 

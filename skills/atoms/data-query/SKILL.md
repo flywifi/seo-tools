@@ -46,15 +46,16 @@ need to write SQL. When DuckDB is not connected, it emits the SQL for the user t
 ```json
 {
   "query_description": "string — natural-language description of what the user wants to know",
-  "data_files": ["path/to/file1.csv", "path/to/file2.csv"],
+  "data_files": ["/absolute/path/to/file1.csv", "/absolute/path/to/file2.csv"],
   "sql": "string | null"
 }
 ```
 
 - `query_description`: required. The user's question in plain language. Used to generate SQL if
   `sql` is null, and always included in the output for traceability.
-- `data_files`: required. One or more paths to local data files (CSV, TSV, Parquet, JSON, or
-  Excel). DuckDB reads these directly. If a path is invalid, report it in `retrieval_gaps`.
+- `data_files`: required. One or more absolute paths to local data files (CSV, TSV, Parquet,
+  JSON, or Excel). DuckDB reads these directly. If a path is invalid or not absolute, report it
+  in `retrieval_gaps`.
 - `sql`: optional. If provided, execute this SQL directly (after safety validation). If null,
   generate SQL from `query_description` and the inferred schema.
 
@@ -63,6 +64,9 @@ need to write SQL. When DuckDB is not connected, it emits the SQL for the user t
 ### Step 1: validate data files
 
 For each path in `data_files`:
+- Check that the path is absolute, not a bare file name or a path relative to a folder. For one
+  that is not, ask the creator for the file's absolute path; until they give it, note the path
+  in `retrieval_gaps` and leave the file out.
 - Check that the file exists and is a supported format (CSV, TSV, Parquet, JSON, XLSX).
 - If a file does not exist or is unsupported, note it in `retrieval_gaps` and proceed with the
   remaining files.
@@ -83,11 +87,16 @@ If DuckDB is not connected:
 If `sql` is null:
 - Generate a DuckDB-compatible SQL query from `query_description` and the inferred schema.
 - Use `read_csv_auto('path')` for CSV files, `read_parquet('path')` for Parquet, etc.
+- Name each file by its absolute path from Step 1: the DuckDB server's working folder may not
+  be the creator's.
 - Prefer explicit column names over `SELECT *` for clarity.
 
 If `sql` is provided:
-- Validate that the SQL does not contain write operations (INSERT, UPDATE, DELETE, DROP, CREATE).
-  data-query is read-only.
+- Validate that the SQL does not contain these statements: INSERT, UPDATE, DELETE, DROP, CREATE,
+  ALTER, TRUNCATE, MERGE, COPY, EXPORT, IMPORT, ATTACH, INSTALL, LOAD, SET, PRAGMA or CALL.
+  data-query is read-only by this check; the DuckDB connection accepts writes. The check does not
+  cover every way DuckDB writes: a first read of an `.xlsx` file installs DuckDB's excel
+  extension.
 - Validate that file paths in the SQL match `data_files`.
 
 ### Step 4: execute query
@@ -120,7 +129,7 @@ Structure the result as a clean columnar response. If `row_count` exceeds 100, r
     ["Thrift Flip: Vintage Dresser", 98.3, 19200, 0.065]
   ],
   "row_count": 10,
-  "sql_executed": "SELECT video_title, watch_time_hours, views, ctr FROM read_csv_auto('youtube_export.csv') WHERE upload_date >= '2026-04-01' ORDER BY watch_time_hours DESC LIMIT 10",
+  "sql_executed": "SELECT video_title, watch_time_hours, views, ctr FROM read_csv_auto('/absolute/path/to/youtube_export.csv') WHERE upload_date >= '2026-04-01' ORDER BY watch_time_hours DESC LIMIT 10",
   "schema": {
     "video_title": "VARCHAR",
     "watch_time_hours": "DOUBLE",

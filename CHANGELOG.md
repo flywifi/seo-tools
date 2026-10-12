@@ -399,6 +399,21 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (DuckDB connector): Claude Desktop's DuckDB entry
+  (`implementation/claude/desktop/claude_desktop_config_snippet.json`) runs the PyPI package with
+  `uvx mcp-server-motherduck --db-path :memory: --read-write`. It named
+  `npx -y @motherduckdb/mcp-server-motherduck`, which the npm registry does not have, so the server
+  did not start. The settings file's `requires` text, `docs/DEPENDENCIES.md` (DuckDB needs uv, not
+  Node.js), `docs/STATISTICS.md`, the configure-stats-tool atom (with where to find the absolute
+  path of `uvx`: setup's `.venv`, or what `which uvx` or `where.exe uvx` prints, and that a Windows
+  path in the JSON file takes doubled backslashes or forward slashes; its eval and its prerequisite
+  checks), setup's uv label and the registry's `mcp-duckdb` pin follow.
+  The server refuses an in-memory database without `--read-write`, so this connection accepts
+  writes, and its database lasts as long as the server process. The data-query atom's check also
+  refuses SQL containing ALTER, TRUNCATE, MERGE, COPY, EXPORT, IMPORT, ATTACH, INSTALL, LOAD, SET,
+  PRAGMA or CALL, the atom names files by absolute path and asks the creator for one when given a
+  bare file name (eval dq-004), and its notes say the check is the atom's own and that a first
+  read of an `.xlsx` file still installs DuckDB's excel extension.
 - P102 (whisper.cpp models on Windows): `transcribe.model_dir` puts downloaded whisper.cpp models in
   `.creator-os/whisper-models` under HOME, else under USERPROFILE, so on Windows, where HOME is
   normally unset, they go to `%USERPROFILE%\.creator-os\whisper-models` instead of a folder inside

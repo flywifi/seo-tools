@@ -574,7 +574,7 @@
     "package": null,
     "upstream_api": "github_releases",
     "check_url": "https://api.github.com/repos/motherduckdb/mcp-server-motherduck/releases/latest",
-    "pinned_constraint": "npx @motherduckdb/mcp-server-motherduck",
+    "pinned_constraint": "uvx mcp-server-motherduck",
     "validated_version": null,
     "extraction_hint": "SQL tool names and local vs MotherDuck mode",
     "used_by": [

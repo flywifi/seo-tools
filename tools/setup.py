@@ -208,13 +208,13 @@ def install_dependencies() -> list:
         fw_ok, fw_detail = _check_faster_whisper(target)
         results.append({"item": "faster-whisper check", "desc": "Local transcription loads",
                         "ok": fw_ok, "detail": "" if fw_ok else fw_detail})
-    # uv: pip-installable, cross-platform, no sudo. Powers the Google/Wolfram uvx MCP servers.
+    # uv: pip-installable, cross-platform, no sudo. Powers the Google, Wolfram and DuckDB uvx MCP servers.
     venv_uv = Path(target).parent / "uv"
     if venv_uv.exists() or env_paths.which("uv"):
         results.append({"item": "uv", "desc": "uvx runtime", "ok": None, "detail": "already installed"})
     else:
         ok, detail = _pip_install(["uv"], python=target)
-        results.append({"item": "uv", "desc": "uvx runtime for Google/Wolfram MCP servers", "ok": ok, "detail": detail})
+        results.append({"item": "uv", "desc": "uvx runtime for Google, Wolfram and DuckDB MCP servers", "ok": ok, "detail": detail})
     # Playwright browser binary (only if the package landed in the target interpreter).
     pw_ok, pw_detail = _install_playwright_browser(target)
     results.append({"item": "playwright chromium", "desc": "Headless browser binary", "ok": pw_ok, "detail": pw_detail})

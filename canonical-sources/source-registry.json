@@ -2265,7 +2265,7 @@
       "package": null,
       "upstream_api": "github_releases",
       "check_url": "https://api.github.com/repos/motherduckdb/mcp-server-motherduck/releases/latest",
-      "pinned_constraint": "npx @motherduckdb/mcp-server-motherduck",
+      "pinned_constraint": "uvx mcp-server-motherduck",
       "validated_version": null,
       "_why": "analytical SQL over CSV/Parquet/JSON; a tool-name change drops the data-query lane"
     },
@@ -7591,5 +7591,5 @@
       "child_source_ids": []
     }
   ],
-  "_content_digest": "0bdc0f48beed32c7581da3d56a8f1a86de03220614fd22c33d959906edd7814b"
+  "_content_digest": "d4cfd9732b19e3556863f63e600b060cc3479e2e73479080ff7b3fca24f44a3e"
 }

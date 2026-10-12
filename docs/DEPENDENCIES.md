@@ -63,13 +63,13 @@ Canonical transports per `shared/connectors/connectors.json`, `docs/STATISTICS.m
 | wolfram-alpha | **uv** (uvx) | `uvx mcp-wolfram-alpha` | `WOLFRAM_APP_ID` (free tier) |
 | e2b-code-interpreter | **Node** (npx) | `npx -y @e2b/mcp-server` | `E2B_API_KEY` |
 | stats-compass | **python3** | `python3 -m stats_compass_mcp` | none |
-| duckdb-analytics | **Node** (npx) | `npx -y @motherduckdb/mcp-server-motherduck` | none (local) |
+| duckdb-analytics | **uv** (uvx) | `uvx mcp-server-motherduck --db-path :memory: --read-write` | none (local, in memory) |
 | jupyter-notebook | **python3** | `python3 -m jupyter_mcp_server` | none |
 | r-statistics | **pip + R** | `rmcp` (user-only: `.venv/bin/pip install rmcp`) | R language installed (machine-wide) |
 | monte-carlo | `[NEEDS VERIFICATION]` | `MCS-MCP` | runtime unconfirmed upstream |
 | scikit-learn | `[NEEDS VERIFICATION]` | `mcp-server-scikit-learn` | runtime unconfirmed upstream |
 
-**Node.js is required by exactly: microsoft-365, e2b, duckdb.** NOT Google, NOT Wolfram (both uvx/Python).
+**Node.js is required by microsoft-365 and e2b** (monte-carlo and scikit-learn: runtime unconfirmed). Google, Wolfram and DuckDB use uvx (Python).
 
 ---
 
@@ -81,8 +81,8 @@ whole computer).
 
 | Binary | Needed by | Install | Platform |
 |---|---|---|---|
-| `uv` | uvx MCP servers (google, wolfram) | auto by the wizard into the repo `.venv` (user-only); or the astral.sh installer to `~/.local/bin` | all |
-| `Node.js 20+` | npx MCP servers (ms365, e2b, duckdb) | user-only: nvm (`~/.nvm`); machine-wide: brew / nodejs.org / apt | all |
+| `uv` | uvx MCP servers (google, wolfram, duckdb) | auto by the wizard into the repo `.venv` (user-only); or the astral.sh installer to `~/.local/bin` | all |
+| `Node.js 20+` | npx MCP servers (ms365, e2b) | user-only: nvm (`~/.nvm`); machine-wide: brew / nodejs.org / apt | all |
 | `ffmpeg` | videoedit silence/encode, transcribe | machine-wide: brew / apt; or a static build cleared of quarantine | all |
 | `mlt` / `melt` | videoedit MLT writer/render | Shotcut/Kdenlive bundle | all |
 | `whisper.cpp` (`whisper-cli`) | STT on Apple Silicon (Metal) | machine-wide: `brew install whisper-cpp` (user-only STT default is faster-whisper in the `.venv`) | Apple Silicon |
