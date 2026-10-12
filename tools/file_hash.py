@@ -43,6 +43,7 @@ run under the selftest sweep's per-tool limit.
 from __future__ import annotations
 
 import contextlib
+import functools
 import hashlib
 import os
 import pathlib
@@ -4244,30 +4245,34 @@ def _selftest_verdict(source: str, path: Path, entry: str = "selftest", out=None
             out.append(captured.getvalue())
 
 
-def _test_scopes(src: str, entry: str) -> list:
-    """The functions a row's anchor must stay out of: the entry that scores the row, then every
-    other top-level function named selftest* or _selftest* (a helper the entry delegates to)."""
+@functools.lru_cache(maxsize=4)
+def _function_spans(src: str):
+    """(name, first line, last line) for each top-level function of src, in source order; none when
+    src does not parse. It depends on the text alone, so it is cached by the text: the anchor check
+    parses a module once per process instead of once per row and per test scope (P102). A mutant's
+    source is never passed here."""
     import ast
     try:
         tree = ast.parse(src)
     except SyntaxError:
-        return [entry]
-    helpers = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-               and n.name.lstrip("_").startswith("selftest") and n.name != entry}
+        return ()
+    return tuple((n.name, n.lineno, n.end_lineno) for n in tree.body
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)))
+
+
+def _test_scopes(src: str, entry: str) -> list:
+    """The functions a row's anchor must stay out of: the entry that scores the row, then every
+    other top-level function named selftest* or _selftest* (a helper the entry delegates to)."""
+    helpers = {name for name, _first, _last in _function_spans(src)
+               if name.lstrip("_").startswith("selftest") and name != entry}
     return [entry] + sorted(helpers)
 
 
 def _in_function(src: str, start: int, length: int, name: str) -> bool:
     """True when source[start:start+length] overlaps the top-level function `name`."""
-    import ast
-    try:
-        tree = ast.parse(src)
-    except SyntaxError:
-        return False
     first = src.count("\n", 0, start) + 1
     last = src.count("\n", 0, start + max(length - 1, 0)) + 1   # the line of the anchor's last character
-    return any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name
-               and n.lineno <= last and first <= n.end_lineno for n in tree.body)
+    return any(fn == name and lineno <= last and first <= end for fn, lineno, end in _function_spans(src))
 
 
 _STATE_CLASSES = (pathlib.PurePath, pathlib.PurePosixPath, pathlib.PureWindowsPath, pathlib.Path,
@@ -4485,6 +4490,29 @@ def _runner_controls() -> list:
         delegated = _run_mutants([("deleg-testcode", "deleg.py", "    return 0 if x == 1 else 1",
                                    "    return 1"),
                                   ("deleg-caught", "deleg.py", "x = 1\n", "x = 2\n")], base=d)
+        # P102: the anchor check reuses a source's function spans while its text is unchanged. Two
+        # modules of the same length and line layout, whose identical anchor is in test code in one
+        # and in production code in the other, are each judged on their own text; a module rewritten
+        # between two runs is judged on its new text; three rows of one module parse it once.
+        spans_text = ("def selftest():\n    return {0}()\ndef {0}():\n    y = 1\n"
+                      "    return 0 if y == 1 else 1\n")
+        span_row = ("    y = 1\n", "    y = 2\n")
+        (d / "spans_test.py").write_text(spans_text.format("_selftest_checks"), encoding="utf-8")
+        (d / "spans_prod.py").write_text(spans_text.format("_productioncheck"), encoding="utf-8")
+        span_pair = _run_mutants([("spans-test", "spans_test.py") + span_row,
+                                  ("spans-prod", "spans_prod.py") + span_row], base=d)
+        (d / "spans_edit.py").write_text(spans_text.format("_selftest_checks"), encoding="utf-8")
+        span_before = _run_mutants([("spans-edit", "spans_edit.py") + span_row], base=d)
+        (d / "spans_edit.py").write_text(spans_text.format("_productioncheck"), encoding="utf-8")
+        span_after = _run_mutants([("spans-edit", "spans_edit.py") + span_row], base=d)
+        (d / "spans_once.py").write_text(spans_text.format("_productioncheck") + "z = 1\n",
+                                         encoding="utf-8")
+        parsed_before = _function_spans.cache_info().misses
+        span_once = _run_mutants([("once-a", "spans_once.py") + span_row,
+                                  ("once-b", "spans_once.py", "z = 1\n", "z = 1  # same\n"),
+                                  ("once-c", "spans_once.py", "    return {0}()".format("_productioncheck"),
+                                   "    return 0")], base=d)
+        parsed_once = _function_spans.cache_info().misses - parsed_before
     labels = [g.split(" (")[0] for g in got]
     out.append(("an equivalent row is reported as a survivor", "equivalent" in labels))
     out.append(("a row that does not compile is reported invalid, not caught",
@@ -4516,6 +4544,15 @@ def _runner_controls() -> list:
     out.append(("a row whose anchor is inside a _selftest* helper the entry delegates to is invalid, "
                 "not caught; a real row in the same module is caught",
                 len(delegated) == 1 and "invalid: anchor in _selftest_checks(), test code" in delegated[0]))
+    out.append(("two modules of the same layout are judged on their own text: an anchor in test code in "
+                "one is invalid, the same anchor in production code in the other is caught",
+                span_pair == ["spans-test (invalid: anchor in _selftest_checks(), test code)"]))
+    out.append(("a module rewritten between two runs is judged on its new text",
+                span_before == ["spans-edit (invalid: anchor in _selftest_checks(), test code)"]
+                and span_after == []))
+    out.append((f"three rows of one module parse its source once ({parsed_once} parses)",
+                span_once == ["once-b", "once-c (invalid: anchor in selftest(), the test that scores it)"]
+                and parsed_once == 1))
     # A row listed as POSIX-only is run (here an equivalent row, so it survives) under a POSIX os
     # and skipped under Windows; the runner's os is swapped for each run.
     class _AsOs:

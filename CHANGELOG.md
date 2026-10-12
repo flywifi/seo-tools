@@ -265,6 +265,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (anchor check parses a module once): `file_hash._run_mutants` reads a module's top-level
+  function spans from `_function_spans`, cached by the source text, so its anchor check parses a
+  module once per process instead of once per row and per test scope (`_test_scopes`,
+  `_in_function`). Runner controls cover two modules of the same layout, a module rewritten
+  between two runs, and the parse count for three rows of one module.
 - P102 (invariant 62 reads copied files): drift invariant 62 also scans the files a page or MCP
   module copies with `shutil.copyfile`, `copy` or `copy2` from a path it builds from ROOT or HERE, a
   name bound to one, or a folder listing a loop takes them from (`<path>.glob(...)`, directly,
