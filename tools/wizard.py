@@ -6151,6 +6151,17 @@ def _selftest_p101() -> int:
         with _real_locked_c(path):
             yield
     _saved_root_c = _g_c["ROOT"]
+    _real_time_c = _g_c["time"]
+
+    class _OneSecondTime:
+        """The time module with strftime fixed to one second for the seconds stamp the copies are
+        named by, so a second copy always meets the first one's name and must take the next free
+        name; with the real clock two copies a second apart never collide (P102)."""
+        def strftime(self, fmt, *args):
+            return "20260101120000" if fmt == "%Y%m%d%H%M%S" else _real_time_c.strftime(fmt, *args)
+
+        def __getattr__(self, name):
+            return getattr(_real_time_c, name)
     with _tf_u.TemporaryDirectory() as _td_c:
         _cp = pathlib.Path(_td_c) / "pipeline" / "user-context" / "api-credentials.local.json"
         _cp.parent.mkdir(parents=True)
@@ -6158,7 +6169,7 @@ def _selftest_p101() -> int:
                                    for p in ("youtube", "pinterest", "instagram")}), encoding="utf-8")
         _refused_c, _good_c, _broken_c, _copies_c = False, {}, b"", []
         try:
-            _g_c["ROOT"], atomic_io.locked = pathlib.Path(_td_c), _watch_lock_c
+            _g_c["ROOT"], atomic_io.locked, _g_c["time"] = pathlib.Path(_td_c), _watch_lock_c, _OneSecondTime()
             _merge_api_credentials("tiktok", {"publish": {"label": "fixture-tiktok"}})
             _good_c = json.loads(_cp.read_text(encoding="utf-8"))
             _cp.write_text(_cp.read_text(encoding="utf-8").replace('"fixture-youtube"', '"fixture-youtube",', 1),
@@ -6201,7 +6212,7 @@ def _selftest_p101() -> int:
                 _c.read_bytes() == b'{"youtube": "\xfe\xff"}'
                 for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
         finally:
-            _g_c["ROOT"], atomic_io.locked = _saved_root_c, _real_locked_c
+            _g_c["ROOT"], atomic_io.locked, _g_c["time"] = _saved_root_c, _real_locked_c, _real_time_c
         check(_again_c and _copies_again_c == _copies_c
               and (os.name == "nt" or _mode_c == 0o600),
               f"a repeated refused credential save does not reuse its copy, or the copy is not owner-only "

@@ -429,6 +429,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge
+  checks run with the seconds stamp the `.corrupt.<stamp>.bak` copies are named by fixed to one
+  second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always
+  makes the two copies under one name, and a copy opened without `O_EXCL` overwrites the first
+  and fails it. With the real clock, two copies made a second apart took different names and
+  that check passed either way.
 - P102 (wizard runtimes from the repo .venv): the wizard's Claude Desktop entries take `uvx` and
   `npx` from the repo `.venv` first (`env_paths.venv_tool`: `bin/<name>`, or `Scripts\<name>.exe` on
   Windows), then from PATH (`wizard._mcp_command`), so the Google Workspace entry names the `uvx`
