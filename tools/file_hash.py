@@ -4513,6 +4513,16 @@ def _runner_controls() -> list:
                                   ("once-c", "spans_once.py", "    return {0}()".format("_productioncheck"),
                                    "    return 0")], base=d)
         parsed_once = _function_spans.cache_info().misses - parsed_before
+        # P102: an async test helper counts as test code, and an anchor that starts on the line after
+        # the entry ends is production code (the first and last lines of a span are inclusive).
+        (d / "spans_async.py").write_text("x = 1\ndef selftest():\n    return 0\n"
+                                          "async def _selftest_wait():\n    y = 1\n    return y\n",
+                                          encoding="utf-8")
+        span_async = _run_mutants([("spans-async", "spans_async.py", "    y = 1\n", "    y = 2\n")], base=d)
+        (d / "spans_next.py").write_text("def selftest():\n    return 0 if f() == 1 else 1\n"
+                                         "def f():\n    return 1\n", encoding="utf-8")
+        span_next = _run_mutants([("spans-next", "spans_next.py", "def f():\n    return 1\n",
+                                   "def f():\n    return 2\n")], base=d)
     labels = [g.split(" (")[0] for g in got]
     out.append(("an equivalent row is reported as a survivor", "equivalent" in labels))
     out.append(("a row that does not compile is reported invalid, not caught",
@@ -4550,6 +4560,10 @@ def _runner_controls() -> list:
     out.append(("a module rewritten between two runs is judged on its new text",
                 span_before == ["spans-edit (invalid: anchor in _selftest_checks(), test code)"]
                 and span_after == []))
+    out.append(("a row whose anchor is inside an async _selftest* helper is invalid, not caught",
+                span_async == ["spans-async (invalid: anchor in _selftest_wait(), test code)"]))
+    out.append(("a row whose anchor starts on the line after the entry ends is production code: caught",
+                span_next == []))
     out.append((f"three rows of one module parse its source once ({parsed_once} parses)",
                 span_once == ["once-b", "once-c (invalid: anchor in selftest(), the test that scores it)"]
                 and parsed_once == 1))
