@@ -5598,9 +5598,19 @@ def _selftest_p101() -> int:
             _h.do_POST()
         finally:
             globals()["_confined_folder"] = _saved_cf
-    for _why_m in ("network_path", "unreachable"):
-        _route_m("/api/run-import", {"action": "scan", "folder": "Z:\\x", "platforms": "youtube"}, _why_m)
-        _route_m("/api/write-storage-folder", {"folder": "Z:\\x"}, _why_m)
+    # P102: the route and page checks from here on render the import screen, which asks the
+    # speech-backend probe each time (a PATH search for each engine name, slow on Windows). They test
+    # the routes and the page text, not the probe, so they share one real probe result; the probe's
+    # own checks below call it with a stand-in PATH search.
+    _stt_once = _stt_backend_present()
+    _real_stt_m = _stt_backend_present
+    globals()["_stt_backend_present"] = lambda: _stt_once
+    try:
+        for _why_m in ("network_path", "unreachable"):
+            _route_m("/api/run-import", {"action": "scan", "folder": "Z:\\x", "platforms": "youtube"}, _why_m)
+            _route_m("/api/write-storage-folder", {"folder": "Z:\\x"}, _why_m)
+    finally:
+        globals()["_stt_backend_present"] = _real_stt_m
     _screens_m = {(r, w): b for r, w, b in _sent_m}
     check(_mapped_m == ["network_path"] * 6 and _mapped_calls_m == []
           and "network_path" not in _local_m and _home_z_m != "network_path" and _posix_m != "network_path"
@@ -5745,12 +5755,15 @@ def _selftest_p101() -> int:
           f"screen does ({_kw_w}, {_imp_err_w.get('drive_root')!r}, {_imp_err_w.get('outside_home')!r})")
     # The import and hub folder fields show an example written the way this system writes paths.
     _ph_w = {}
+    _real_stt_w = _stt_backend_present
+    globals()["_stt_backend_present"] = lambda: _stt_once
     try:
         for _o_w in ("windows", "mac", "linux"):
             _OS_OVERRIDE = _o_w
             _ph_w[_o_w] = (_screen_import(), _screen_drive_hub())
     finally:
         _OS_OVERRIDE = _saved_os_w
+        globals()["_stt_backend_present"] = _real_stt_w
     check('placeholder="C:\\Users\\you\\Downloads\\Takeout"' in _ph_w["windows"][0]
           and 'placeholder="/Users/you/Downloads/Takeout"' in _ph_w["mac"][0]
           and 'placeholder="/home/you/Downloads/Takeout"' in _ph_w["linux"][0]
@@ -6355,7 +6368,8 @@ def _selftest_p101() -> int:
     # approve, whether the save worked or not, and a new scan deletes the batch of the scan before.
     _g_ib = globals()
     _ib_dir = tempfile.TemporaryDirectory(prefix="wizard-batch-")
-    _saved_ib = {k: _g_ib[k] for k in ("_confined_folder", "_scan_import_folder", "_STATE_PATH", "subprocess")}
+    _saved_ib = {k: _g_ib[k] for k in ("_confined_folder", "_scan_import_folder", "_STATE_PATH", "subprocess",
+                                        "_stt_backend_present")}
     _wstate_ib = _g_ib["_state"]  # the module's state; this function has a local named _state
     # A batch the creator scanned and has not approved yet stands in here as a file in the temp
     # folder these checks use: the checks start from a state that names no batch, so their first scan
@@ -6392,6 +6406,7 @@ def _selftest_p101() -> int:
         tempfile.tempdir = _ib_dir.name
         _g_ib["_STATE_PATH"] = pathlib.Path(_ib_dir.name) / "wizard-state.json"
         _g_ib["_confined_folder"] = lambda folder, **kw: (True, folder, None)
+        _g_ib["_stt_backend_present"] = lambda: _stt_once
         _g_ib["_scan_import_folder"] = lambda folder, platforms: (
             [{"platform": "youtube", "platform_video_id": "abc123", "title": "Fictional video"}],
             ["youtube: 1 record(s)"])

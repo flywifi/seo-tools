@@ -265,6 +265,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (wizard checks share one speech-probe result): the wizard selftest's import-route and page
+  checks that render the import screen get one stored result of the speech-backend probe
+  (`_stt_backend_present`) through a stand-in that each block removes when it ends, where each
+  render searched PATH for each engine name before; the probe's own checks still call it, with a
+  stand-in PATH search.
 - P102 (hook command test in the guard's selftest): the test that runs the hook command wired in
   `.claude/settings.json` under a POSIX shell, with working, failing and stdin-reading stand-in
   Pythons on PATH, moves from `sync_check._selfproof`, which scores each of the drift guard's
