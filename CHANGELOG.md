@@ -265,6 +265,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (inbox selftest with stand-in limits): the inbox selftest's oversize-transcript checks run
+  the offline screener with a 20,000-byte cut in place of its 2,000,000-byte default, and its
+  export-zip checks run classify's entry limit at 50 in place of 50,000, so its test files stay
+  small. A check ties the 2 MB the inbox's oversize notes name to `injection_scan.scan_file`'s
+  default; `injection_scan`'s selftest checks that default, and `classify`'s selftest checks the
+  50,000-entry and 16 MB directory limits.
 - P102 (anchor check parses a module once): `file_hash._run_mutants` reads a module's top-level
   function spans from `_function_spans`, cached by the source text, so its anchor check parses a
   module once per process instead of once per row and per test scope (`_test_scopes`,

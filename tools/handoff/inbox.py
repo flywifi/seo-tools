@@ -1246,38 +1246,57 @@ def _selftest_checks() -> int:
 
     # P102: an oversize text file is read only up to injection_scan's max_bytes, so a clean verdict
     # for that part neither routes it from scan nor lets approve move it; a flag in that part seals.
-    b2 = Path(tempfile.mkdtemp()); (b2 / "Inbox").mkdir()
-    filler = "".join(f"{i}\n00:00:{i % 60:02d},000 --> 00:00:{i % 60:02d},500\nline {i}\n\n"
-                     for i in range(1, 60000))
-    while len(filler.encode("utf-8")) <= 2_000_000:
-        filler += filler
-    (b2 / "Inbox" / "late.srt").write_text(filler + "\n" + poison + "\n", encoding="utf-8")
-    (b2 / "Inbox" / "long.srt").write_text(filler, encoding="utf-8")
-    (b2 / "Inbox" / "early.srt").write_text(poison + "\n" + filler, encoding="utf-8")
-    (b2 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
-    s2 = scan(b2, ledger={})
-    held = {e["file"] for e in s2["needs_review"]}
-    ok("scan holds an oversize transcript for a session, flagged past the cut or clean",
-       {"Inbox/late.srt", "Inbox/long.srt"} <= held
-       and not {e["file"] for e in s2["proposals"]} & {"Inbox/late.srt", "Inbox/long.srt"}
-       and all(e.get("offline_pattern_scan", {}).get("truncated") for e in s2["needs_review"]
+    # The screener runs here with a 20,000-byte cut in place of its 2,000,000 default, so the files
+    # stay small; the check after this block ties that default to the 2 MB the notes name.
+    cut = 20_000
+    full_screener = _screener()
+
+    class _SmallCut:
+        def scan_file(self, path, max_bytes=cut, **kwargs):
+            return full_screener.scan_file(path, max_bytes=max_bytes, **kwargs)
+    real_screener_cut = globals()["_screener"]
+    globals()["_screener"] = lambda: _SmallCut() if full_screener is not None else None
+    try:
+        b2 = Path(tempfile.mkdtemp()); (b2 / "Inbox").mkdir()
+        filler = "".join(f"{i}\n00:00:{i % 60:02d},000 --> 00:00:{i % 60:02d},500\nline {i}\n\n"
+                         for i in range(1, 600))
+        while len(filler.encode("utf-8")) <= cut:
+            filler += filler
+        (b2 / "Inbox" / "late.srt").write_text(filler + "\n" + poison + "\n", encoding="utf-8")
+        (b2 / "Inbox" / "long.srt").write_text(filler, encoding="utf-8")
+        (b2 / "Inbox" / "early.srt").write_text(poison + "\n" + filler, encoding="utf-8")
+        (b2 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
+        s2 = scan(b2, ledger={})
+        held = {e["file"] for e in s2["needs_review"]}
+        ok("scan holds an oversize transcript for a session, flagged past the cut or clean",
+           {"Inbox/late.srt", "Inbox/long.srt"} <= held
+           and not {e["file"] for e in s2["proposals"]} & {"Inbox/late.srt", "Inbox/long.srt"}
+           and all(e.get("offline_pattern_scan", {}).get("truncated") for e in s2["needs_review"]
+                   if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
+        ok("scan seals an oversize transcript flagged in the part it read, and proposes a small one",
+           [e["file"] for e in s2["quarantined"]] == ["Inbox/early.srt"]
+           and [e["file"] for e in s2["proposals"]] == ["Inbox/talk.srt"])
+        b2_led = Path(tempfile.mkdtemp()) / "b2-ledger.json"
+        fa2 = approve(b2, {"proposals": [prop_for(b2, "late.srt", offline_pattern_scan=clean_rec),
+                                         prop_for(b2, "talk.srt")]}, ledger_path=b2_led)
+        ok("approve refuses an oversize text file a forged clean proposal names, and moves the rest",
+           fa2["moved"] == ["Inbox/talk.srt"] and [r["file"] for r in fa2["refused"]] == ["Inbox/late.srt"]
+           and "2 MB" in fa2["refused"][0]["why"] and (b2 / "Inbox" / "late.srt").is_file())
+        ea2 = approve(b2, {"proposals": [prop_for(b2, "early.srt", offline_pattern_scan=clean_rec)]},
+                      ledger_path=b2_led)
+        ok("approve refuses an oversize file flagged in the part it read as sealed",
+           not ea2["moved"] and "SEAL-TERMINAL" in ea2["refused"][0]["why"])
+        ok("scan says an oversize transcript must be split, since approve does not move it",
+           all("split it into files under 2 MB" in e["note"] for e in s2["needs_review"]
                if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
-    ok("scan seals an oversize transcript flagged in the part it read, and proposes a small one",
-       [e["file"] for e in s2["quarantined"]] == ["Inbox/early.srt"]
-       and [e["file"] for e in s2["proposals"]] == ["Inbox/talk.srt"])
-    b2_led = Path(tempfile.mkdtemp()) / "b2-ledger.json"
-    fa2 = approve(b2, {"proposals": [prop_for(b2, "late.srt", offline_pattern_scan=clean_rec),
-                                     prop_for(b2, "talk.srt")]}, ledger_path=b2_led)
-    ok("approve refuses an oversize text file a forged clean proposal names, and moves the rest",
-       fa2["moved"] == ["Inbox/talk.srt"] and [r["file"] for r in fa2["refused"]] == ["Inbox/late.srt"]
-       and "2 MB" in fa2["refused"][0]["why"] and (b2 / "Inbox" / "late.srt").is_file())
-    ea2 = approve(b2, {"proposals": [prop_for(b2, "early.srt", offline_pattern_scan=clean_rec)]},
-                  ledger_path=b2_led)
-    ok("approve refuses an oversize file flagged in the part it read as sealed",
-       not ea2["moved"] and "SEAL-TERMINAL" in ea2["refused"][0]["why"])
-    ok("scan says an oversize transcript must be split, since approve does not move it",
-       all("split it into files under 2 MB" in e["note"] for e in s2["needs_review"]
-           if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
+    finally:
+        globals()["_screener"] = real_screener_cut
+    import inspect as _inspect_cut
+    default_cut = (_inspect_cut.signature(full_screener.scan_file).parameters["max_bytes"].default
+                   if full_screener is not None else None)
+    ok("the 2 MB the oversize notes name is the screener's own cut (scan_file's max_bytes default)",
+       default_cut == 2_000_000 and "(2 MB)" in _OVERSIZE_NOTE and "under 2 MB" in _OVERSIZE_NOTE)
+
     # P102: the same holds for every text format approve requires a whole read for (an analytics
     # export in JSON or CSV), and a format it does not (a video) is routed as before.
     b3 = Path(tempfile.mkdtemp()); (b3 / "Inbox").mkdir()
@@ -1600,43 +1619,50 @@ def _selftest_checks() -> int:
     }
     for name, (raw, _kind) in exports.items():
         (ex / "Inbox" / name).write_bytes(raw)
-    many = [f"m{i}.txt" for i in range(_classify.ZIP_MAX_ENTRIES + 1)]
-    (ex / "Inbox" / "archive-of-everything.zip").write_bytes(zb(many))
-    (ex / "Inbox" / "takeout-huge.zip").write_bytes(zb(["Takeout/x.csv"] + many))
-    sx = scan(ex, ledger={})
-    got = {e["file"].split("/", 1)[1]: e.get("export_kind") for e in sx["proposals"]}
-    want = {n: k for n, (_r, k) in exports.items() if k}
-    ok("each export is proposed with the kind its member names show, whatever its download name",
-       {n: got.get(n) for n in want} == want)
-    unknown_x = {e["file"].split("/", 1)[1] for e in sx["unknown"]}
-    ok("a zip of photos, a lone table and a file that is not a zip stay unknown",
-       {"holiday-photos.zip", "report-tables.zip", "broken.zip"} <= unknown_x)
-    ok("a Takeout without a YouTube folder directly under Takeout/ (one with a YouTube name deeper "
-       "down included), a Takeout folder below the root, a posts_1.json or reels.json outside an "
-       "Instagram folder, and a user_data.json stay unknown",
-       {"photos-backup.zip", "mail-backup.zip", "nested-backup.zip", "folder-copy.zip", "blog-backup.zip",
-        "app-backup.zip", "drive-backup.zip"} <= unknown_x)
-    ok("a Takeout folder whose name holds YouTube but does not start with it, a folder whose name ends "
-       "in your_instagram_activity or only starts with it, and a root folder named takeout2 stay unknown",
-       {"notes-backup.zip", "lookalike.zip", "ig-old.zip", "renamed-copy.zip"} <= unknown_x)
-    ok("a zip whose member name zipfile cannot decode stays unknown, and the scan goes on to the others",
-       "photos.zip" in unknown_x and {n: got.get(n) for n in want} == want)
-    held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}
-    ok("a zip with too many files to list, and no name hint, is held with a note naming the import screen",
-       "archive-of-everything.zip" in held_x
-       and held_x["archive-of-everything.zip"]["category_source"] == "archive_too_large"
-       and "/import" in held_x["archive-of-everything.zip"]["note"]
-       and f"more than {_classify.ZIP_MAX_ENTRIES:,} entries" in held_x["archive-of-everything.zip"]["note"])
-    huge = next((e for e in sx["proposals"] if e["file"] == "Inbox/takeout-huge.zip"), {})
-    ok("a zip too large to list whose name says Takeout is proposed by its name, with a note",
-       huge.get("classified_as") == "platform_export" and "export_kind" not in huge
-       and "too many files" in huge.get("note", ""))
-    ax = approve(ex, sx, ledger_path=Path(tempfile.mkdtemp()) / "ex-ledger.json")
-    jobs = {f["file"].rsplit("/", 1)[1]: (f["job_type"], (f.get("params") or {}).get("kind"))
-            for f in plan_followups(ax["moved_details"])}
-    ok("approve carries the kind, and each export gets its preview job",
-       all(jobs.get(n) == ("import_parse_preview", k) for n, k in want.items())
-       and jobs.get("takeout-huge.zip") == ("import_parse_preview", "youtube-takeout"))
+    # The entry limit stands in at 50 for the zips below, so the two over it stay small; classify's
+    # own selftest builds a zip over the real 50,000 and checks the value (P102).
+    real_zip_max = _classify.ZIP_MAX_ENTRIES
+    _classify.ZIP_MAX_ENTRIES = 50
+    try:
+        many = [f"m{i}.txt" for i in range(_classify.ZIP_MAX_ENTRIES + 1)]
+        (ex / "Inbox" / "archive-of-everything.zip").write_bytes(zb(many))
+        (ex / "Inbox" / "takeout-huge.zip").write_bytes(zb(["Takeout/x.csv"] + many))
+        sx = scan(ex, ledger={})
+        got = {e["file"].split("/", 1)[1]: e.get("export_kind") for e in sx["proposals"]}
+        want = {n: k for n, (_r, k) in exports.items() if k}
+        ok("each export is proposed with the kind its member names show, whatever its download name",
+           {n: got.get(n) for n in want} == want)
+        unknown_x = {e["file"].split("/", 1)[1] for e in sx["unknown"]}
+        ok("a zip of photos, a lone table and a file that is not a zip stay unknown",
+           {"holiday-photos.zip", "report-tables.zip", "broken.zip"} <= unknown_x)
+        ok("a Takeout without a YouTube folder directly under Takeout/ (one with a YouTube name deeper "
+           "down included), a Takeout folder below the root, a posts_1.json or reels.json outside an "
+           "Instagram folder, and a user_data.json stay unknown",
+           {"photos-backup.zip", "mail-backup.zip", "nested-backup.zip", "folder-copy.zip", "blog-backup.zip",
+            "app-backup.zip", "drive-backup.zip"} <= unknown_x)
+        ok("a Takeout folder whose name holds YouTube but does not start with it, a folder whose name ends "
+           "in your_instagram_activity or only starts with it, and a root folder named takeout2 stay unknown",
+           {"notes-backup.zip", "lookalike.zip", "ig-old.zip", "renamed-copy.zip"} <= unknown_x)
+        ok("a zip whose member name zipfile cannot decode stays unknown, and the scan goes on to the others",
+           "photos.zip" in unknown_x and {n: got.get(n) for n in want} == want)
+        held_x = {e["file"].split("/", 1)[1]: e for e in sx["needs_review"]}
+        ok("a zip with too many files to list, and no name hint, is held with a note naming the import screen",
+           "archive-of-everything.zip" in held_x
+           and held_x["archive-of-everything.zip"]["category_source"] == "archive_too_large"
+           and "/import" in held_x["archive-of-everything.zip"]["note"]
+           and f"more than {_classify.ZIP_MAX_ENTRIES:,} entries" in held_x["archive-of-everything.zip"]["note"])
+        huge = next((e for e in sx["proposals"] if e["file"] == "Inbox/takeout-huge.zip"), {})
+        ok("a zip too large to list whose name says Takeout is proposed by its name, with a note",
+           huge.get("classified_as") == "platform_export" and "export_kind" not in huge
+           and "too many files" in huge.get("note", ""))
+        ax = approve(ex, sx, ledger_path=Path(tempfile.mkdtemp()) / "ex-ledger.json")
+        jobs = {f["file"].rsplit("/", 1)[1]: (f["job_type"], (f.get("params") or {}).get("kind"))
+                for f in plan_followups(ax["moved_details"])}
+        ok("approve carries the kind, and each export gets its preview job",
+           all(jobs.get(n) == ("import_parse_preview", k) for n, k in want.items())
+           and jobs.get("takeout-huge.zip") == ("import_parse_preview", "youtube-takeout"))
+    finally:
+        _classify.ZIP_MAX_ENTRIES = real_zip_max
     ok("plan_followups ignores a kind outside the import formats",
        plan_followups([{"classified_as": "platform_export", "export_kind": "bogus",
                         "processed_ref": "Inbox/Processed/d/thing.zip"}])[0]["job_type"] is None)
