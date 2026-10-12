@@ -4182,6 +4182,24 @@ _MUTANTS = (
     ('G4-WZ4 a found engine loses its name', 'wizard.py', '", cpp, fw\n', '", None, fw\n'),
     ('G4-TR1 never judged as Windows', 'transcribe.py', '.lower().startswith("win")\n', '.lower().startswith("win") and False\n'),
     ('G4-RB1 the Bash refusal says denied', 'readonly_bash_guard.py', '    return 2, (f"readonly_bash_guard: refused for the {payload.get(\'agent_type\')} agent: {why}. "', '    return 2, (f"readonly_bash_guard: denied for the {payload.get(\'agent_type\')} agent: {why}. "'),
+    ('G4-IS4 scan_file reads two bytes past the cut', 'injection_scan.py', '            raw = fh.read(max_bytes + 1)\n', '            raw = fh.read(max_bytes + 2)\n'),
+    ('G4-IS5 the cut applied at 1 MiB after a full read', 'injection_scan.py', '    readings, truncated = _screen_readings(raw, max_bytes)\n', '    readings, truncated = _screen_readings(raw, min(max_bytes, 1_048_576))\n'),
+    ('G4-IS6 only the first 1 MiB screened', 'injection_scan.py', '    part = raw[:max_bytes]\n', '    part = raw[:min(max_bytes, 1_048_576)]\n'),
+    ('G4-IS7 a text of exactly the cut marked cut', 'injection_scan.py', '    truncated = len(raw) > max_bytes\n', '    truncated = len(raw) >= max_bytes\n'),
+    ('G4-IB7 scan asks for 19,000 bytes', 'handoff/inbox.py', '            rec = scr.scan_file(str(p))\n', '            rec = scr.scan_file(str(p), max_bytes=19_000)\n'),
+    ('G4-IB8 scan asks for 26,000 bytes', 'handoff/inbox.py', '            rec = scr.scan_file(str(p))\n', '            rec = scr.scan_file(str(p), max_bytes=26_000)\n'),
+    ('G4-IB9 approve asks for 19,000 bytes', 'handoff/inbox.py', '    rec = scr.scan_file(str(path)) if scr is not None else {}\n', '    rec = scr.scan_file(str(path), max_bytes=19_000) if scr is not None else {}\n'),
+    ('G4-IB10 scan asks for a byte under the cut', 'handoff/inbox.py', '            rec = scr.scan_file(str(p))\n', '            rec = scr.scan_file(str(p), max_bytes=19_999)\n'),
+    ('G4-IB11 scan asks for a byte over the cut', 'handoff/inbox.py', '            rec = scr.scan_file(str(p))\n', '            rec = scr.scan_file(str(p), max_bytes=20_001)\n'),
+    ('G4-IB12 approve asks for a byte under the cut', 'handoff/inbox.py', '    rec = scr.scan_file(str(path)) if scr is not None else {}\n', '    rec = scr.scan_file(str(path), max_bytes=19_999) if scr is not None else {}\n'),
+    ('G4-IB13 approve asks for a byte over the cut', 'handoff/inbox.py', '    rec = scr.scan_file(str(path)) if scr is not None else {}\n', '    rec = scr.scan_file(str(path), max_bytes=20_001) if scr is not None else {}\n'),
+    ('G4-WZ5 only a copy named with this stamp reused', 'wizard.py', '            if old.read_bytes() == raw:\n', '            if old.read_bytes() == raw and time.strftime("%Y%m%d%H%M%S") in old.name:\n'),
+    ('G4-WZ6 only a copy under a minute old reused', 'wizard.py', '            if old.read_bytes() == raw:\n', '            if old.read_bytes() == raw and time.time() - old.stat().st_mtime < 60:\n'),
+    ('G4-WZ7 the engine probe judges a Mac as Windows', 'wizard.py', '    cpp = _tr_stt.whisper_cpp_bin(env_paths.which, _os())\n', '    cpp = _tr_stt.whisper_cpp_bin(env_paths.which, "windows" if _os() == "mac" else _os())\n'),
+    ('G4-WZ8 the engine probe finds nothing on a Mac', 'wizard.py', '    cpp = _tr_stt.whisper_cpp_bin(env_paths.which, _os())\n', '    cpp = _tr_stt.whisper_cpp_bin((lambda n: None) if _os() == "mac" else env_paths.which, _os())\n'),
+    ('G4-WZ9 a Mac engine reported by its path', 'wizard.py', '", cpp, fw\n', '", (env_paths.which(cpp) if _os() == "mac" else cpp), fw\n'),
+    ('G4-RB2 the PowerShell refusal drops its article', 'readonly_bash_guard.py', '        return 2, (f"readonly_bash_guard: refused for the {payload.get(\'agent_type\')} agent: the guard "\n', '        return 2, (f"readonly_bash_guard: refused for {payload.get(\'agent_type\')} agent: the guard "\n'),
+    ('G4-RB3 the Bash refusal drops the colon', 'readonly_bash_guard.py', '    return 2, (f"readonly_bash_guard: refused for the {payload.get(\'agent_type\')} agent: {why}. "', '    return 2, (f"readonly_bash_guard refused for the {payload.get(\'agent_type\')} agent: {why}. "'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -4525,8 +4543,8 @@ def _runner_controls() -> list:
         span_before = _run_mutants([("spans-edit", "spans_edit.py") + span_row], base=d)
         (d / "spans_edit.py").write_text(spans_text.format("_productioncheck"), encoding="utf-8")
         span_after = _run_mutants([("spans-edit", "spans_edit.py") + span_row], base=d)
-        (d / "spans_once.py").write_text(spans_text.format("_productioncheck") + "z = 1\n",
-                                         encoding="utf-8")
+        (d / "spans_once.py").write_text(spans_text.format("_productioncheck") + f"z = 1\n# {d.name}\n",
+                                         encoding="utf-8")  # text unique to this call: a fresh parse
         parsed_before = _function_spans.cache_info().misses
         span_once = _run_mutants([("once-a", "spans_once.py") + span_row,
                                   ("once-b", "spans_once.py", "z = 1\n", "z = 1  # same\n"),

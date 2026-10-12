@@ -281,10 +281,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the offline screener with a 20,000-byte cut in place of its 2,000,000-byte default, and its
   export-zip checks run classify's entry limit at 50 in place of 50,000, so its test files stay
   small. A check ties the 2 MB the inbox's oversize notes name to `injection_scan.scan_file`'s
-  default, and a transcript under the stand-in cut is proposed by scan and moved by approve, so a
-  scan or approve that asked for a smaller cut would hold it. `injection_scan`'s selftest checks
-  that `scan_file` asks a file for 2,000,001 bytes when no `max_bytes` is given (through a stand-in
-  `open`), and `classify`'s selftest checks the 50,000-entry and 16 MB directory limits.
+  default. A transcript of exactly the stand-in cut is proposed by scan and moved by approve, and
+  one a byte longer is held by scan and refused by approve, so a scan or approve that asked for a
+  smaller or a larger cut than the screener's own fails a check (rows a byte under and over it).
+  `injection_scan`'s selftest checks that with no `max_bytes` `scan_file` asks a file for 2,000,001
+  bytes and screens 2,000,000 of them (through stand-ins for `open` and `_screen_readings`), and that
+  `_screen_readings` cuts a longer text to 2,000,000 characters and marks it, and reads a text of
+  exactly 2,000,000 whole; `classify`'s selftest checks the 50,000-entry and 16 MB directory limits.
 - P102 (anchor check parses a module once): `file_hash._run_mutants` reads a module's top-level
   function spans from `_function_spans`, cached by the source text (one entry per module text), so
   its anchor check parses a module once per process, in a serial run too, instead of once per row
@@ -450,8 +453,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always
   makes the two copies under one name, and a copy opened without `O_EXCL` overwrites the first
   and fails it. With the real clock, two copies made a second apart took different names and
-  that check passed either way. A refused save repeated under a stand-in clock that moves one
-  second per stamp must reuse its copy, so a reuse that looks only at this second's copies fails.
+  that check passed either way. A refused save repeated under a stand-in clock (the stamp a second
+  later and `time()` an hour later at each call) must reuse its copy, so a reuse that looks only at
+  this second's copies, or only at recent ones, fails.
 - P102 (wizard runtimes from the repo .venv): the wizard's Claude Desktop entries take `uvx` and
   `npx` from the repo `.venv` first (`env_paths.venv_tool`: `bin/<name>`, or `Scripts\<name>.exe` on
   Windows), then from PATH (`wizard._mcp_command`), so the Google Workspace entry names the `uvx`

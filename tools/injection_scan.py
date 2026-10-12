@@ -382,10 +382,11 @@ def selftest() -> int:
         ok("small text file scanned", "risk_level" in scan_file(bigf, max_bytes=5))
         # P102: callers that pass no max_bytes (the inbox scan and approve) get a 2,000,000-byte
         # cut; the inbox notes name it as 2 MB, and its selftest runs with a smaller stand-in. A
-        # stand-in open records what scan_file asks the file for: one byte more than it scans, so a
-        # longer file is marked cut.
+        # stand-in open records what scan_file asks the file for (one byte more than it screens) and
+        # a stand-in _screen_readings the cut it is given; _screen_readings itself then cuts a text a
+        # byte longer than that to the cut and marks it, and takes a text of exactly the cut whole.
         import inspect
-        asked = []
+        asked, cut_given = [], []
 
         class _Recording:
             def __enter__(self):
@@ -399,16 +400,24 @@ def selftest() -> int:
                 return b"short text"
         g_open = globals()
         had_open, real_open = "open" in g_open, g_open.get("open")
+        real_readings = g_open["_screen_readings"]
         g_open["open"] = lambda *a, **k: _Recording()
+        g_open["_screen_readings"] = lambda raw, cut: (cut_given.append(cut), real_readings(raw, cut))[1]
         try:
             scan_file(bigf)
         finally:
+            g_open["_screen_readings"] = real_readings
             if had_open:
                 g_open["open"] = real_open
             else:
                 g_open.pop("open", None)
-        ok("scan_file asks a file for 2,000,001 bytes when no max_bytes is given (a 2,000,000-byte cut)",
-           inspect.signature(scan_file).parameters["max_bytes"].default == 2_000_000 and asked == [2_000_001])
+        over_r, over_cut = _screen_readings(b"x" * 2_000_001, 2_000_000)
+        exact_r, exact_cut = _screen_readings(b"x" * 2_000_000, 2_000_000)
+        ok("with no max_bytes scan_file asks a file for 2,000,001 bytes and screens 2,000,000 of them: a "
+           "longer text is cut to 2,000,000 characters and marked, one of exactly 2,000,000 is read whole",
+           inspect.signature(scan_file).parameters["max_bytes"].default == 2_000_000 and asked == [2_000_001]
+           and cut_given == [2_000_000] and over_cut is True and len(over_r[0][1]) == 2_000_000
+           and exact_cut is False and len(exact_r[0][1]) == 2_000_000)
         ok("oversize note present", scan_file(bigf, max_bytes=5).get("note", "").startswith("only the first"))
         ok("an oversize record says truncated; a whole-file record does not",
            scan_file(bigf, max_bytes=5).get("truncated") is True and "truncated" not in scan_file(bigf))

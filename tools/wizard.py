@@ -6244,16 +6244,25 @@ def _selftest_p101() -> int:
               f"(refused {_refused_c}, copies {len(_copies_c)}, locks {_locks_c})")
 
     class _MovingTime:
-        """The time module with the copies' seconds stamp one second later at each call, so a
-        refused save repeated a second later meets a copy made under an earlier stamp (P102)."""
+        """The time module with the copies' seconds stamp one second later at each call, and time()
+        and monotonic() an hour later at each call, so a refused save repeated later meets a copy
+        made under an earlier stamp and an older clock (P102)."""
         def __init__(self):
-            self.calls = 0
+            self.calls, self.clock_calls = 0, 0
 
         def strftime(self, fmt, *args):
             if fmt != "%Y%m%d%H%M%S":
                 return _real_time_c.strftime(fmt, *args)
             self.calls += 1
             return f"202601011200{self.calls:02d}"
+
+        def time(self):
+            self.clock_calls += 1
+            return _real_time_c.time() + 3600 * self.clock_calls
+
+        def monotonic(self):
+            self.clock_calls += 1
+            return _real_time_c.monotonic() + 3600 * self.clock_calls
 
         def __getattr__(self, name):
             return getattr(_real_time_c, name)
@@ -6273,7 +6282,7 @@ def _selftest_p101() -> int:
         finally:
             _g_c["ROOT"], _g_c["time"] = _saved_root_c, _real_time_c
         check(_refusals_m == 2 and len(_copies_m) == 1 and _moving_m.calls >= 1,
-              f"a refused credential save repeated a second later does not reuse its copy "
+              f"a refused credential save repeated under a later stamp and clock does not reuse its copy "
               f"({_refusals_m} refusals, {len(_copies_m)} copies, {_moving_m.calls} stamps)")
     # P102: a credential save refused after a Connect flow is reported, and the flag is not flipped.
     _g_o = globals()

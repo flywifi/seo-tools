@@ -671,8 +671,8 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
 
 def selftest() -> int:
     """Runs _selftest_checks with every temporary folder it makes inside one folder that is removed
-    afterwards: the oversize-transcript cases alone write about 7.5 MB, and tools/file_hash.py runs
-    this selftest once per committed inbox row (P102)."""
+    afterwards: the oversize-transcript cases write about 80 KB (their screener runs with a
+    20,000-byte cut), and tools/file_hash.py runs this selftest once per committed inbox row (P102)."""
     import shutil
     import tempfile
     root = tempfile.mkdtemp(prefix="inbox-selftest-")
@@ -1258,12 +1258,11 @@ def _selftest_checks() -> int:
     globals()["_screener"] = lambda: _SmallCut() if full_screener is not None else None
     try:
         b2 = Path(tempfile.mkdtemp()); (b2 / "Inbox").mkdir()
-        filler = "".join(f"{i}\n00:00:{i % 60:02d},000 --> 00:00:{i % 60:02d},500\nline {i}\n\n"
-                         for i in range(1, 600))
-        while len(filler.encode("utf-8")) <= cut:
-            filler += filler
+        cues = "".join(f"{i}\n00:00:{i % 60:02d},000 --> 00:00:{i % 60:02d},500\nline {i}\n\n"
+                       for i in range(1, 600))
+        filler = (cues * (cut // len(cues) + 2))[:cut]  # exactly the cut: read whole (ASCII)
         (b2 / "Inbox" / "late.srt").write_text(filler + "\n" + poison + "\n", encoding="utf-8")
-        (b2 / "Inbox" / "long.srt").write_text(filler, encoding="utf-8")
+        (b2 / "Inbox" / "long.srt").write_text(filler + "\n", encoding="utf-8")  # a byte over the cut
         (b2 / "Inbox" / "early.srt").write_text(poison + "\n" + filler, encoding="utf-8")
         (b2 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
         s2 = scan(b2, ledger={})
@@ -1278,10 +1277,12 @@ def _selftest_checks() -> int:
            and [e["file"] for e in s2["proposals"]] == ["Inbox/talk.srt"])
         b2_led = Path(tempfile.mkdtemp()) / "b2-ledger.json"
         fa2 = approve(b2, {"proposals": [prop_for(b2, "late.srt", offline_pattern_scan=clean_rec),
+                                         prop_for(b2, "long.srt", offline_pattern_scan=clean_rec),
                                          prop_for(b2, "talk.srt")]}, ledger_path=b2_led)
         ok("approve refuses an oversize text file a forged clean proposal names, and moves the rest",
-           fa2["moved"] == ["Inbox/talk.srt"] and [r["file"] for r in fa2["refused"]] == ["Inbox/late.srt"]
-           and "2 MB" in fa2["refused"][0]["why"] and (b2 / "Inbox" / "late.srt").is_file())
+           fa2["moved"] == ["Inbox/talk.srt"]
+           and [r["file"] for r in fa2["refused"]] == ["Inbox/late.srt", "Inbox/long.srt"]
+           and all("2 MB" in r["why"] for r in fa2["refused"]) and (b2 / "Inbox" / "late.srt").is_file())
         ea2 = approve(b2, {"proposals": [prop_for(b2, "early.srt", offline_pattern_scan=clean_rec)]},
                       ledger_path=b2_led)
         ok("approve refuses an oversize file flagged in the part it read as sealed",
@@ -1289,16 +1290,15 @@ def _selftest_checks() -> int:
         ok("scan says an oversize transcript must be split, since approve does not move it",
            all("split it into files under 2 MB" in e["note"] for e in s2["needs_review"]
                if e["file"] in ("Inbox/late.srt", "Inbox/long.srt")))
-        # A transcript under the screener's cut is read whole: scan proposes it and approve moves
-        # it, so a scan or approve that asked for a smaller cut than the screener's own would hold it.
+        # A transcript of exactly the screener's cut is read whole: scan proposes it and approve
+        # moves it. With long.srt a byte over the cut held by scan and refused by approve above, a
+        # scan or approve that asked for a cut other than the screener's own fails a check.
         b2n = Path(tempfile.mkdtemp()); (b2n / "Inbox").mkdir()
-        near = "".join(f"{i}\n00:00:{i % 60:02d},000 --> 00:00:{i % 60:02d},500\nline {i}\n\n"
-                       for i in range(1, 400))
-        (b2n / "Inbox" / "near.srt").write_text(near, encoding="utf-8")
+        (b2n / "Inbox" / "near.srt").write_text(filler, encoding="utf-8")
         s2n = scan(b2n, ledger={})
         a2n = approve(b2n, s2n, ledger_path=Path(tempfile.mkdtemp()) / "b2n-ledger.json")
-        ok("a transcript under the screener's cut is proposed by scan and moved by approve",
-           cut // 2 < len(near.encode("utf-8")) < cut
+        ok("a transcript of exactly the screener's cut is proposed by scan and moved by approve",
+           len(filler.encode("utf-8")) == cut and (b2 / "Inbox" / "long.srt").stat().st_size == cut + 1
            and [e["file"] for e in s2n["proposals"]] == ["Inbox/near.srt"]
            and a2n["moved"] == ["Inbox/near.srt"])
     finally:

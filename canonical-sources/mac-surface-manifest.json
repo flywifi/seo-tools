@@ -97,7 +97,7 @@
     "tools/env_paths.py": "83aef4d3cc149e91ede9d3483c85070201f53a68d118860dcd099ccec528a44a",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
     "tools/handoff/MAINTAINER_README.md": "1191f930a760abbe2c928d5867b30b40a31d60bfc44302709a08ed1658b6fa41",
-    "tools/handoff/inbox.py": "76cc0c81856fa4c001bfd9ece3cbf9d0d87607674274567c21e3bc80beb58d55",
+    "tools/handoff/inbox.py": "8c30718f204345dbb04b49816046f60c952836d6c195d389c4a247c99ae4318b",
     "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
     "tools/handoff/watcher.py": "5430e3462ba9b39418064c289de5d1fc7533b3c6de657f4f33209447a92bc87f",
     "tools/library_complete.py": "a0c3e049fc0a34c47f1d920f6421a6bd03d2a56e4a1129c2f7b825914cc3dcba",
@@ -115,7 +115,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "c39eb515f57f1d571c0393be405ecd81df4f8f3802b45e9f76da18580d6798a5"
+    "tools/wizard.py": "20c99d508843dc43689a016e2888e8348595fb84c592f63b4a64aca3f7d196ef"
   },
   "excluded": {}
 }
