@@ -1262,7 +1262,7 @@ def _selftest_checks() -> int:
                        for i in range(1, 600))
         filler = (cues * (cut // len(cues) + 2))[:cut]  # exactly the cut: read whole (ASCII)
         (b2 / "Inbox" / "late.srt").write_text(filler + "\n" + poison + "\n", encoding="utf-8")
-        (b2 / "Inbox" / "long.srt").write_text(filler + "\n", encoding="utf-8")  # a byte over the cut
+        (b2 / "Inbox" / "long.srt").write_bytes((filler + "\n").encode("utf-8"))  # a byte over the cut
         (b2 / "Inbox" / "early.srt").write_text(poison + "\n" + filler, encoding="utf-8")
         (b2 / "Inbox" / "talk.srt").write_text(srt, encoding="utf-8")
         s2 = scan(b2, ledger={})
@@ -1294,7 +1294,7 @@ def _selftest_checks() -> int:
         # moves it. With long.srt a byte over the cut held by scan and refused by approve above, a
         # scan or approve that asked for a cut other than the screener's own fails a check.
         b2n = Path(tempfile.mkdtemp()); (b2n / "Inbox").mkdir()
-        (b2n / "Inbox" / "near.srt").write_text(filler, encoding="utf-8")
+        (b2n / "Inbox" / "near.srt").write_bytes(filler.encode("utf-8"))  # bytes: no CR from text mode
         s2n = scan(b2n, ledger={})
         a2n = approve(b2n, s2n, ledger_path=Path(tempfile.mkdtemp()) / "b2n-ledger.json")
         ok("a transcript of exactly the screener's cut is proposed by scan and moved by approve",
