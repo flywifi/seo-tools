@@ -80,6 +80,19 @@ def app_python(root=None) -> str:
     return str(vp) if vp else sys.executable
 
 
+def venv_tool(name, root=None, python=None):
+    """A console script the repo ``.venv`` holds, as a path string, else None: ``bin/<name>`` beside a
+    POSIX interpreter, ``Scripts\\<name>.exe`` beside ``python.exe`` on Windows. setup.py and the wizard
+    pip-install uv into the .venv when PATH has none, and ``which`` does not search the .venv, so a
+    caller that must find such a tool asks here first (P102). ``python`` names the interpreter to look
+    beside (a known venv, or a test layout); otherwise venv_python(root) decides."""
+    vp = Path(python) if python is not None else venv_python(root)
+    if vp is None:
+        return None
+    cand = vp.parent / (f"{name}.exe" if vp.suffix.lower() == ".exe" else name)
+    return str(cand) if cand.is_file() else None
+
+
 def brew_prefixes() -> list:
     return list(BREW_PREFIXES)
 
@@ -635,6 +648,35 @@ def _selftest() -> int:
         sys.stdout, sys.stderr = real_out, real_err
     ok(std_out.calls == [{"encoding": "utf-8", "errors": "replace"}] and std_err.calls == std_out.calls,
        "utf8_stdio with no streams given switches both sys.stdout and sys.stderr")
+    # P102: venv_tool finds a console script beside the .venv interpreter in both layouts, reports
+    # a missing one as None, and is None with no .venv.
+    with tempfile.TemporaryDirectory() as td:
+        win = Path(td) / "win" / ".venv" / "Scripts"
+        win.mkdir(parents=True)
+        (win / "python.exe").write_bytes(b"")
+        (win / "uvx.exe").write_bytes(b"")
+        posix = Path(td) / "posix" / ".venv" / "bin"
+        posix.mkdir(parents=True)
+        (posix / "python3").write_bytes(b"")
+        (posix / "uvx").write_bytes(b"")
+        ok(venv_tool("uvx", python=win / "python.exe") == str(win / "uvx.exe"),
+           "venv_tool finds Scripts\\uvx.exe beside a Windows .venv python.exe")
+        ok(venv_tool("uvx", python=posix / "python3") == str(posix / "uvx"),
+           "venv_tool finds bin/uvx beside a POSIX .venv python3")
+        ok(venv_tool("npx", python=win / "python.exe") is None and venv_tool("uv", python=posix / "python3") is None,
+           "venv_tool is None for a tool the .venv does not hold")
+        (posix / "uvw").mkdir()
+        (win / "uvw.exe").mkdir()
+        ok(venv_tool("uvw", python=posix / "python3") is None and venv_tool("uvw", python=win / "python.exe") is None,
+           "venv_tool is None for a folder with the tool's name, in either layout")
+        real_vp = globals()["venv_python"]
+        globals()["venv_python"] = lambda root=None: (posix / "python3") if root == Path(td) / "posix" else None
+        try:
+            by_root = (venv_tool("uvx", root=Path(td) / "posix"), venv_tool("uvx"))
+        finally:
+            globals()["venv_python"] = real_vp
+        ok(by_root == (str(posix / "uvx"), None), f"venv_tool does not look in the .venv of the root it is given: {by_root}")
+        ok(venv_tool("uvx", root=Path(td) / "nowhere") is None, "venv_tool is None with no .venv")
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:
         if not c:

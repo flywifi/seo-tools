@@ -418,6 +418,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (wizard runtimes from the repo .venv): the wizard's Claude Desktop entries take `uvx` and
+  `npx` from the repo `.venv` first (`env_paths.venv_tool`: `bin/<name>`, or `Scripts\<name>.exe` on
+  Windows), then from PATH (`wizard._mcp_command`), so the Google Workspace entry names the `uvx`
+  that setup installed into the `.venv` when PATH has none, where it wrote a bare `uvx` that Claude
+  Desktop did not start. `wizard._has_uv` and setup's uv check also find `uv.exe` in a Windows
+  `.venv`, which they missed.
 - P102 (launcher check with MinGit): `battery.bash_for_syntax` falls back to `usr\bin\sh.exe` of the
   Git that `git --exec-path` names when that Git has no `bash.exe`, the layout MinGit's file list
   (git-for-windows build-extra, `make-file-list.sh`) gives: it drops `usr/bin/bash.exe` and keeps
