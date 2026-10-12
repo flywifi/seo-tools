@@ -24,7 +24,7 @@
       "sources": {
         "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
         "tools/source_currency.py": "4dc2ccb3e0ce88df3eae527ed36155db4c53508743a106b468132f8092d869a8",
-        "tools/sync_check.py": "7a0b1d58a343b68fde9bd8dda0718c093571ddea91d391578ac351f729ae7690"
+        "tools/sync_check.py": "d11ca38416e24e71e04b419e7a220177d3882c725e5b086c05b8f9af7e95ed41"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "be73cb7fffef9382a7027ad3da1c8f9e9de7ccc67b6d23996866ad03d8e2680a",
+        "tools/wizard.py": "a96514808ffcd1a89f1d268137ad205c8634d47ee065a3d6977c8f9ac398ebad",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },

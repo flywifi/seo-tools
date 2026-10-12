@@ -155,10 +155,10 @@ def install(dry_run=False, hooks_dir=None, python=None):
 
 
 def _shell(which=None, run=None, os_name=None):
-    """A POSIX sh for running a hook: sh on PATH; on Windows, Git for Windows' bash
-    (battery.bash_for_syntax), else the usr\\bin\\sh.exe of the Git that `git --exec-path` names
-    (MinGit ships that sh and no bash, and puts neither on PATH, P102), else the sh on PATH. which,
-    run and os_name stand in for the system's in the selftest."""
+    """A POSIX sh for running a hook: sh on PATH; on Windows, battery.bash_for_syntax (Git for
+    Windows' bash, else the usr\\bin\\sh.exe of the Git that `git --exec-path` names, which MinGit
+    ships in place of bash and puts on no PATH, P102), else the sh on PATH. which, run and os_name
+    stand in for the system's in the selftest."""
     import shutil
     which = which or shutil.which
     run = run or subprocess.run
@@ -174,14 +174,6 @@ def _shell(which=None, run=None, os_name=None):
         bash = None
     if bash:
         return bash
-    try:
-        out = run(["git", "--exec-path"], capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return found
-    if out.returncode == 0 and out.stdout.strip():
-        git_sh = Path(out.stdout.strip()).parent.parent.parent / "usr" / "bin" / "sh.exe"
-        if git_sh.is_file():
-            return str(git_sh)
     return found
 
 

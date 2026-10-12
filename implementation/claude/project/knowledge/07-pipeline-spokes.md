@@ -5,7 +5,7 @@ description: "manages brand account records in pipeline/accounts/: health-check,
 load: always
 ---
 
-_Data freshness: as of 2026-10-11 (Creator OS baseline 77bb6d47). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-10-12 (Creator OS baseline 77bb6d47). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # account-manager
 
@@ -563,7 +563,7 @@ deliverable requirement-coverage verification.
 Routes: `task_status`, `task_plan`, `coverage_check`, `shipment_update`, `milestone_bill`.
 
 Non-negotiables: every task cites a real source (a contract clause, an email Message-ID, a user statement, or
-a named rule + anchor event) — no phantom tasks. Nothing is sent, invoiced, or posted automatically; nudges,
+a named rule + anchor event); no phantom tasks. Nothing is sent, invoiced, or posted automatically; nudges,
 replies, and invoices are drafted for the human. Waiting-on items surface as aging follow-ups, not silent
 creator to-dos. Coverage cites the supporting sentence or abstains, never inferring.
 

@@ -11,7 +11,7 @@
     "og_description": "string or null — Open Graph description",
     "video_tags": "array or null — YouTube keyword list from ytInitialPlayerResponse.videoDetails.keywords (hidden from YouTube UI; primary competitor SEO signal)",
     "hashtags": "array or null — #hashtags from video description or TikTok textExtra",
-    "chapter_markers": "array or null — [{timestamp_ms, title}] from chapteredPlayerBarRenderer or description timestamps",
+    "chapter_markers": "array or null: [{timestamp_ms, title}] from multiMarkersPlayerBarRenderer, chapteredPlayerBarRenderer or description timestamps",
     "category": "string or null — YouTube category string from playerMicroformatRenderer.category",
     "publish_date": "ISO date string or null — YouTube publishDate from microformat",
     "upload_date": "ISO date string or null — YouTube uploadDate from microformat",

@@ -79,11 +79,15 @@ def _os() -> str:
 def _arch() -> str:
     return (_ARCH_OVERRIDE or platform.machine()).lower()
 
-def _mcp_command(name: str) -> str:
+def _mcp_command(name: str, venv_tool=None, which=None) -> str:
     """Resolve an MCP runtime command (npx/uvx) to an absolute path so Claude Desktop, which launches
-    servers with its own narrow PATH, can start it under a GUI launch. Falls back to the bare name
-    (Claude Desktop then tries its own PATH), so this is safe when the runtime is not yet installed."""
-    return env_paths.which(name) or name
+    servers with its own narrow PATH, can start it under a GUI launch. The repo .venv is asked first:
+    setup.py and _install_uv pip-install uv there when PATH has none, env_paths.which does not search
+    the .venv, and a tool there is the one setup verified (P102); then PATH through env_paths.which.
+    Falls back to the bare name (Claude Desktop then tries its own PATH), so this is safe when the
+    runtime is not yet installed."""
+    found = (venv_tool or env_paths.venv_tool)(name) or (which or env_paths.which)(name)
+    return found or name
 
 def _os_label() -> str:
     return {"mac": "macOS", "windows": "Windows", "linux": "Linux"}[_os()]
@@ -391,8 +395,7 @@ def _has_uv() -> bool:
     # (non-login zsh) where /opt/homebrew/bin is off PATH; also accept a uv inside the private .venv.
     if env_paths.which("uv"):
         return True
-    vp = env_paths.venv_python()
-    return bool(vp and (vp.parent / "uv").exists())
+    return env_paths.venv_tool("uv") is not None
 
 _PEP668_REFUSAL_UV = ("this interpreter refuses global installs (PEP 668) and Creator OS "
                       "never installs machine-wide; press Install the free tools first -- it "
@@ -6469,6 +6472,45 @@ def _selftest_p101() -> int:
           and "nvm install --lts" in _node_pages["mac"] and "nvm install --lts" in _node_pages["linux"],
           "the Windows Node.js step does not lead with the Scoop route and label the nodejs.org "
           "installer machine-wide, or another system's step changed")
+    # P102: _mcp_command finds a runtime pip-installed into the repo .venv (setup.py and _install_uv
+    # put uv there when PATH has none, and env_paths.which does not search the .venv): the .venv
+    # first, then PATH, then the bare name; the lookups are asked for the name given.
+    _venv_uvx = str(pathlib.Path("/repo/.venv/bin/uvx"))
+    _path_uvx = str(pathlib.Path("/usr/local/bin/uvx"))
+    check(_mcp_command("uvx", venv_tool=lambda n: _venv_uvx, which=lambda n: None) == _venv_uvx,
+          "_mcp_command does not return the .venv runtime when PATH has none")
+    check(_mcp_command("uvx", venv_tool=lambda n: None, which=lambda n: _path_uvx) == _path_uvx,
+          "_mcp_command does not return the PATH runtime when the .venv has none")
+    check(_mcp_command("uvx", venv_tool=lambda n: _venv_uvx, which=lambda n: _path_uvx) == _venv_uvx,
+          "_mcp_command does not prefer the .venv runtime over the PATH one")
+    check(_mcp_command("uvx", venv_tool=lambda n: None, which=lambda n: None) == "uvx",
+          "_mcp_command does not fall back to the bare name")
+    _asked = []
+    _mcp_command("npx", venv_tool=lambda n: _asked.append(n) or None, which=lambda n: _asked.append(n) or None)
+    check(_asked == ["npx", "npx"], "_mcp_command does not ask both lookups for the name it was given")
+    with tempfile.TemporaryDirectory() as _vt:
+        _w = pathlib.Path(_vt) / ".venv" / "Scripts"
+        _w.mkdir(parents=True)
+        (_w / "python.exe").write_bytes(b"")
+        (_w / "uvx.exe").write_bytes(b"")
+        check(_mcp_command("uvx", venv_tool=lambda n: env_paths.venv_tool(n, python=_w / "python.exe"),
+                           which=lambda n: None) == str(_w / "uvx.exe"),
+              "_mcp_command with a Windows .venv layout does not return Scripts\\uvx.exe")
+        check(_mcp_command("npx", venv_tool=lambda n: env_paths.venv_tool(n, python=_w / "python.exe"),
+                           which=lambda n: None) == "npx",
+              "_mcp_command with a Windows .venv layout that lacks npx does not fall back to the bare name")
+    # P102: _has_uv counts a uv the repo .venv holds (uv.exe on Windows) when PATH has none.
+    _real_which_hu, _real_vt_hu, _hu_asked = env_paths.which, env_paths.venv_tool, []
+    try:
+        env_paths.which = lambda name, *a, **k: None
+        env_paths.venv_tool = lambda name, *a, **k: _hu_asked.append(name) or str(pathlib.Path("/repo/.venv/Scripts/uv.exe"))
+        _hu_venv = _has_uv()
+        env_paths.venv_tool = lambda name, *a, **k: None
+        _hu_none = _has_uv()
+    finally:
+        env_paths.which, env_paths.venv_tool = _real_which_hu, _real_vt_hu
+    check(_hu_venv is True and _hu_none is False and _hu_asked == ["uv"],
+          f"_has_uv does not count a uv the .venv holds when PATH has none ({_hu_venv}, {_hu_none}, {_hu_asked})")
     if failures:
         print("wizard P101 checks FAILED:")
         for msg in failures:

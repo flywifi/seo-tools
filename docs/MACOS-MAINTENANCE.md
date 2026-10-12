@@ -37,8 +37,9 @@ confirmation is the hands-on list below.
    TN3179). The wizard `_selftest` guards this; do not regress the bind in `main()`.
 5. **The Claude Desktop MCP `command` must be an absolute interpreter path.** Claude Desktop launches
    servers with its own narrow PATH; a bare `python3`/`npx`/`uvx` can fail with `ENOENT`. The snippet's
-   `creator-os` points at `.venv/bin/python3`; wizard-written entries resolve `npx`/`uvx` via
-   `env_paths.which()` (`wizard.py::_mcp_command`). Config is read only at launch → the copy must say
+   `creator-os` points at `.venv/bin/python3`; wizard-written entries resolve `npx`/`uvx` from the
+   repo `.venv` first (`env_paths.venv_tool`), then via `env_paths.which()` (`wizard.py::_mcp_command`)
+   <!-- verify: tools/env_paths.py::venv_tool -->. Config is read only at launch → the copy must say
    "**Quit completely (Cmd-Q) and reopen**", and point at `~/Library/Logs/Claude/mcp-server-<name>.log`.
    <!-- verify: tools/wizard.py::_mcp_command -->
 6. **whisper.cpp CLI-rename resilience.** The binary has been `whisper-cli`, `whisper-cpp`, and `main`

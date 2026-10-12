@@ -109,7 +109,10 @@ def bash_for_syntax(which=None, run=None, os_name=None):
     """The bash for `bash -n` on the launcher, or None. PATH order (shutil.which) everywhere; on
     Windows (P101) not the WSL launcher in System32, which runs the file inside a Linux
     distribution where the Windows path does not exist, but Git for Windows' bash, found from
-    `git --exec-path` (<git>/mingw64/libexec/git-core), which also works through Scoop's shims."""
+    `git --exec-path` (<git>/mingw64/libexec/git-core), which also works through Scoop's shims;
+    failing that, the same Git's usr\\bin\\sh.exe (P102). MinGit's file list (git-for-windows
+    build-extra, make-file-list.sh) drops usr/bin/bash.exe and keeps sh.exe, bash run as sh;
+    the BusyBox MinGit has neither, so the gate says DID NOT RUN there."""
     import os
     import shutil
     which = which or shutil.which
@@ -132,7 +135,9 @@ def bash_for_syntax(which=None, run=None, os_name=None):
     for cand in (root / "usr" / "bin" / "bash.exe", root / "bin" / "bash.exe"):
         if cand.exists():
             return str(cand)
-    return None
+    # No bash.exe (MinGit): its usr\bin\sh.exe is bash run as sh, in POSIX mode (P102)
+    sh = root / "usr" / "bin" / "sh.exe"
+    return str(sh) if sh.exists() else None
 
 
 def launcher_syntax(find=None, run=None) -> int:
@@ -199,6 +204,21 @@ def selftest() -> int:
                            run=git_ok, os_name="nt") == str(gitroot / "usr" / "bin" / "bash.exe"))
         ok("launcher bash: a failing git --exec-path is not trusted, even with output",
            bash_for_syntax(which=lambda n: wsl, run=lambda *a, **k: _R(1, execp + "\n"), os_name="nt") is None)
+        (gitroot / "usr" / "bin" / "sh.exe").write_bytes(b"")
+        ok("launcher bash: a Git with both bash.exe and sh.exe (Git for Windows) gives its bash.exe",
+           bash_for_syntax(which=lambda n: None, run=git_ok, os_name="nt")
+           == str(gitroot / "usr" / "bin" / "bash.exe"))
+        (gitroot / "usr" / "bin" / "sh.exe").unlink()
+        # P102: MinGit ships usr\bin\sh.exe and no bash.exe; the gate runs with that sh
+        minroot = Path(gt) / "MinGit"
+        (minroot / "usr" / "bin").mkdir(parents=True)
+        (minroot / "usr" / "bin" / "sh.exe").write_bytes(b"")
+        min_ok = lambda *a, **k: _R(0, str(minroot / "mingw64" / "libexec" / "git-core") + "\n")  # noqa: E731
+        ok("launcher bash: a Git with sh.exe and no bash.exe (MinGit) gives its sh",
+           bash_for_syntax(which=lambda n: None, run=min_ok, os_name="nt") == str(minroot / "usr" / "bin" / "sh.exe"))
+        (minroot / "usr" / "bin" / "sh.exe").unlink()
+        ok("launcher bash: a Git with neither bash.exe nor sh.exe gives none",
+           bash_for_syntax(which=lambda n: None, run=min_ok, os_name="nt") is None)
         import contextlib as _cl
         import io as _io
         _buf = _io.StringIO()

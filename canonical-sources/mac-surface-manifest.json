@@ -9,7 +9,7 @@
   },
   "files": {
     "AGENTS.md": "96291138f4cd87b61fa9f93c1d34c972e225cfdae6fc94a288e866772134736f",
-    "CLAUDE.md": "3885d9bcbd6b7ad6e454ac1c787a2ee219ee4186740f261169a2215e5866f462",
+    "CLAUDE.md": "e72195c4ad446915e2bc8d251544dd0c6607776837704a77bbbca1d2be0b9058",
     "Start Creator OS Setup.bat": "4d0a8992cdce2cb17c30cf3549aed76ad9fd969c66a260fc378f46c6a66a2175",
     "Start Creator OS Setup.command": "d88d201412c4b7cb7cdd1e0aa01a377cbda5b5b698ac92ef34110daf8bf1296a",
     "canonical-sources/data-currency-map.json": "432a89fc60ea9cf0980871a26e8a419211c02678ceae1c2e7984d86dc8609c23",
@@ -30,7 +30,7 @@
     "docs/FRESHNESS.md": "cb3baa4af60adc0fa23e92b6ea90813afb4c910ff021d7369b85de38392db16b",
     "docs/INSTALL-SCOPE.md": "612374fff79c3f1001c89d0c3a89091b9cc2ad7f8d078c0976fe42fc1be76236",
     "docs/MAC-VALIDATION.md": "f31107b34b665afacd43cbcfba0986f8b2ceb19b24f987aeb331368392655478",
-    "docs/MACOS-MAINTENANCE.md": "9084072fbad22afed9992596318c333ea50a1cddc924abdd40df0d328f2f3424",
+    "docs/MACOS-MAINTENANCE.md": "d0dfb354aeafeecde92aa5c819d3f2b9c034c68ca54f69279c5aaff721fb388d",
     "docs/PROFILE-MIRROR.md": "4a1736524c2838e9141877ff450aee3d66f3c948fa74dd2e9541229142e6364b",
     "docs/PUBLISHING.md": "715a732d76426c392c0bcb8adaa675a81d64471df00e3592d07c20c955064f05",
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
@@ -91,10 +91,10 @@
     "skills/atoms/transcript-import/SKILL.md": "278e52687e8f44220baae9aeea0b6e7ecee6e05c5999ec9bed080eec2554213e",
     "skills/content-library/SKILL.md": "cb99ba8a13c7b4420da2eca1fd97a6b63d9193c24a9ad7fec5111f2ab63a6da5",
     "tools/acquire.py": "3b7684b5cdb7534d909f39dd0f1d69d5365671010341fd3646bccbda1447cfaa",
-    "tools/battery.py": "b251f1de064e049cd9cdf799135023e2e6c5dff0bca67afc6669b57d3e42626a",
-    "tools/claim-proof-manifest.json": "4eb185e441311cfad5a61bd78c490e0cfa599499dbc44ddd891c20ddd24f4a19",
+    "tools/battery.py": "e390b33409d1328913eef275a5e4461eedc8b41cb116ba9861ed513a4755b2d8",
+    "tools/claim-proof-manifest.json": "7e64dc2b4ad515bf693a53be1cc92473a25e6fec54d1fdec9fb9c76b13289a63",
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
-    "tools/env_paths.py": "473240e843ffd633a0ebdfef5e7892b42db64fee45ca497ee43ead2307ffd642",
+    "tools/env_paths.py": "83aef4d3cc149e91ede9d3483c85070201f53a68d118860dcd099ccec528a44a",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
     "tools/handoff/MAINTAINER_README.md": "1191f930a760abbe2c928d5867b30b40a31d60bfc44302709a08ed1658b6fa41",
     "tools/handoff/inbox.py": "b7e62f31f5832eedc8e14564dbca2823ff601e21a254465ce97c6466e3d76a6e",
@@ -106,7 +106,7 @@
     "tools/profile_mirror.py": "d6297bde987097313a808c40140ac97a3850ab87b0efce324c70d8dbce564435",
     "tools/readonly_bash_guard.py": "5e66aa0147f1ffa0f62d60b77c13b2f6fd5e676a2a2fbc5e55f9634edb533690",
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
-    "tools/setup.py": "caaf03afcfa21b62db68b6e27f5df70557a8ae7731b3a7d6c355ca6ab69ba29d",
+    "tools/setup.py": "9fd7db106769fe6bbd4f6f22b821bb107e5ee60314e654fd963e40a28f16c2c9",
     "tools/surface_workflow_check.py": "7b4939bb7258b93f7bc92ebfb97b15a0d48ccc65df125d60d4bb5f52f0fe9a36",
     "tools/transcribe.py": "deca9966ca3d64da1dbee47fb555c3533f2d428f01e46d16f766db18ed4ae270",
     "tools/videoedit/captions.py": "0bdd14baccdbedbbbd532b8a4f6a7330cf09d01a61b7f46a0f6d1a191c5448dd",
@@ -115,7 +115,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "be73cb7fffef9382a7027ad3da1c8f9e9de7ccc67b6d23996866ad03d8e2680a"
+    "tools/wizard.py": "a96514808ffcd1a89f1d268137ad205c8634d47ee065a3d6977c8f9ac398ebad"
   },
   "excluded": {}
 }

@@ -209,8 +209,8 @@ def install_dependencies() -> list:
         results.append({"item": "faster-whisper check", "desc": "Local transcription loads",
                         "ok": fw_ok, "detail": "" if fw_ok else fw_detail})
     # uv: pip-installable, cross-platform, no sudo. Powers the Google, Wolfram and DuckDB uvx MCP servers.
-    venv_uv = Path(target).parent / "uv"
-    if venv_uv.exists() or env_paths.which("uv"):
+    venv_uv = env_paths.venv_tool("uv", python=target)  # P102: uv.exe on Windows, uv on POSIX
+    if venv_uv or env_paths.which("uv"):
         results.append({"item": "uv", "desc": "uvx runtime", "ok": None, "detail": "already installed"})
     else:
         ok, detail = _pip_install(["uv"], python=target)
@@ -1160,6 +1160,30 @@ def _selftest_fw() -> int:
        and _runs_fw["stt-failed"] == [] and _checked_fw == ["/v/python"],
        f"install_dependencies does not check faster-whisper in the .venv interpreter after the "
        f"transcription set installs, or reports a failed check as passing: {_runs_fw} {_checked_fw}")
+    # P102: the uv step asks the target .venv for uv (uv.exe on Windows) before PATH, and installs
+    # uv only when neither has it.
+    _uv_seen, _uv_pip, _uv_runs = [], [], {}
+    _real_vt, _real_which = env_paths.venv_tool, env_paths.which
+    try:
+        _g_fw.update(ensure_venv=lambda: ("/v/Scripts/python.exe", "ok"),
+                     _check_faster_whisper=lambda python: (True, "loads"),
+                     _install_playwright_browser=lambda python: (None, "skipped"),
+                     _pip_install=lambda args, python: _uv_pip.append(list(args)) or (True, "x"))
+        env_paths.which = lambda name, *a, **k: None
+        for _case, _has in (("venv-uv", True), ("no-uv", False)):
+            env_paths.venv_tool = (lambda name, root=None, python=None, _h=_has:
+                                   _uv_seen.append((name, python)) or ("/v/Scripts/uv.exe" if _h else None))
+            del _uv_pip[:]
+            _uv_runs[_case] = ([r for r in install_dependencies() if r["item"] == "uv"],
+                               [a for a in _uv_pip if a == ["uv"]])
+    finally:
+        _g_fw.update(_saved_fw)
+        env_paths.venv_tool, env_paths.which = _real_vt, _real_which
+    ok(len(_uv_runs["venv-uv"][0]) == 1 and _uv_runs["venv-uv"][0][0]["detail"] == "already installed"
+       and _uv_runs["venv-uv"][1] == [] and len(_uv_runs["no-uv"][0]) == 1
+       and _uv_runs["no-uv"][0][0]["ok"] is True and _uv_runs["no-uv"][1] == [["uv"]]
+       and set(_uv_seen) == {("uv", "/v/Scripts/python.exe")},
+       f"the uv step does not ask the target .venv for uv before installing it: {_uv_runs} {_uv_seen}")
     for c, m in checks:
         if not c:
             print(f"  [FAIL] {m}")

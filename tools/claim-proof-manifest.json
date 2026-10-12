@@ -80,7 +80,7 @@
     {
       "doc": "CLAUDE.md",
       "claim": "The drift guard enforces this for `examples/` (invariant 4) and for the local tools'\n  creator-facing text (invariant 62",
-      "why": "this sentence states the two enforced scopes: check_formatting (invariant 4) over the committed examples/ content, and check_creator_text_dashes (invariant 62) over the scan set it derives from the tree (local pages and their static files, MCP tool descriptions and replies, the programs and scripts those run or name, and the JSON they read), which its self-proof covers branch by branch before each scan.",
+      "why": "this sentence states the two enforced scopes: check_formatting (invariant 4) over the committed examples/ content, and check_creator_text_dashes (invariant 62) over the scan set it derives from the tree (local pages and their static files, MCP tool descriptions and replies, the programs and scripts those run or name, and the JSON and text files they read or copy, in the forms ADR 0081 lists), which its self-proof covers branch by branch before each scan.",
       "proofs": [
         "invariant:4",
         "invariant:62"
