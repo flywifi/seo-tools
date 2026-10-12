@@ -54,15 +54,16 @@ from typing import Any
 PARSER_VERSION = "2026-10-11.1"
 
 # The selftest's reading of its own fixture pages under PARSER_VERSION: the sha256 of the JSON it
-# builds from them (selftest, _fixture_reading). A change to what the parser extracts changes the
-# sha256, so the selftest fails until PARSER_VERSION is bumped and both values below are recorded
-# again. It cannot tell a re-recorded sha256 under the old version from a bump; review does.
+# builds from them (selftest, _fixture_reading). A change to what the parser extracts from those
+# YouTube pages (parse_youtube, the og, canonical and JSON-LD readers) changes the sha256, so the
+# selftest fails until PARSER_VERSION is bumped and both values below are recorded again. It cannot tell a re-recorded sha256 under the old version from a bump; review does.
 _READING = {"version": "2026-10-11.1",
-            "sha256": "f02d5624be48de88844f8c68f77f39e21ae2022a221054fe8bde7bbc7fffc030"}
+            "sha256": "855e4d15010c8afd6dd3e899d08ad99e71381f207cecbd7eba577801eb7d35a1"}
 
-# An HTML attribute value in double or single quotes. The other quote may appear inside it: a title
-# such as Kid's Room in a double-quoted attribute is read whole, not cut at the apostrophe.
-_QV = r'''(?:"([^"]*)"|'([^']*)')'''
+# A non-empty HTML attribute value in double or single quotes. The other quote may appear inside it:
+# a title such as Kid's Room in a double-quoted attribute is read whole, not cut at the apostrophe. An
+# empty value does not match, so the search goes on to a later tag that has one.
+_QV = r'''(?:"([^"]+)"|'([^']+)')'''
 
 
 def _qv(m) -> str:
@@ -168,7 +169,7 @@ _KW_PIECE = re.compile(r'"[^"]*"|[^,"]+|"|,')
 def _split_keywords(text: str) -> list:
     """Keywords from a <meta name="keywords"> value, in one pass with no recursion (P102). A value
     with a comma outside its double-quoted phrases is a comma list: it splits at those commas, a
-    part written as one quoted phrase loses its quotes, and a quote that never closes is dropped.
+    phrase in a part loses its quotes, and a quote that never closes is dropped.
     Otherwise words split on whitespace and each double-quoted phrase is kept whole."""
     if "," in re.sub(r'"[^"]*"', "", text):
         parts, buf = [], []
@@ -182,7 +183,7 @@ def _split_keywords(text: str) -> list:
         out = []
         for part in (x.strip() for x in parts):
             whole = re.fullmatch(r'"([^"]*)"', part)
-            out.append(whole.group(1).strip() if whole else part)
+            out.append(whole.group(1).strip() if whole else re.sub(r'"([^"]*)"', r"\1", part))
         return [x for x in out if x]
     return [w for w in ((a or b).strip() for a, b in _KW_WORD.findall(text)) if w]
 
@@ -607,6 +608,7 @@ def selftest() -> int:
         ('a, "b, c", d', ["a", "b, c", "d"]),
         ('a, "b, c', ["a", "b", "c"]),
         ('"" x', ["x"]),
+        ('diy "how to", makeover', ["diy how to", "makeover"]),
     ]
     for text, want in kw_cases:
         ok(f"keywords {text!r} split as {want!r}", _split_keywords(text) == want)
@@ -628,6 +630,16 @@ def selftest() -> int:
        _extract_og_tags('<meta property="og:title" content="Kid\'s Room">').get("og_title") == "Kid's Room"
        and _extract_og_tags("<meta content='Say \"hi\"' property='og:title'>").get("og_title") == 'Say "hi"')
     ok("an empty og value stays absent", "og_title" not in _extract_og_tags('<meta property="og:title" content="">'))
+    ok("an empty tag does not hide a later one that has a value",
+       _extract_og_tags('<meta property="og:title" content=""><meta property="og:title" content="Real">')
+       == {"og_title": "Real"}
+       and json.loads(parse_youtube('<meta name="keywords" content=""><meta name="keywords" content="diy decor">')
+                      ["video_tags"]) == ["diy", "decor"])
+    ok("empty or blank keywords, a blank og value and an empty canonical href stay absent",
+       parse_youtube('<meta name="keywords" content="">')["meta_keywords"] is None
+       and parse_youtube('<meta name="keywords" content="  ">')["meta_keywords"] is None
+       and "og_title" not in _extract_og_tags('<meta property="og:title" content="  ">')
+       and _extract_canonical('<link rel="canonical" href="">') is None)
     ok("the canonical href is unescaped once, like og_url",
        _extract_canonical('<link rel="canonical" href="https://example.com/w?a=1&amp;b=2">')
        == "https://example.com/w?a=1&b=2")

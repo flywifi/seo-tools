@@ -430,9 +430,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   has chapters, else the first entry that has them) before `chapteredPlayerBarRenderer`; a channel
   page's space-separated keywords become one tag per word or double-quoted phrase in one pass, an
   apostrophe or a backslash staying part of its word and a quote that never closes skipped; a value
-  with a comma outside its quoted phrases splits there. Keyword, og and canonical-link values are
-  read whole when the other quote character appears inside them (a title such as Kid's Room) and
-  are HTML-unescaped once, so `&amp;` reads as `&`. `PARSER_VERSION` is `2026-10-11.1`, so
+  with a comma outside its quoted phrases splits there, and a quoted phrase inside one of its parts
+  loses its quotes. Keyword, og and canonical-link values are read whole when the other quote
+  character appears inside them (a title such as Kid's Room) and are HTML-unescaped once, so `&amp;`
+  reads as `&`; an empty value is passed over, so a later tag that has one is read.
+  `PARSER_VERSION` is `2026-10-11.1`, so
   `competitor_snapshot.py --parse` reads saved pages again instead of keeping their old readings,
   and the selftest's `_READING` pin fails when what the parser extracts from its fixture pages
   changes and the version and the recorded sha256 are not both updated.

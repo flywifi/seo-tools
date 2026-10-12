@@ -4676,7 +4676,8 @@ _CT_COPY_FUNCS = ("copyfile", "copy", "copy2")
 
 def _ct_listable(pattern):
     """True for a glob pattern the scan follows: not empty, not absolute (a leading slash or
-    backslash, or a drive letter), and with no '..' part, so a listing stays under its folder."""
+    backslash, or a letter and a colon, which covers a drive letter), and with no '..' part, so a
+    listing stays under its folder."""
     return bool(pattern) and not re.match(r"[/\\]|[A-Za-z]:", pattern) \
         and ".." not in re.split(r"[/\\]", pattern)
 
@@ -4734,7 +4735,8 @@ def _ct_sources(tree, skip_lines=()):
     for scope in scopes:
         nodes = list(ast.walk(scope))
         env = {}
-        for node in nodes:  # a name's paths: each assignment and loop in this function counts
+        for node in nodes * 2:  # a name's paths: each assignment and loop counts (two passes, so
+            # a binding the breadth-first walk reaches after a name bound to it is still followed)
             if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
                 env.setdefault(node.targets[0].id, set()).update(specs(node.value, env))
             elif isinstance(node, ast.For) and isinstance(node.target, ast.Name):
@@ -5081,6 +5083,7 @@ def _ct_fixture(t, em, d):
     (t / "impl" / "mods").mkdir()
     (t / "tools" / "srvdocs").mkdir()
     (t / "outside").mkdir()
+    (t / "tools" / "raises").mkdir()
     files = {
         "tools/web/page.py": (
             '"""Page module ' + em + ' its docstring is maintainer text."""\n'
@@ -5143,6 +5146,11 @@ def _ct_fixture(t, em, d):
             '        for mod in sorted((ROOT / "impl" / "mods").glob("*.py")):\n'
             '            mod_src = mod.read_text(encoding="utf-8")\n'
             "        return body, paste, boxes, pasted\n"
+            "    def later(self, x):\n"
+            "        b = late\n"
+            "        if x:\n"
+            '            late = ROOT / "impl" / "late.md"\n'
+            '        shutil.copyfile(b, "d.md")\n'
             "def selftest():\n"
             "    import testlib\n"
             '    test_read = (ROOT / "impl" / "testread.md").read_text(encoding="utf-8")\n'
@@ -5192,6 +5200,8 @@ def _ct_fixture(t, em, d):
             '    """Helper docstring ' + em + ' maintainer text."""\n'
             '    for h in sorted((HERE / "srvdocs").glob("*.md")):\n'
             '        h.read_text(encoding="utf-8")\n'
+            '    for r in sorted((HERE / "raises").glob("*.md")):\n'
+            '        r.read_text(encoding="utf-8")\n'
             '    return "helper reply T13 ' + em + ' shown"\n'
             "async def helper_async():\n"
             '    """Async helper docstring ' + em + ' maintainer text."""\n'
@@ -5236,6 +5246,7 @@ def _ct_fixture(t, em, d):
         "impl/fromcopy.md": "T45 From-import copy " + em + "\n",
         "impl/direct/one.txt": "T46 Direct listing " + em + "\n",
         "impl/shcopy.md": "T47 Copied as sh " + em + "\n",
+        "impl/late.md": "T51 Bound deeper " + em + "\n",
         "tools/srvdocs/a.md": "T48 Beside the MCP module " + em + "\n",
         "impl/jsons/a.json": json.dumps({"note": "T49 read through a listing " + em + " as data"}),
         "impl/mods/m.py": 'MESSAGE = "T50 read through a listing ' + em + ' as a program"\n',
@@ -5279,13 +5290,13 @@ def _ct_fixture(t, em, d):
              "tools/web/static/U16.JS": "static", "tools/web/static/u16.css": "static",
              "impl/upload.md": "copied", "impl/upload/01-a.md": "copied", "impl/upload/02-b.md": "copied",
              "impl/combined.md": "copied", "impl/fromcopy.md": "copied", "impl/direct/one.txt": "copied",
-             "impl/paste-a.md": "text", "impl/paste-b.md": "text", "impl/shcopy.md": "copied",
+             "impl/paste-a.md": "text", "impl/paste-b.md": "text", "impl/shcopy.md": "copied", "impl/late.md": "copied",
              "tools/srvdocs/a.md": "text", "impl/jsons/a.json": "data", "impl/mods/m.py": "program"}
     absent = {"tools/unreached.py", "shared/x/cache.local.json", "cache.local.json", "fixture.json",
               "tools/testonly.py", "shared/x/hop2.py", "tools/testlib.py", "impl/testread.md",
               "impl/notes.local.md", "impl/upload/notes.md", "impl/upload/03-c.local.md",
               "impl/testcopy.md", "outside/x.md"}
-    tokens = {f"T{n:02d}" for n in range(1, 51)} - {"T05", "T09"}
+    tokens = {f"T{n:02d}" for n in range(1, 52)} - {"T05", "T09"}
     return kinds, absent, tokens
 
 
@@ -5332,7 +5343,17 @@ def _creator_text_selfproof():
     with tempfile.TemporaryDirectory() as td:
         t = Path(td)
         kinds, absent, tokens = _ct_fixture(t, em, d)
-        scanned, hits, unread = _creator_text_scan(t)
+        real_glob = Path.glob
+
+        def glob_raises(self, pattern, *a, **k):  # a listing whose glob raises, on every Python
+            if self.name == "raises":
+                raise OSError("glob stand-in")
+            return real_glob(self, pattern, *a, **k)
+        Path.glob = glob_raises
+        try:
+            scanned, hits, unread = _creator_text_scan(t)
+        finally:
+            Path.glob = real_glob
         if {k: scanned.get(k) for k in kinds} != kinds:
             return f"creator-text: self-proof failed -- the scan set is {scanned}"
         if absent & set(scanned):
@@ -5342,12 +5363,13 @@ def _creator_text_selfproof():
                     f"reaches, or a second import hop)")
         want_unread = sorted(["bad.json", "shared/x/badprog.py", "tools/broken.py", "tools/sub/broken2.py",
                               "tools/web/static/legacy.html", "tools/web/static/u16.html",
-                              "tools/web/static/U16.JS", "tools/web/static/u16.css", "tools/sock.py"])
+                              "tools/web/static/U16.JS", "tools/web/static/u16.css", "tools/sock.py",
+                              "tools/server.py"])
         if unread != want_unread:
             return (f"creator-text: self-proof failed -- unread files {unread}, expected {want_unread} (JSON "
                     f"and Python that do not parse, a page module and a module in a tools/ subfolder "
                     f"that do not parse, a cp1252 static file, UTF-16 static files with .html, "
-                    f"upper-case .JS and .css suffixes, and a page module with a '..' folder listing)")
+                    f"upper-case .JS and .css suffixes, a page module with a '..' folder listing, and an MCP module whose listing raises)")
         got, wrong = [], []
         for rel, line, frag in hits:
             m = _CREATOR_DASH_RE.search(frag)
@@ -5362,8 +5384,12 @@ def _creator_text_selfproof():
                     f"{'; ' + '; '.join(wrong) if wrong else ''} (each entity form, a comment left "
                     f"out, page, static, text, copied, tool, program, command, import and data text, line "
                     f"counting; not docstrings, test code, escapes or .local. files)")
-        found = _creator_text_findings(t, floor=("tools/web/page.py", "tools/absent.py",
-                                                 "tools/web/static/legacy.html"))
+        Path.glob = glob_raises
+        try:
+            found = _creator_text_findings(t, floor=("tools/web/page.py", "tools/absent.py",
+                                                     "tools/web/static/legacy.html"))
+        finally:
+            Path.glob = real_glob
         floor_msgs = [x for x in found if "no longer reaches and reads" in x]
         if not (len(floor_msgs) == 1 and "tools/absent.py" in floor_msgs[0]
                 and "legacy.html" in floor_msgs[0] and "tools/web/page.py" not in floor_msgs[0]):
