@@ -5598,9 +5598,19 @@ def _selftest_p101() -> int:
             _h.do_POST()
         finally:
             globals()["_confined_folder"] = _saved_cf
-    for _why_m in ("network_path", "unreachable"):
-        _route_m("/api/run-import", {"action": "scan", "folder": "Z:\\x", "platforms": "youtube"}, _why_m)
-        _route_m("/api/write-storage-folder", {"folder": "Z:\\x"}, _why_m)
+    # P102: the route and page checks from here on render the import screen, which asks the
+    # speech-backend probe each time (a PATH search for each engine name, slow on Windows). They test
+    # the routes and the page text, not the probe, so they share one real probe result; the probe's
+    # own checks below call it with a stand-in PATH search.
+    _stt_once = _stt_backend_present()
+    _real_stt_m = _stt_backend_present
+    globals()["_stt_backend_present"] = lambda: _stt_once
+    try:
+        for _why_m in ("network_path", "unreachable"):
+            _route_m("/api/run-import", {"action": "scan", "folder": "Z:\\x", "platforms": "youtube"}, _why_m)
+            _route_m("/api/write-storage-folder", {"folder": "Z:\\x"}, _why_m)
+    finally:
+        globals()["_stt_backend_present"] = _real_stt_m
     _screens_m = {(r, w): b for r, w, b in _sent_m}
     check(_mapped_m == ["network_path"] * 6 and _mapped_calls_m == []
           and "network_path" not in _local_m and _home_z_m != "network_path" and _posix_m != "network_path"
@@ -5745,12 +5755,15 @@ def _selftest_p101() -> int:
           f"screen does ({_kw_w}, {_imp_err_w.get('drive_root')!r}, {_imp_err_w.get('outside_home')!r})")
     # The import and hub folder fields show an example written the way this system writes paths.
     _ph_w = {}
+    _real_stt_w = _stt_backend_present
+    globals()["_stt_backend_present"] = lambda: _stt_once
     try:
         for _o_w in ("windows", "mac", "linux"):
             _OS_OVERRIDE = _o_w
             _ph_w[_o_w] = (_screen_import(), _screen_drive_hub())
     finally:
         _OS_OVERRIDE = _saved_os_w
+        globals()["_stt_backend_present"] = _real_stt_w
     check('placeholder="C:\\Users\\you\\Downloads\\Takeout"' in _ph_w["windows"][0]
           and 'placeholder="/Users/you/Downloads/Takeout"' in _ph_w["mac"][0]
           and 'placeholder="/home/you/Downloads/Takeout"' in _ph_w["linux"][0]
@@ -5907,7 +5920,8 @@ def _selftest_p101() -> int:
         for _os_v, _found_v in (("windows", {"main": "C:\\WINDOWS\\system32\\main.CPL"}),
                                 ("windows", {"whisper-cli": "C:\\tools\\whisper-cli.exe",
                                              "main": "C:\\WINDOWS\\system32\\main.CPL"}),
-                                ("linux", {"main": "/usr/local/bin/main"})):
+                                ("linux", {"main": "/usr/local/bin/main"}),
+                                ("mac", {"whisper-cli": "/Users/you/bin/whisper-cli"})):
             _OS_OVERRIDE = _os_v
             env_paths.which = lambda name, *a, _f=_found_v, **k: _f.get(name)
             _stt_v[len(_stt_v)] = _stt_backend_present()[:2]
@@ -5917,7 +5931,8 @@ def _selftest_p101() -> int:
             sys.modules.pop("faster_whisper", None)
         else:
             sys.modules["faster_whisper"] = _real_fw_v
-    check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main")},
+    check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main"),
+                     3: ("whisper.cpp", "whisper-cli")},
           f"the wizard's engine probe counts main.cpl as whisper.cpp on Windows, or misses a real engine ({_stt_v})")
     check(_quit_v[0] == "send" and "still running" in _quit_v[1] and _quit_shut_v is False,
           "/quit closes the wizard while the Visual C++ install runs, leaving its temporary folder")
@@ -6151,6 +6166,17 @@ def _selftest_p101() -> int:
         with _real_locked_c(path):
             yield
     _saved_root_c = _g_c["ROOT"]
+    _real_time_c = _g_c["time"]
+
+    class _OneSecondTime:
+        """The time module with strftime fixed to one second for the seconds stamp the copies are
+        named by, so a second copy always meets the first one's name and must take the next free
+        name; with the real clock two copies a second apart never collide (P102)."""
+        def strftime(self, fmt, *args):
+            return "20260101120000" if fmt == "%Y%m%d%H%M%S" else _real_time_c.strftime(fmt, *args)
+
+        def __getattr__(self, name):
+            return getattr(_real_time_c, name)
     with _tf_u.TemporaryDirectory() as _td_c:
         _cp = pathlib.Path(_td_c) / "pipeline" / "user-context" / "api-credentials.local.json"
         _cp.parent.mkdir(parents=True)
@@ -6158,7 +6184,7 @@ def _selftest_p101() -> int:
                                    for p in ("youtube", "pinterest", "instagram")}), encoding="utf-8")
         _refused_c, _good_c, _broken_c, _copies_c = False, {}, b"", []
         try:
-            _g_c["ROOT"], atomic_io.locked = pathlib.Path(_td_c), _watch_lock_c
+            _g_c["ROOT"], atomic_io.locked, _g_c["time"] = pathlib.Path(_td_c), _watch_lock_c, _OneSecondTime()
             _merge_api_credentials("tiktok", {"publish": {"label": "fixture-tiktok"}})
             _good_c = json.loads(_cp.read_text(encoding="utf-8"))
             _cp.write_text(_cp.read_text(encoding="utf-8").replace('"fixture-youtube"', '"fixture-youtube",', 1),
@@ -6201,7 +6227,7 @@ def _selftest_p101() -> int:
                 _c.read_bytes() == b'{"youtube": "\xfe\xff"}'
                 for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
         finally:
-            _g_c["ROOT"], atomic_io.locked = _saved_root_c, _real_locked_c
+            _g_c["ROOT"], atomic_io.locked, _g_c["time"] = _saved_root_c, _real_locked_c, _real_time_c
         check(_again_c and _copies_again_c == _copies_c
               and (os.name == "nt" or _mode_c == 0o600),
               f"a repeated refused credential save does not reuse its copy, or the copy is not owner-only "
@@ -6216,6 +6242,48 @@ def _selftest_p101() -> int:
               and _locks_c == [_cp, _cp],
               f"the credential merge does not hold its lock, or saves over a file it could not read "
               f"(refused {_refused_c}, copies {len(_copies_c)}, locks {_locks_c})")
+
+    class _MovingTime:
+        """The time module with the copies' seconds stamp one second later at each call, and time()
+        and monotonic() an hour later at each call, so a refused save repeated later meets a copy
+        made under an earlier stamp and an older clock (P102)."""
+        def __init__(self):
+            self.calls, self.clock_calls = 0, 0
+
+        def strftime(self, fmt, *args):
+            if fmt != "%Y%m%d%H%M%S":
+                return _real_time_c.strftime(fmt, *args)
+            self.calls += 1
+            return f"202601011200{self.calls:02d}"
+
+        def time(self):
+            self.clock_calls += 1
+            return _real_time_c.time() + 3600 * self.clock_calls
+
+        def monotonic(self):
+            self.clock_calls += 1
+            return _real_time_c.monotonic() + 3600 * self.clock_calls
+
+        def __getattr__(self, name):
+            return getattr(_real_time_c, name)
+    with _tf_u.TemporaryDirectory() as _td_m:
+        _cm = pathlib.Path(_td_m) / "pipeline" / "user-context" / "api-credentials.local.json"
+        _cm.parent.mkdir(parents=True)
+        _cm.write_text('{"youtube": {"publish": {"label": "fixture-youtube"}},', encoding="utf-8")
+        _moving_m, _refusals_m, _copies_m = _MovingTime(), 0, []
+        try:
+            _g_c["ROOT"], _g_c["time"] = pathlib.Path(_td_m), _moving_m
+            for _label_m in ("fixture-a", "fixture-b"):
+                try:
+                    _merge_api_credentials("tiktok", {"publish": {"label": _label_m}})
+                except ValueError:
+                    _refusals_m += 1
+            _copies_m = sorted(_cm.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+        finally:
+            _g_c["ROOT"], _g_c["time"] = _saved_root_c, _real_time_c
+        check(_refusals_m == 2 and len(_copies_m) == 1 and _moving_m.calls >= 1,
+              f"a refused credential save repeated under a later stamp and clock does not reuse its copy "
+              f"({_refusals_m} refusals, {len(_copies_m)} copies, {_moving_m.calls} stamps)")
     # P102: a credential save refused after a Connect flow is reported, and the flag is not flipped.
     _g_o = globals()
     _saved_o = {k: _g_o[k] for k in ("_oauth_publish_creds", "_merge_api_credentials", "_update_capability_flag")}
@@ -6344,7 +6412,8 @@ def _selftest_p101() -> int:
     # approve, whether the save worked or not, and a new scan deletes the batch of the scan before.
     _g_ib = globals()
     _ib_dir = tempfile.TemporaryDirectory(prefix="wizard-batch-")
-    _saved_ib = {k: _g_ib[k] for k in ("_confined_folder", "_scan_import_folder", "_STATE_PATH", "subprocess")}
+    _saved_ib = {k: _g_ib[k] for k in ("_confined_folder", "_scan_import_folder", "_STATE_PATH", "subprocess",
+                                        "_stt_backend_present")}
     _wstate_ib = _g_ib["_state"]  # the module's state; this function has a local named _state
     # A batch the creator scanned and has not approved yet stands in here as a file in the temp
     # folder these checks use: the checks start from a state that names no batch, so their first scan
@@ -6381,6 +6450,7 @@ def _selftest_p101() -> int:
         tempfile.tempdir = _ib_dir.name
         _g_ib["_STATE_PATH"] = pathlib.Path(_ib_dir.name) / "wizard-state.json"
         _g_ib["_confined_folder"] = lambda folder, **kw: (True, folder, None)
+        _g_ib["_stt_backend_present"] = lambda: _stt_once
         _g_ib["_scan_import_folder"] = lambda folder, platforms: (
             [{"platform": "youtube", "platform_video_id": "abc123", "title": "Fictional video"}],
             ["youtube: 1 record(s)"])

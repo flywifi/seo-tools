@@ -265,6 +265,36 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (wizard checks share one speech-probe result): the wizard selftest's import-route and page
+  checks that render the import screen get one stored result of the speech-backend probe
+  (`_stt_backend_present`) through a stand-in that each block removes when it ends, where each
+  render searched PATH for each engine name before; the probe's own checks still call it, with a
+  stand-in PATH search, on a simulated Windows, Linux and Mac.
+- P102 (hook command test in the guard's selftest): the test that runs the hook command wired in
+  `.claude/settings.json` under a POSIX shell, with working, failing and stdin-reading stand-in
+  Pythons on PATH, moves from `sync_check._selfproof`, which scores each of the drift guard's
+  mutation rows, to `readonly_bash_guard`'s selftest (`_selftest_hook_run`), which the selftest
+  sweep runs. In a file_hash mutation run, where the command would run the guard file on disk and
+  not the mutant, it is skipped, and a skipped run is printed as skipped and left out of the passed
+  count; the refusals `decide` returns for the selftest's hook cases must name the guard.
+- P102 (inbox selftest with stand-in limits): the inbox selftest's oversize-transcript checks run
+  the offline screener with a 20,000-byte cut in place of its 2,000,000-byte default, and its
+  export-zip checks run classify's entry limit at 50 in place of 50,000, so its test files stay
+  small. A check ties the 2 MB the inbox's oversize notes name to `injection_scan.scan_file`'s
+  default. A transcript of exactly the stand-in cut is proposed by scan and moved by approve, and
+  one a byte longer is held by scan and refused by approve, so a scan or approve that asked for a
+  smaller or a larger cut than the screener's own fails a check (rows a byte under and over it).
+  `injection_scan`'s selftest checks that with no `max_bytes` `scan_file` asks a file for 2,000,001
+  bytes and screens 2,000,000 of them (through stand-ins for `open` and `_screen_readings`), and that
+  `_screen_readings` cuts a longer text to 2,000,000 characters and marks it, and reads a text of
+  exactly 2,000,000 whole; `classify`'s selftest checks the 50,000-entry and 16 MB directory limits.
+- P102 (anchor check parses a module once): `file_hash._run_mutants` reads a module's top-level
+  function spans from `_function_spans`, cached by the source text (one entry per module text), so
+  its anchor check parses a module once per process, in a serial run too, instead of once per row
+  and per test scope (`_test_scopes`, `_in_function`). Runner controls cover two modules of the
+  same layout, a module rewritten between two runs, the parse count for three rows of one module,
+  an anchor in an async test helper, an anchor on the line after the scoring function ends, and an
+  anchor that ends on a test function's def line.
 - P102 (invariant 62 reads copied files): drift invariant 62 also scans the files a page or MCP
   module copies with `shutil.copyfile`, `copy` or `copy2` from a path it builds from ROOT or HERE, a
   name bound to one, or a folder listing a loop takes them from (`<path>.glob(...)`, directly,
@@ -328,8 +358,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   treats as non-blocking. `readonly_bash_guard.decide` refuses a PowerShell call from a guarded
   agent, and the auditor's frontmatter removes the PowerShell tool. Drift invariant 14 requires
   both matcher names, the auditor's PowerShell removal and each guarded agent named in the
-  command's fallback, and `sync_check._selfproof` runs the wired command under a POSIX shell with
-  failing interpreters first on PATH (ADR 0076). The command reads the hook input once and runs
+  command's fallback, and `readonly_bash_guard`'s selftest runs the wired command under a POSIX shell
+  with failing interpreters first on PATH (ADR 0076). The command reads the hook input once and runs
   each Python check with its stdin closed, so a stand-in that reads stdin no longer empties the
   input the no-Python fallback reads (a selftest case puts such a stand-in first on PATH). A
   Python that starts but fails to run the guard (an exit other than 0 or 2) refuses the auditor's
@@ -418,6 +448,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge
+  checks run with the seconds stamp the `.corrupt.<stamp>.bak` copies are named by fixed to one
+  second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always
+  makes the two copies under one name, and a copy opened without `O_EXCL` overwrites the first
+  and fails it. With the real clock, two copies made a second apart took different names and
+  that check passed either way. A refused save repeated under a stand-in clock (the stamp a second
+  later and `time()` an hour later at each call) must reuse its copy, so a reuse that looks only at
+  this second's copies, or only at recent ones, fails.
 - P102 (wizard runtimes from the repo .venv): the wizard's Claude Desktop entries take `uvx` and
   `npx` from the repo `.venv` first (`env_paths.venv_tool`: `bin/<name>`, or `Scripts\<name>.exe` on
   Windows), then from PATH (`wizard._mcp_command`), so the Google Workspace entry names the `uvx`

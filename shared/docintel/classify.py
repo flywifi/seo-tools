@@ -284,6 +284,9 @@ def selftest() -> int:
            zip_refusal(many) == f"more than {ZIP_MAX_ENTRIES:,} entries")
         ok("a directory over ZIP_MAX_DIRECTORY_BYTES is refused", "MB directory" in (zip_refusal(wide) or ""))
         ok("exactly the limits is allowed", zip_refusal(edge) is None)
+        # P102: the inbox selftest runs its zips with a stand-in limit, so the real one is fixed here.
+        ok("the limits are 50,000 entries and a 16 MB directory",
+           ZIP_MAX_ENTRIES == 50_000 and ZIP_MAX_DIRECTORY_BYTES == 16 * 1024 * 1024)
         big = put("big.zip", _zip_bytes([f"f{i}.txt" for i in range(ZIP_MAX_ENTRIES + 1)]))
         import time
         opened, real_zipfile = [], zipfile.ZipFile
