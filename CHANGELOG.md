@@ -13,6 +13,22 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (income ledger): `tools/books.py` keeps `pipeline/finance/income-ledger.local.json`, the
+  record of what the content business received (brand fees, platform payouts, affiliate deposits,
+  revenue share, gifted or loaned product), as entries proposed by the tool or a session and
+  confirmed by the human (`--add`, `--confirm`, `--void`, `--propose-from-invoices` for paid
+  invoices the ledger does not hold). It reports per payer and per month for a tax year
+  (`--summary`), lists gifted items with the source of each retail price (`--gifts`), compares
+  each 1099 the human enters with the ledger's cash for that payer (`--form-check`), writes
+  `<year>-income.local.csv` and `<year>-gifts.local.csv` under `pipeline/finance/exports/`
+  (`--export`; an export path inside the repo must carry `.local.`), and multiplies year-to-date
+  net by a percentage the human states (`--set-aside`). A product's retail price is stored only
+  with its source and capture date, and a brand or retailer price only with its page; otherwise
+  the price is null and the entry carries a gap (ADR 0082). Writes gate on `finance_management`;
+  `--redacted` bands amounts and initials payers and items. The `income-ledger` atom (composed by
+  `finance-desk`, routed as `income_ledger`) and the `books_add`, `books_summary` and
+  `books_export` MCP tools are the handoff. The template joins the invariant 20 allowlist; its
+  selftest runs with the Windows path stand-in (46 checks).
 - P102 (creator-facing text has no em dash): drift invariant 62
   (`sync_check.check_creator_text_dashes`) fails the build on an em dash, `&mdash;`, or `&#8212;` or
   `&#x2014;` with or without the semicolon, in the local tools' creator-facing text: the string

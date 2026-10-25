@@ -104,6 +104,10 @@ _WRITE_TOOLS = {
     "schedule_post":     {"readOnlyHint": False, "destructiveHint": True,  "openWorldHint": True},
     "obligation_build":  {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "invoice_build":     {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    # P103: appends a proposed income-ledger entry (write=True, finance_management on); writes
+    # two CSV files under pipeline/finance/exports/. Neither deletes or sends anything.
+    "books_add":         {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
+    "books_export":      {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "freshness_refresh": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "launch_setup":      {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
     "submit_compute_job": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": False},
@@ -125,6 +129,7 @@ _READ_DESPITE_NAME = {
 # was silent: these 41 inherited readOnlyHint=True without anyone recording that they had been
 # checked. Adding a tool here is an assertion that you read its body.
 _VERIFIED_READS = {
+    "books_summary",  # P103: reads the income ledger and adds; writes nothing
     "cache_query", "cashflow_view", "chapter_map", "code_lookup", "competitor_scan",
     "construction_lookup", "contact_lookup", "cost_rollup", "coverage_verify", "currency_scan",
     "deal_status", "drift_check", "edit_captions", "edit_parse_fcpxml", "edit_preflight",
@@ -2545,6 +2550,54 @@ def import_finance(today: str | None = None) -> str:
             "human_review_required": True,
             "note": "Deterministic AR view from tools/finance.py; map chase dates onto content-calendar and production-task. A human confirms before any chase or calendar action; nothing is sent.",
         }, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def books_summary(year: int, redacted: bool = False) -> str:
+    """Income ledger report for a tax year (P103): per payer, cash received (refunds subtract) and
+    the retail value of priced product received, the count of unpriced items, entries still
+    awaiting the human's confirmation, cash by month, and year totals. Read-only, always
+    available; reads pipeline/finance/income-ledger.local.json through tools/books.py (exact
+    decimal, no tokens). The boundary line opens the result. EXPOSURE NOTE: raw output carries
+    real amounts and payer names; pass redacted=True (banded amounts, initialed payers) for
+    anything quoted off this machine."""
+    sys.path.insert(0, str(HERE))
+    import books as _bk  # type: ignore
+    try:
+        out = _bk.payer_summary(int(year))
+        return json.dumps(_bk.redact(out) if redacted else out, indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def books_add(entry: dict, write: bool = False) -> str:
+    """Validate one income-ledger entry (P103) and, with write=True and finance_management on,
+    append it as PROPOSED for the human to confirm. A cash kind needs an amount; a product entry
+    carries its value in product.retail_price, stored only with price_source and
+    price_captured_at, and a brand or retailer price only with the page it was read from; with no
+    source the price stays null and gaps[] names what to provide. The same event added twice is
+    one entry (deterministic entry_id). Nothing is estimated and nothing is sent."""
+    sys.path.insert(0, str(HERE))
+    import books as _bk  # type: ignore
+    try:
+        return json.dumps(_bk.add_entry(entry, write=bool(write)), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def books_export(year: int) -> str:
+    """Write the income ledger for a tax year as two CSV files under pipeline/finance/exports/
+    (P103): <year>-income.local.csv and <year>-gifts.local.csv, each opening with the boundary
+    line. The paths are gitignored; a path inside the repo without .local. in its name is
+    refused by tools/books.py. Returns the paths and row counts."""
+    sys.path.insert(0, str(HERE))
+    import books as _bk  # type: ignore
+    try:
+        return json.dumps(_bk.export_csv(int(year)), indent=2, ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": str(exc)})
 

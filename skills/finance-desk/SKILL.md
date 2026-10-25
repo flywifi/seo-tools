@@ -1,6 +1,6 @@
 ---
 name: finance-desk
-description: "the Pipeline/CRM spoke for the money book: drafts invoices from a deal's agreed figures (never sends), reports portfolio-wide accounts receivable with aging and accrued late penalties, builds projected cost estimates for future projects, and computes standardized proposal price floors from the rate card and cost data. All arithmetic runs offline in tools/finance.py; every figure comes from records or explicit inputs. Does NOT manage the deal lifecycle (deal-pipeline), review contracts (contract-desk), plan production for one signed deal (deal-resourcing), or send anything anywhere."
+description: "the Pipeline/CRM spoke for the money book: drafts invoices from a deal's agreed figures (never sends), reports portfolio-wide accounts receivable with aging and accrued late penalties, builds projected cost estimates for future projects, computes standardized proposal price floors from the rate card and cost data, and keeps the income ledger of what the content business received (cash and gifted product per payer, gift register, 1099 check, CSV export). All arithmetic runs offline in tools/finance.py and tools/books.py; every figure comes from records or explicit inputs. Does NOT manage the deal lifecycle (deal-pipeline), review contracts (contract-desk), plan production for one signed deal (deal-resourcing), or send anything anywhere."
 load: for finance-desk requests (invoicing, AR, cost estimates, proposal pricing)
 ---
 
@@ -45,11 +45,17 @@ commits money externally: sending an invoice, quoting a price, agreeing a rate
   bucket (gentle for current and 1 to 30 days, firm for 31 to 60, final for 61 plus), figures
   verbatim from a fresh ar-review row (`dunning-draft`). Routed as `dunning_draft`. NEVER sends;
   drafts land in gitignored .local files and the human sends from their own client.
+- `ledger` — the incoming side of the book: record what the content business received (cash from
+  a brand, platform or affiliate network; gifted or loaned product with a retail price stored only
+  with its source), confirm or void entries, and report per payer and per month for a tax year,
+  the gift register, the 1099 check, the CSV export and a set-aside figure at a percentage the
+  creator states (`income-ledger`, `tools/books.py`). Routed as `income_ledger`. Reads are always
+  available; entry writes gate on `finance_management`.
 
 ## How the money math runs
 
-Every computation is `tools/finance.py` (offline, exact Decimal, `computed_by` on every result;
-see `shared/finance-engine.md` for the rules). Read-only scans need no flag. Record writes are
+Every computation is `tools/finance.py` or, for the income ledger, `tools/books.py` (offline, exact
+Decimal, `computed_by` on every result; see `shared/finance-engine.md` for the rules). Read-only scans need no flag. Record writes are
 gated by `finance_management`; invoice writes additionally by `invoice_generation`. Real records
 live in `pipeline/finance/*.local.json` (gitignored); this spoke never invents a figure: missing
 data is null plus a gap naming the fix.

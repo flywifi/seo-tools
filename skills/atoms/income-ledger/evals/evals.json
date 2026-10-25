@@ -1,0 +1,42 @@
+[
+  {
+    "test_id": "income-ledger-add-cash",
+    "description": "a cash payment is validated, normalized and appended as proposed",
+    "input": {
+      "entry": {"date": "2026-03-04", "payer": "Hearthline Paint", "payer_type": "brand", "kind": "cash", "amount": "1250", "source": "user_entry"},
+      "write": true
+    },
+    "expected_output_keys": ["entry", "written", "human_review_required", "computed_by"],
+    "assertions": [
+      "the boundary line opens the output",
+      "amount is quantized to cents and tax_year is derived from the date",
+      "status is proposed and entry_id is deterministic for the same event",
+      "with finance_management off the entry is returned, written is false and the gate is named"
+    ]
+  },
+  {
+    "test_id": "income-ledger-gift-provenance",
+    "description": "a gifted product carries its retail price only with a source and a page",
+    "input": {
+      "entry": {"date": "2026-05-11", "payer": "Northstar Tools", "payer_type": "brand", "kind": "product", "source": "user_entry",
+                "product": {"item": "cordless brad nailer", "quantity": 1, "retail_price": "199.99", "price_source": "brand_page", "price_source_ref": null, "price_captured_at": "2026-05-11"}}
+    },
+    "expected_output_keys": ["problems", "human_review_required"],
+    "assertions": [
+      "a brand_page price with no page reference is refused with the field named",
+      "the same product with no price at all is accepted with a gap naming what to provide",
+      "no value is estimated or filled in"
+    ]
+  },
+  {
+    "test_id": "income-ledger-form-check",
+    "description": "a 1099 the creator enters is compared with the ledger's cash for that payer",
+    "input": {"year": 2026},
+    "expected_output_keys": ["forms", "payers_without_form", "human_review_required", "computed_by"],
+    "assertions": [
+      "each form row carries form_amount, ledger_cash, difference and matches",
+      "a payer with cash and no form is listed under payers_without_form",
+      "the difference is reported, never explained or adjusted"
+    ]
+  }
+]

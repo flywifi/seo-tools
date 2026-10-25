@@ -90,3 +90,4 @@ added beyond what those records state. New decisions get the next number via
 | [0079](0079-p102-windows-visual-cpp-runtime-install.md) | On Windows the setup wizard installs Microsoft's Visual C++ runtime on request, after a signature check | 2026-10-10 | Accepted |
 | [0080](0080-p102-text-files-read-by-bom-then-utf8-then-cp1252.md) | Creator OS reads a creator's text files by byte-order mark, then strict UTF-8, then cp1252 | 2026-10-10 | Accepted |
 | [0081](0081-p102-creator-facing-text-has-no-em-dash.md) | The drift guard keeps em dashes out of the local tools' creator-facing text | 2026-10-11 | Accepted |
+| [0082](0082-p103-income-ledger-and-retail-price-provenance.md) | The income ledger records what the content business received, and a retail price only with its source | 2026-10-25 | Accepted |

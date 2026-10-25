@@ -61,6 +61,13 @@
     },
     {
       "step": 9,
+      "atom": "income-ledger",
+      "input_from": "an entry to add or confirm, or year (+ percent for set-aside)",
+      "output_to": "step10",
+      "condition": "action is ledger; reads always available; entry writes and confirms require finance_management; a product price needs its source and page or stays null with a gap"
+    },
+    {
+      "step": 10,
       "atom": "govern-artifact",
       "input_from": "assembled_finance_report",
       "output_to": "final",
@@ -79,7 +86,8 @@
     "proposal-price",
     "cashflow-view",
     "payment-reconcile",
-    "dunning-draft"
+    "dunning-draft",
+    "income-ledger"
   ],
   "note": "Master gate for writes: finance_management. deal-resourcing keeps the per-deal trigger-based invoice schedule; this spoke drafts the actual invoice records and reads the whole book. Boundary and gate language come from shared/finance-engine.md; the AR chase queue feeds the content calendar and production tasks via the import_finance MCP handoff (chunk 8), never a parallel calendar."
 }

@@ -117,6 +117,18 @@ discipline (`--manifest` / `--verify`) applies; and the `finance_scan` / `invoic
 does the arithmetic, and nothing money-facing is sent without an explicit human yes
 (`shared/finance-engine.md`).
 
+The finance bucket's incoming side is `tools/books.py` (P103): the income ledger,
+`pipeline/finance/income-ledger.local.json`, holds what the content business received (brand fees,
+platform payouts, affiliate deposits, revenue share, gifted or loaned product) as proposed entries
+the human confirms. It reports per payer and per month for a tax year, lists gifted items with the
+source of each retail price, checks each 1099 the human enters against the ledger's cash for that
+payer, writes a CSV export under `pipeline/finance/exports/` (a path inside the repo must carry
+`.local.`), and multiplies year-to-date net by a percentage the human states. Reads are always
+available; writes gate on `finance_management`; a retail price is stored only with its source and
+date, else the entry carries a gap. The `books_add`, `books_summary` and `books_export` MCP tools <!-- verify: tools/books.py::payer_summary -->
+are the handoff; `--redacted` bands amounts and initials payers for anything quoted off this
+machine.
+
 The third realized instance is the CRM read lane (P32): `tools/accounts.py` reads
 `pipeline/accounts/*.local.json` and `pipeline/deals/*.local.json` to resolve a fuzzy brand phrase
 to one account (tiered exact/alias/substring/difflib/brand-category matching that never auto-picks
@@ -144,6 +156,13 @@ python3 tools/finance.py --cashflow --horizon-days 90
 
 # match a bank export to open invoices (proposal-only; the CSV must be a .local. path or outside the repo)
 python3 tools/finance.py --reconcile pipeline/finance/checking.local.csv
+
+# the income ledger: what came in, per payer and per month (read-only; writes gate on finance_management)
+python3 tools/books.py --summary --year 2026 --redacted
+python3 tools/books.py --add entry.json --write
+python3 tools/books.py --gifts --year 2026
+python3 tools/books.py --form-check --year 2026
+python3 tools/books.py --export --year 2026
 ```
 
 ## The privacy boundary (P31)
