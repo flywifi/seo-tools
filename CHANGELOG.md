@@ -21,14 +21,21 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (`--summary`), lists gifted items with the source of each retail price (`--gifts`), compares
   each 1099 the human enters with the ledger's cash for that payer (`--form-check`), writes
   `<year>-income.local.csv` and `<year>-gifts.local.csv` under `pipeline/finance/exports/`
-  (`--export`; an export path inside the repo must carry `.local.`), and multiplies year-to-date
-  net by a percentage the human states (`--set-aside`). A product's retail price is stored only
-  with its source and capture date, and a brand or retailer price only with its page; otherwise
-  the price is null and the entry carries a gap (ADR 0082). Writes gate on `finance_management`;
-  `--redacted` bands amounts and initials payers and items. The `income-ledger` atom (composed by
+  (`--export`; an export path inside the repo must lie under `pipeline/finance/` and carry
+  `.local.` in its name, and a relative path is read from the repo root), and multiplies
+  year-to-date net by a percentage the human states (`--set-aside`; a trailing `%` is read, a
+  comma decimal is refused). A product's retail price is stored only with its source and capture
+  date, and a brand or retailer price only with its page; otherwise the price is null and the
+  entry carries a gap (ADR 0082). An added entry is stored as proposed whatever status it
+  carries; a refund's amount is negative; a quantity is a whole number of 1 or more, and 1 when
+  not given. The entry id compares payer and item without case or extra spaces, so a re-sent
+  receipt is one entry, and a second identical payment on one day is told apart by its
+  `evidence_ref` or `sequence: 2`. The form check matches payers the same way. Writes gate on
+  `finance_management`; `--redacted` bands the ledger's amounts and hides payer and item names,
+  page references, notes and content references. The `income-ledger` atom (composed by
   `finance-desk`, routed as `income_ledger`) and the `books_add`, `books_summary` and
-  `books_export` MCP tools are the handoff. The template joins the invariant 20 allowlist; its
-  selftest runs with the Windows path stand-in (46 checks).
+  `books_export` MCP tools are the handoff. The template joins the invariant 20 allowlist; the
+  selftest runs with the Windows path stand-in.
 - P102 (creator-facing text has no em dash): drift invariant 62
   (`sync_check.check_creator_text_dashes`) fails the build on an em dash, `&mdash;`, or `&#8212;` or
   `&#x2014;` with or without the semicolon, in the local tools' creator-facing text: the string

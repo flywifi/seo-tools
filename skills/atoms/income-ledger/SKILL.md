@@ -37,12 +37,14 @@ Do NOT use for:
 
 ## Inputs
 One of:
-- an entry to add: `date`, `payer`, `payer_type` (brand, platform, affiliate_network, agency,
-  other), `kind` (cash, product, affiliate, ad_revenue, revenue_share, refund), `amount` for a cash
-  kind, and for a product `product.item`, `quantity`, and the retail price WITH `price_source`
-  (brand_page, retailer_page, user_stated), `price_source_ref` (the page, required for a brand or
-  retailer price) and `price_captured_at`; optional `deal_id`, `invoice_id`, `shipment_id`,
-  `content_refs`, `evidence_ref`, `notes`;
+- an entry to add: `date` (YYYY-MM-DD, not after today), `payer`, `payer_type` (brand,
+  platform, affiliate_network, agency, other), `kind` (cash, product, affiliate, ad_revenue,
+  revenue_share, refund), `amount` for a cash kind (negative for a refund), and for a product
+  `product.item`, `quantity` (a whole number, 1 when not given), and the retail price WITH
+  `price_source` (brand_page, retailer_page, user_stated), `price_source_ref` (the page, required
+  for a brand or retailer price) and `price_captured_at`; optional `deal_id`, `invoice_id`,
+  `shipment_id`, `content_refs`, `evidence_ref`, `notes`, and `sequence` (2, 3 and so on) for a
+  second identical payment on the same day;
 - a confirm or void of an existing `entry_id`;
 - a report request: `year`, and for set-aside a `percent` the creator states.
 
@@ -52,14 +54,17 @@ Follow `shared/method.md`. Call `tools/books.py` (or the `books_add`, `books_sum
 
 ### Step 1: add or confirm
 - `python3 tools/books.py --add entry.json --write` validates, normalizes (cents, `tax_year`, a
-  deterministic `entry_id` so the same event proposed twice is one entry) and appends the entry as
-  `proposed`. The write needs `finance_management` on; otherwise the validated entry comes back
-  with the gate named and nothing is written.
+  deterministic `entry_id` that compares payer and item without case or extra spaces, so the same
+  event proposed twice is one entry) and appends the entry as `proposed`, whatever status the
+  input carries. A second identical payment on one day is refused as a duplicate unless it
+  carries its own `evidence_ref` or `sequence: 2`. The write needs `finance_management` on;
+  otherwise the validated entry comes back with the gate named and nothing is written.
 - A product with a retail price but no source, or a brand or retailer price with no page, is <!-- verify: tools/books.py::validate_entry -->
   refused with the field named. A product with no price is accepted with a gap that says what to
   provide. The atom never estimates a value.
 - `--propose-from-invoices` lists the paid invoices (`tools/finance.py mark_paid`) the ledger does
-  not hold yet; `--write` appends them as proposed.
+  not hold yet, and under `skipped` the paid ones that do not make a valid entry, with the
+  reason; `--write` appends the proposals as proposed.
 - After the creator's explicit yes per entry: `--confirm <entry_id>`; a mistake: `--void <entry_id>`.
   Void entries leave every report.
 
@@ -69,15 +74,17 @@ Follow `shared/method.md`. Call `tools/books.py` (or the `books_add`, `books_sum
 - `--gifts --year YYYY`: every product entry with its price, price source and page, disposition,
   and the content it was featured in; unpriced items first.
 - `--form-check --year YYYY`: each form in `forms_received` against the ledger's cash total for <!-- verify: tools/books.py::form_check -->
-  that payer, with the difference, plus payers with cash and no form. The atom reports the
-  difference; it does not explain it.
+  that payer (names compared without case or extra spaces), with the difference, plus payers with
+  cash and no form. A form whose amount is not a number is listed with the problem. The atom
+  reports the difference; it does not explain it.
 - `--set-aside --year YYYY --percent P`: year-to-date net (cash plus priced product minus this
-  year's cost actuals) times P. P is the creator's number; there is no default.
-- `--export --year YYYY`: `<year>-income.local.csv` and `<year>-gifts.local.csv` under
-  `pipeline/finance/exports/`, each starting with the boundary line. An export path inside the repo
-  must carry `.local.` in its name or the tool refuses it.
-- Add `--redacted` (banded amounts, initialed payers and items, page references hidden) for
-  anything quoted off this machine.
+  year's cost actuals) times P. P is the creator's number (`25` or `25%`); there is no default.
+- `--export --year YYYY [--out PATH]`: `<year>-income.local.csv` and `<year>-gifts.local.csv`
+  under `pipeline/finance/exports/`, each starting with the boundary line. A relative `--out` is
+  read from the repo root; a path inside the repo must lie under `pipeline/finance/` and carry
+  `.local.` in its name, or the tool refuses it.
+- Add `--redacted` (banded amounts, initialed payers and items, page references, notes and
+  content references hidden) for anything quoted off this machine.
 
 ## Output contract
 The tool's JSON verbatim: the boundary line first, `computed_by`, `human_review_required: true`,

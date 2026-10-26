@@ -37,10 +37,15 @@ null with a gap, not an estimate.
    always on, writes behind `finance_management`, redaction for anything quoted off the machine,
    and the boundary line on every report, CSV and set-aside result. The set-aside figure has no
    default percentage; the human's number is the only input.
-5. A deterministic `entry_id` (`BK-<yyyymmdd>-<8 hex>` over date, payer, kind, amount, invoice
-   id and evidence hash) makes a receipt or invoice proposed twice one entry.
-6. Exports go under `pipeline/finance/exports/` as `.local.csv` files; an export path inside the
-   repo without `.local.` in its name is refused, the rule the bank-export reader already applies.
+5. A deterministic `entry_id` (`BK-<yyyymmdd>-<8 hex>` over date, payer and item compared
+   without case or extra spaces, kind, amount, invoice id, evidence hash, evidence reference and
+   sequence) makes a receipt or invoice proposed twice one entry. A second identical payment on
+   one day is a different event only when the human says so, by its evidence reference or by
+   `sequence` 2, 3 and so on; without either it is refused as a duplicate.
+6. Exports go under `pipeline/finance/exports/` as `.local.csv` files. An export path inside the
+   repo must lie under `pipeline/finance/`, which git ignores, and carry `.local.` in its name
+   (the bank-export reader's name rule); a `.local.csv` elsewhere in the repo is not ignored by
+   git, so the location is part of the rule.
 
 ## Consequences
 
@@ -51,7 +56,7 @@ null with a gap, not an estimate.
 - Not done here: receipt and remittance capture from the hub Inbox (the next package), a
   dashboard view, optical character recognition of photographed receipts, and a price-capture
   assist that reads a brand's page; each arrives flag-gated in its own change.
-- Verified by `python3 tools/books.py --selftest` (46 checks, run with the Windows path stand-in),
+- Verified by `python3 tools/books.py --selftest` (run with the Windows path stand-in),
   the committed mutation rows for `tools/books.py` in `tools/file_hash.py`, drift invariant 20
   (the template is the only tracked file under `pipeline/finance/` this change adds) and
   `tools/secret_scan.py` over the template (no figure in it).

@@ -22,17 +22,23 @@ gift register, a 1099 check, a CSV export and a set-aside figure. Invoices and A
   `gaps[]` names what to provide. The tool never estimates a value.
 - Writes gate on `finance_management`; a refused write returns the validated entry and the gate's
   name, and touches nothing.
-- `entry_id` is deterministic over date, payer, kind, amount, invoice id and evidence hash, and a
-  duplicate id is refused, so one receipt or invoice is one entry.
-- A ledger file that does not parse stops the write; it is never overwritten.
-- An export inside the repo must carry `.local.` in its name (the same structural rule as the <!-- verify: tools/books.py::export_csv -->
-  bank-export reader); `pipeline/finance/exports/` is covered by the finance gitignore rule.
+- `entry_id` is deterministic over date, payer and item (without case or extra spaces), kind,
+  amount, invoice id, evidence hash, evidence reference and sequence, and a duplicate id is
+  refused, so one receipt or invoice is one entry. A second identical payment on one day needs its
+  own evidence reference or `sequence: 2`.
+- An added entry is stored as `proposed` whatever status it carries; only `--confirm` confirms.
+- A ledger file that does not parse (an empty file included) or has another shape stops the
+  write; it is never overwritten.
+- An export inside the repo must lie under `pipeline/finance/` and carry `.local.` in its name <!-- verify: tools/books.py::export_csv -->
+  (a `.local.csv` elsewhere in the repo is not gitignored); a relative path is read from the repo
+  root.
 - Set-aside has no default percentage; the creator's number is the only input.
 - Void entries leave every report; proposed and confirmed entries both count, each flagged.
 
 ## Known failure modes
 - A payer named two ways (an agency paying for a brand) splits one relationship across two rows;
-  the creator chooses one name per payer and the form check follows that name.
+  the creator chooses one name per payer and the form check follows that name. Names that differ
+  only in case or spacing are one payer.
 - A platform's 1099 reports gross before its fee while the ledger holds the net deposit; the
   check reports the difference and leaves the explanation to the creator and the CPA.
 
@@ -44,12 +50,16 @@ gift register, a 1099 check, a CSV export and a set-aside figure. Invoices and A
 ## Regression cases to preserve
 1. A brand price without its page is refused; an unpriced product is accepted with a gap.
 2. The gate refuses a write with `finance_management` off and no file appears.
-3. The same event added twice is one entry (duplicate id refused).
-4. Refunds net against cash; another tax year's entries stay out; void entries leave the summary.
+3. The same event added twice is one entry (duplicate id refused), also with the payer re-cased;
+   another event on the same day, or a `sequence: 2` repeat, is written.
+4. Refunds are negative and net against cash; another tax year's entries stay out; void entries
+   leave the summary.
 5. The form check reports the difference between a 1099 and the ledger's cash for that payer.
-6. An in-repo export without `.local.` is refused; the written CSVs start with the boundary.
+6. An in-repo export without `.local.`, or outside `pipeline/finance/`, is refused; both written
+   CSVs start with the boundary; an out name without `-income` keeps two files.
 7. A ledger that does not parse stops the write and is left as it was.
-Mapped to evals/evals.json and `python3 tools/books.py --selftest` (46 checks).
+8. Redacted output carries no amount, payer, item, page reference, note or content reference.
+Mapped to evals/evals.json and `python3 tools/books.py --selftest`.
 
 ## Approval-gated changes
 The entry shape, the price-provenance rule, the gate, the id derivation, the export path rule,
@@ -61,6 +71,6 @@ figure as proposed with the disagreement in `notes`; the creator's confirm or vo
 
 ## Update checklist
 1. Edit SKILL.md / this file.
-2. `python3 tools/books.py --selftest` passes 46 of 46.
+2. `python3 tools/books.py --selftest` passes.
 3. `python3 tools/sync_check.py` exits 0.
 Verify all backticked path references in this file and SKILL.md resolve to real files on disk.

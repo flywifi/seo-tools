@@ -2575,15 +2575,17 @@ def books_summary(year: int, redacted: bool = False) -> str:
 @mcp.tool()
 def books_add(entry: dict, write: bool = False) -> str:
     """Validate one income-ledger entry (P103) and, with write=True and finance_management on,
-    append it as PROPOSED for the human to confirm. A cash kind needs an amount; a product entry
-    carries its value in product.retail_price, stored only with price_source and
-    price_captured_at, and a brand or retailer price only with the page it was read from; with no
-    source the price stays null and gaps[] names what to provide. The same event added twice is
-    one entry (deterministic entry_id). Nothing is estimated and nothing is sent."""
+    append it as PROPOSED for the human to confirm (a status in the entry is not kept). A cash
+    kind needs an amount, negative for a refund; a product entry carries its value in
+    product.retail_price, stored only with price_source and price_captured_at, and a brand or
+    retailer price only with the page it was read from; with no source the price stays null and
+    gaps[] names what to provide. The same event added twice is one entry (deterministic
+    entry_id); a second identical payment on one day needs its evidence_ref or sequence 2.
+    write is a write only when it is true. Nothing is estimated and nothing is sent."""
     sys.path.insert(0, str(HERE))
     import books as _bk  # type: ignore
     try:
-        return json.dumps(_bk.add_entry(entry, write=bool(write)), indent=2, ensure_ascii=False)
+        return json.dumps(_bk.add_entry(entry, write=_bk.write_flag(write)), indent=2, ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": str(exc)})
 
