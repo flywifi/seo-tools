@@ -114,16 +114,22 @@ def write_flag(value):
 
 
 def _num(x, field):
-    """x as an exact Decimal, or ValueError naming the field: None, an empty string, a bool, text
-    Decimal cannot read ("$100", "27,5") and NaN or infinity are refused, never guessed."""
+    """x as an exact Decimal, or ValueError naming the field (never the value, so a redacted
+    report that carries the message carries no figure): None, an empty string, a bool, text
+    Decimal cannot read ("$100", "27,5"), NaN or infinity, and a number too large to hold in
+    cents are refused, never guessed."""
     if x is None or x == "" or isinstance(x, bool):
         raise ValueError(f"{field} is required and must be a number")
     try:
         d = Decimal(str(x).strip())
     except InvalidOperation:
-        raise ValueError(f"{field} must be a number ({x!r})") from None
+        raise ValueError(f"{field} must be a number (digits, with an optional decimal point)") from None
     if not d.is_finite():
-        raise ValueError(f"{field} must be a finite number ({x!r})")
+        raise ValueError(f"{field} must be a finite number")
+    try:
+        d.quantize(_fin.CENT)
+    except InvalidOperation:
+        raise ValueError(f"{field} is too large") from None
     return d
 
 
@@ -381,7 +387,7 @@ def payer_summary(year, ledger=None):
             amt = _dec(e.get("amount"))
             row["cash"] += amt
             totals["cash"] += amt
-            m = str(e["date"])[:7]
+            m = str(e.get("date") or "undated")[:7]
             months[m] = months.get(m, Decimal("0.00")) + amt
         elif e.get("kind") == "product":
             row["items"] += _quantity(e.get("product") or {}) or 0
@@ -447,7 +453,7 @@ def form_check(year, ledger=None):
         covered.add(_name_key(payer))
         ledger_cash = Decimal(by_key.get(_name_key(payer), {}).get("cash", "0.00"))
         try:
-            form_amt = _fin.money(_num(f.get("amount"), f"the {f.get('form') or 'form'} amount for {payer}"))
+            form_amt = _fin.money(_num(f.get("amount"), f"the {f.get('form') or 'form'} amount"))
         except ValueError as exc:
             rows.append({"payer": payer, "form": f.get("form"), "ledger_cash": str(ledger_cash),
                          "matches": None, "problem": str(exc)})
@@ -502,23 +508,61 @@ def _gifts_name(name):
     return f"{head}-gifts.{rest}" if dot else f"{name}-gifts"
 
 
+def _under(path, top, samefile=os.path.samefile):
+    """True when path, resolved, lies in top: by its name, or by the identity of a folder on its
+    way up that exists (so a path spelled in another case on a filesystem that ignores case, as
+    macOS does by default, still counts as inside)."""
+    p, t = Path(path).resolve(), Path(top).resolve()
+    if p.is_relative_to(t):
+        return True
+    for a in (p, *p.parents):
+        try:
+            if a.exists() and samefile(a, t):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def _export_refusal(path, root):
+    """Why an export may not be written at path, or None. Inside the repo it must be a .local.csv
+    file under pipeline/finance/, where git ignores it (judged on the resolved path, so a link
+    cannot point it elsewhere). Anywhere, an existing file is replaced only when it is an earlier
+    export (its first line is the boundary line), so a ledger, an invoice or any other file is
+    never overwritten."""
+    real = Path(path).resolve()
+    if _under(real, root):
+        if not (real.name.endswith(".csv") and ".local." in real.name):
+            return f"an export inside the repo must be a .local.csv file ({real.name})"
+        if not _under(real, Path(root) / "pipeline" / "finance"):
+            return f"an export inside the repo goes under pipeline/finance/, where git ignores it ({real})"
+    if real.exists():
+        try:
+            with open(real, encoding="utf-8", errors="replace") as fh:
+                first = fh.readline().rstrip("\r\n")
+        except OSError as exc:
+            return f"{real.name} could not be read to check that it is an earlier export ({exc})"
+        if first != BOUNDARY:
+            return f"{real.name} exists and is not an earlier export; it was left as it is"
+    return None
+
+
 def export_csv(year, out_path=None, ledger=None):
     """Two CSV files for the CPA: <year>-income.local.csv (every live entry) and
     <year>-gifts.local.csv (the register), by default under pipeline/finance/exports/. A relative
-    out path is read from the repository root. An out path inside the repo must lie under
-    pipeline/finance/ (which git ignores) and carry .local. in its name; outside the repo any
-    path is allowed."""
+    out path is read from the repository root. Each file passes _export_refusal before either is
+    written: inside the repo a .local.csv file under pipeline/finance/, and anywhere a file that
+    already exists only when it is an earlier export."""
     ledger = load_ledger() if ledger is None else ledger
     root = _root()
     base = Path(out_path) if out_path else root / "pipeline" / "finance" / "exports" / f"{year}-income.local.csv"
     if not base.is_absolute():
         base = root / base
-    inside = base.resolve().is_relative_to(root.resolve())
-    if inside and ".local." not in base.name:
-        raise ValueError(f"refused: an export inside the repo must carry .local. in its name ({base.name})")
-    if inside and not base.resolve().is_relative_to((root / "pipeline" / "finance").resolve()):
-        raise ValueError(f"refused: an export inside the repo goes under pipeline/finance/, which git ignores ({base})")
     gifts = base.with_name(_gifts_name(base.name))
+    for target in (base, gifts):
+        why = _export_refusal(target, root)
+        if why:
+            raise ValueError(f"refused: {why}")
     base.parent.mkdir(parents=True, exist_ok=True)
     cols = ["entry_id", "status", "date", "payer", "payer_type", "kind", "amount", "item", "quantity",
             "retail_price", "price_source", "price_source_ref", "deal_id", "invoice_id", "evidence_ref",
@@ -576,7 +620,14 @@ def redact(obj):
         return res
     out = walk(out)
     if isinstance(out, dict) and isinstance(out.get("payers"), dict):
-        out["payers"] = {_fin._initials(k): v for k, v in out["payers"].items()}
+        keyed = {}
+        for k, v in out["payers"].items():
+            ini = _fin._initials(k)
+            key, n = ini, 2
+            while key in keyed:  # two payers with the same initials stay two rows
+                key, n = f"{ini} {n}", n + 1
+            keyed[key] = v
+        out["payers"] = keyed
     return out
 
 
@@ -615,6 +666,47 @@ def selftest():
     def problems_with(entry, text):
         return any(text in p for p in validate_entry(entry))
 
+    band_labels = sorted({name for _edge, name in _fin._BANDS} | {"over 50k"}, key=len, reverse=True)
+
+    def figures(obj, key=None, out=None):
+        """The whole-number part of each figure under the ledger's and finance's amount keys."""
+        out = set() if out is None else out
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k == "by_month" and isinstance(v, dict):
+                    out.update(str(abs(int(Decimal(a)))) for a in v.values())
+                else:
+                    figures(v, k, out)
+        elif isinstance(obj, list):
+            for v in obj:
+                figures(v, key, out)
+        elif key in _LEDGER_AMOUNT_KEYS + ("amount", "net") and obj not in (None, ""):
+            out.add(str(abs(int(Decimal(str(obj))))))
+        return out
+
+    def leaked(raw_obj, red_text):
+        """The figures of raw_obj whose whole-number part still stands in red_text, band labels aside."""
+        text = red_text
+        for label in band_labels:
+            text = text.replace(label, " ")
+        return sorted(x for x in figures(raw_obj) if x != "0" and re.search(rf"(?<![\w.]){x}(?!\w)", text))
+
+    def run_cli(args):
+        """(exit code or the exception's name, text) of main(args) printing to a cp1252 stream."""
+        import io
+        buf = io.BytesIO()
+        stream = io.TextIOWrapper(buf, encoding="cp1252")
+        saved_out = sys.stdout
+        sys.stdout = stream
+        try:
+            rc = main(args)
+            stream.flush()
+        except UnicodeEncodeError:
+            rc = "UnicodeEncodeError"
+        finally:
+            sys.stdout = saved_out
+        return rc, buf.getvalue().decode("utf-8", errors="replace")
+
     # validation
     _c("a cash entry validates", validate_entry(cash()) == [], f)
     _c("a product entry with a sourced price validates", validate_entry(product()) == [], f)
@@ -643,10 +735,20 @@ def selftest():
     _c("a refund must be negative and must carry an amount",
        validate_entry(cash(kind="refund", amount="-40")) == []
        and problems_with(cash(kind="refund", amount="40"), "negative")
-       and problems_with(cash(kind="refund", amount=None), "amount is required"), f)
+       and problems_with(cash(kind="refund", amount=None), "amount is required")
+       and problems_with(cash(kind="refund", amount="0"), "negative")
+       and problems_with(cash(kind="refund", amount="-0"), "negative"), f)
+    _c("an amount too large to hold in cents is refused, and no message repeats the value",
+       problems_with(cash(amount="1e30"), "too large") and problems_with(cash(amount="1e26"), "too large")
+       and not any("4,750" in p or "1e30" in p for p in validate_entry(cash(amount="$4,750"))
+                   + validate_entry(cash(amount="1e30"))), f)
     _c("a date not written YYYY-MM-DD, or after today, is refused",
        all(problems_with(cash(date=d), "YYYY-MM-DD") for d in ("March 4", "20260304", "2026-W10-1"))
        and problems_with(cash(date="2099-01-01"), "after today"), f)
+    _c("an entry dated today, with a price captured today, is accepted",
+       validate_entry(cash(), today=date(2026, 3, 4)) == []
+       and validate_entry(product(), today=date(2026, 5, 11)) == []
+       and validate_entry(product(), today=date(2026, 5, 10)) != [], f)
     _c("a blank or non-text payer is refused",
        problems_with(cash(payer="   "), "payer is required") and problems_with(cash(payer=5), "payer is required"), f)
     _c("an unknown kind is refused", problems_with(cash(kind="tip"), "kind"), f)
@@ -660,8 +762,9 @@ def selftest():
        and n["product"]["quantity"] == 1, f)
     _c("normalize quantizes and derives tax_year", normalize(cash(amount="1250"))["amount"] == "1250.00"
        and normalize(cash())["tax_year"] == 2026, f)
-    _c("an input status of confirmed is stored as proposed",
-       normalize(cash(status="confirmed"))["status"] == "proposed", f)
+    _c("an input status of confirmed or void is stored as proposed",
+       [normalize(cash(status=s))["status"] for s in ("confirmed", "void", "proposed")]
+       == ["proposed", "proposed", "proposed"], f)
     nid = lambda e: normalize(e)["entry_id"]  # noqa: E731
     _c("the id is deterministic for the same event", nid(cash()) == nid(cash()), f)
     _c("the id ignores case and extra spaces in the payer and the item",
@@ -671,14 +774,29 @@ def selftest():
        len({nid(cash()), nid(cash(amount="1250.01")), nid(cash(payer="Hearthline Stain")),
             nid(cash(kind="affiliate")), nid(cash(evidence_ref="receipt-b.pdf")), nid(cash(sequence=2))}) == 6, f)
     _c("the MCP write argument is true only for true or the text true",
-       [write_flag(v) for v in (True, "true", " TRUE ", False, "false", "False", 1, None)]
-       == [True, True, True, False, False, False, False, False], f)
+       [write_flag(v) for v in (True, "true", " TRUE ", False, "false", "False", 1, None, "yes", "no", "0")]
+       == [True, True, True, False, False, False, False, False, False, False, False], f)
+    _c("the gifts file name differs from the income file name, also with no -income and no dot",
+       [_gifts_name(x) for x in ("2026-income.local.csv", "income.local.csv", "books.local.csv", "books")]
+       == ["2026-gifts.local.csv", "income-gifts.local.csv", "books-gifts.local.csv", "books-gifts"], f)
+    with tempfile.TemporaryDirectory() as cs:
+        repo_dir, other_spelling = Path(cs) / "repo", Path(cs) / "REPO-alias"
+        repo_dir.mkdir()
+        other_spelling.mkdir()
+        same_folder = lambda a, b: Path(a).name == "REPO-alias" and Path(b).name == "repo"  # noqa: E731
+        _c("a path spelled another way on a filesystem that ignores case counts as inside the repo",
+           _under(other_spelling / "docs" / "x.local.csv", repo_dir, samefile=same_folder)
+           and not _under(other_spelling / "docs" / "x.local.csv", repo_dir, samefile=lambda a, b: False), f)
 
     with tempfile.TemporaryDirectory() as td, tempfile.TemporaryDirectory() as away, file_hash.windows_paths():
         root = Path(td)
         (root / "pipeline" / "finance").mkdir(parents=True)
         saved = os.environ.get("CREATOR_OS_ROOT")
         os.environ["CREATOR_OS_ROOT"] = str(root)
+        here = os.getcwd()
+        # The checks run from a temporary folder: a mutant that reads a relative path from the current
+        # folder (or drops a refusal) then writes there, never into the checkout the run started in.
+        os.chdir(away)
         try:
             # writes and the gate
             r = add_entry(cash(), write=True, config=off)
@@ -727,13 +845,24 @@ def selftest():
             mem = {"entries": [normalize(cash()), normalize(cash(payer="hearthline paint", amount="5")),
                                dict(normalize(cash(amount="7")), payer=None),
                                dict(normalize(priced(quantity=3, retail_price="33.335"))),
-                               dict(normalize(product(date="2026-05-12")), product=dict(product()["product"], quantity=0))]}
+                               dict(normalize(product(date="2026-05-12")), product=dict(product()["product"], quantity=0)),
+                               dict(normalize(product(date="2026-05-13")), product=dict(product()["product"], quantity=None)),
+                               normalize(cash(payer="Harbor Pine", amount="11")),
+                               normalize(cash(payer="Harbor Point", amount="13")),
+                               {k: v for k, v in normalize(cash(payer="Undated Co", amount="3")).items() if k != "date"}]}
             ms = payer_summary(2026, mem)
             _c("payer summary: one payer written two ways is one row; an entry with no payer is shown, not a crash",
                ms["payers"]["Hearthline Paint"]["cash"] == "1255.00" and ms["payers"]["(no payer)"]["cash"] == "7.00", f)
-            _c("payer summary: quantity times the quantized price; a stored quantity of 0 is unpriced, never valued",
-               ms["payers"]["Northstar Tools"]["product_value"] == "100.02"
-               and ms["payers"]["Northstar Tools"]["items"] == 3 and ms["payers"]["Northstar Tools"]["unpriced_items"] == 1, f)
+            _c("payer summary: two payers with similar names stay two rows; an entry with no date is counted as undated",
+               ms["payers"]["Harbor Pine"]["cash"] == "11.00" and ms["payers"]["Harbor Point"]["cash"] == "13.00"
+               and ms["by_month"].get("undated") == "3.00", f)
+            _c("redaction keeps a row for each payer when initials collide (three payers are H.P.)",
+               len(redact(ms)["payers"]) == len(ms["payers"])
+               and {"H.P.", "H.P. 2", "H.P. 3"} <= set(redact(ms)["payers"]), f)
+            _c("payer summary: quantity times the quantized price; a stored quantity of 0 is unpriced, never valued; "
+               "a stored null quantity is one item",
+               ms["payers"]["Northstar Tools"]["product_value"] == "300.01"
+               and ms["payers"]["Northstar Tools"]["items"] == 4 and ms["payers"]["Northstar Tools"]["unpriced_items"] == 1, f)
             # confirm and void
             pid = next(e["entry_id"] for e in led["entries"] if e["kind"] == "product" and e["product"]["item"] == "wall hooks")
             _c("void is refused with the gate off", not set_status(pid, "void", config=off)["updated"], f)
@@ -760,12 +889,15 @@ def selftest():
                                                 kind="ad_revenue", amount="312.40", source="platform_statement")),
                                 normalize(cash())],
                     "forms_received": [{"tax_year": "2026", "payer": "vidtube ", "form": "1099-MISC", "amount": "312.40"},
-                                       {"tax_year": 2026, "payer": "Other Co", "form": "1099-NEC", "amount": "$40"}]}
+                                       {"tax_year": 2026, "payer": "Quill Media", "form": "1099-NEC", "amount": "4,750.00"}]}
             fm = form_check(2026, fmem)
             _c("form check: a payer written another way matches, a year written as text counts, an unreadable "
                "amount is listed with the problem, and a payer with cash and no form is listed",
                fm["forms"][0]["matches"] is True and "must be a number" in fm["forms"][1]["problem"]
                and fm["payers_without_form"] == [{"payer": "Hearthline Paint", "ledger_cash": "1250.00"}], f)
+            red_fm = json.dumps(redact(fm))
+            _c("form check: a redacted problem row carries neither the payer's name nor the figure",
+               "Quill" not in red_fm and "4,750" not in red_fm and "4750" not in red_fm, f)
             # proposals from paid invoices
             inv = [{"invoice_id": "INV-D1-001", "status": "paid", "total": "900.00", "brand_name": "Hearthline Paint",
                     "deal_id": "D1", "payment_received_date": "2026-07-01", "payment_method": "ach"},
@@ -821,13 +953,43 @@ def selftest():
             not_written = []
             for bad_out in (root / "pipeline" / "finance" / "books-2026.csv",
                             root / "pipeline" / "finance" / "x.local.d" / "books.csv",
-                            root / "docs" / "2026-income.local.csv"):
+                            root / "docs" / "2026-income.local.csv",
+                            root / "pipeline" / "2026-income.local.csv",
+                            root / "pipeline" / "finance" / "2026-income.local.template.json",
+                            "pipeline/finance/../../docs/2026-income.local.csv"):
                 try:
                     export_csv(2026, bad_out)
                 except ValueError:
-                    not_written.append(not bad_out.exists())
-            _c("an in-repo export without .local. in its name, or outside pipeline/finance/, is refused",
-               not_written == [True, True, True], f)
+                    target = bad_out if isinstance(bad_out, Path) else root / bad_out
+                    not_written.append(not target.exists())
+            _c("an in-repo export that is not a .local.csv under pipeline/finance/ is refused, also through ..",
+               not_written == [True] * 6, f)
+            before = ledger_path().read_bytes()
+            try:
+                export_csv(2026, "pipeline/finance/income-ledger.local.json")
+                kept = False
+            except ValueError:
+                kept = ledger_path().read_bytes() == before
+            other = root / "pipeline" / "finance" / "notes.local.csv"
+            other.write_text("my own notes\n", encoding="utf-8")
+            try:
+                export_csv(2026, other)
+                kept_other = False
+            except ValueError as exc:
+                kept_other = other.read_text(encoding="utf-8") == "my own notes\n" and "earlier export" in str(exc)
+            mine = root / "pipeline" / "finance" / "exports" / "2028-gifts.local.csv"
+            mine.parent.mkdir(parents=True, exist_ok=True)
+            mine.write_text("my own gift list\n", encoding="utf-8")
+            try:
+                export_csv(2028)
+                kept_gifts = False
+            except ValueError:
+                kept_gifts = (mine.read_text(encoding="utf-8") == "my own gift list\n"
+                              and not (mine.parent / "2028-income.local.csv").exists())
+            mine.unlink()
+            _c("an export never overwrites the ledger, or a file that is not an earlier export, and checks the "
+               "gifts file before writing either",
+               kept and kept_other and kept_gifts, f)
             ex = export_csv(2026)
             inc = Path(ex["income_csv"]).read_text(encoding="utf-8")
             gif = Path(ex["gifts_csv"]).read_text(encoding="utf-8")
@@ -837,6 +999,8 @@ def selftest():
                and ex["rows"] == 5 and ex["gift_rows"] == 1 and ex["boundary"] == BOUNDARY, f)
             _c("export: the income CSV carries each entry's amount",
                "1250.00" in [r["amount"] for r in rows] and "cordless brad nailer" in gif, f)
+            again = export_csv(2026)
+            _c("export: an earlier export is replaced", again["income_csv"] == ex["income_csv"], f)
             named = export_csv(2026, "pipeline/finance/exports/2026-books.local.csv")
             _c("export: a relative --out is read from the repo root, and a name without -income keeps both files",
                named["income_csv"] != named["gifts_csv"] and named["gifts_csv"].endswith("2026-books-gifts.local.csv")
@@ -845,18 +1009,61 @@ def selftest():
             outside = export_csv(2026, Path(away) / "books.csv")
             _c("export: a path outside the repo is allowed", Path(outside["gifts_csv"]).name == "books-gifts.csv"
                and Path(outside["income_csv"]).exists(), f)
-            # redaction
-            red = json.dumps([redact(payer_summary(2026)), redact(form_check(2026)), redact(set_aside(2026, "25")),
-                              redact(add_entry(cash(notes="paid by Hearthline Paint",
-                                                    content_refs=["https://videos.example/hearthline-spot"])))])
-            red_g = json.dumps(redact(gift_register(2026)))
+            (root / "docs").mkdir(exist_ok=True)
+            tracked = root / "docs" / "tracked.md"
+            tracked.write_text("keep\n", encoding="utf-8")
+            exports = root / "pipeline" / "finance" / "exports"
+            gifts_link, dir_link = exports / "2027-gifts.local.csv", root / "pipeline" / "finance" / "linked"
+            try:
+                os.symlink(tracked, gifts_link)
+                os.symlink(root / "docs", dir_link, target_is_directory=True)
+                linked = True
+            except (OSError, NotImplementedError):
+                linked = False
+                print("  [skip] export through a link: os.symlink is refused here")
+            if linked:
+                refused = []
+                for out in (exports / "2027-income.local.csv", dir_link / "2026-income.local.csv"):
+                    try:
+                        export_csv(2027 if "2027" in out.name else 2026, out)
+                    except ValueError:
+                        refused.append(True)
+                _c("export: a link at the gifts file or a linked folder cannot point the export out of "
+                   "pipeline/finance/", refused == [True, True] and tracked.read_text(encoding="utf-8") == "keep\n"
+                   and not (exports / "2027-income.local.csv").exists(), f)
+                gifts_link.unlink()
+                dir_link.unlink()
+            # redaction: no figure survives, with or without its cents
+            raw = [payer_summary(2026), form_check(2026), set_aside(2026, "25"),
+                   add_entry(cash(notes="paid by Hearthline Paint",
+                                  content_refs=["https://videos.example/hearthline-spot"]))]
+            red = json.dumps([redact(o) for o in raw])
+            raw_g = gift_register(2026)
+            red_g = json.dumps(redact(raw_g))
             _c("redaction bands every figure and initials payers in the summary, form check, set-aside and an add, "
                "and hides an entry's notes and content references",
-               decimal_figure.search(red) is None and "Hearthline" not in red and "VidTube" not in red
-               and "videos.example" not in red, f)
+               len(figures(raw)) >= 8 and leaked(raw, red) == [] and decimal_figure.search(red) is None
+               and "Hearthline" not in red and "VidTube" not in red and "videos.example" not in red, f)
             _c("redaction bands the gift register, initials items and hides page references",
-               decimal_figure.search(red_g) is None and "cordless" not in red_g and "Northstar" not in red_g
-               and "example.com" not in red_g and "[ref]" in red_g, f)
+               figures(raw_g) == {"199"} and leaked(raw_g, red_g) == [] and decimal_figure.search(red_g) is None
+               and "cordless" not in red_g and "Northstar" not in red_g and "example.com" not in red_g
+               and "[ref]" in red_g, f)
+            # the CLI, run in this process on a cp1252 stream that is not a terminal (a redirect on Windows)
+            entry_file = root / "entry.json"
+            entry_file.write_text(json.dumps(cash(payer="Café Ünal \U0001f3a8")), encoding="utf-8")
+            rc_u, out_u = run_cli(["--add", str(entry_file)])
+            _c("the CLI writes its output as UTF-8 when it is redirected",
+               rc_u == 0 and "Café Ünal \U0001f3a8" in out_u, f)
+            real_loader = _fin._load_local_invoices
+            _fin._load_local_invoices = lambda: [{"invoice_id": "INV-Z9-001", "status": "paid", "total": "$4,750",
+                                                  "brand_name": "Quill Media", "payment_received_date": "2026-07-01"}]
+            try:
+                rc_p, out_p = run_cli(["--propose-from-invoices", "--redacted"])
+            finally:
+                _fin._load_local_invoices = real_loader
+            _c("the CLI lists a paid invoice it skipped, and its redacted output carries no figure or name",
+               rc_p == 0 and [x["invoice_id"] for x in json.loads(out_p)["skipped"]] == ["INV-Z9-001"]
+               and "4,750" not in out_p and "Quill" not in out_p, f)
             # a ledger that does not parse, or has another shape, is never overwritten
             for text in ("{oops", "", "[]", '{"entries": {}}', '{"entries": [], "forms_received": {}}'):
                 ledger_path().write_text(text, encoding="utf-8")
@@ -866,11 +1073,11 @@ def selftest():
                 except ValueError:
                     _c(f"a ledger of {text!r} stops the write", ledger_path().read_text(encoding="utf-8") == text, f)
         finally:
+            os.chdir(here)
             if saved is None:
                 os.environ.pop("CREATOR_OS_ROOT", None)
             else:
                 os.environ["CREATOR_OS_ROOT"] = saved
-    _c("the CLI writes its output as UTF-8 when it is redirected", "utf8_stdio" in main.__code__.co_names, f)
     n = _c.count - start
     print(f"books selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1

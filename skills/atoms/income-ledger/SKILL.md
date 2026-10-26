@@ -81,8 +81,9 @@ Follow `shared/method.md`. Call `tools/books.py` (or the `books_add`, `books_sum
   year's cost actuals) times P. P is the creator's number (`25` or `25%`); there is no default.
 - `--export --year YYYY [--out PATH]`: `<year>-income.local.csv` and `<year>-gifts.local.csv`
   under `pipeline/finance/exports/`, each starting with the boundary line. A relative `--out` is
-  read from the repo root; a path inside the repo must lie under `pipeline/finance/` and carry
-  `.local.` in its name, or the tool refuses it.
+  read from the repo root; a path inside the repo must be a `.local.csv` file under
+  `pipeline/finance/`, and an existing file is replaced only when it is an earlier export, or the
+  tool refuses it.
 - Add `--redacted` (banded amounts, initialed payers and items, page references, notes and
   content references hidden) for anything quoted off this machine.
 

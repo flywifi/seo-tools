@@ -122,9 +122,9 @@ The finance bucket's incoming side is `tools/books.py` (P103): the income ledger
 platform payouts, affiliate deposits, revenue share, gifted or loaned product) as proposed entries
 the human confirms. It reports per payer and per month for a tax year, lists gifted items with the
 source of each retail price, checks each 1099 the human enters against the ledger's cash for that
-payer, writes a CSV export under `pipeline/finance/exports/` (a path inside the repo must lie
-under `pipeline/finance/` and carry `.local.`), and multiplies year-to-date net by a percentage
-the human states. Reads are always
+payer, writes a CSV export under `pipeline/finance/exports/` (a path inside the repo must be a
+`.local.csv` file under `pipeline/finance/`, and an existing file is replaced only when it is an
+earlier export), and multiplies year-to-date net by a percentage the human states. Reads are always
 available; writes gate on `finance_management`; a retail price is stored only with its source and
 date, else the entry carries a gap. The `books_add`, `books_summary` and `books_export` MCP tools <!-- verify: tools/books.py::payer_summary -->
 are the handoff; `--redacted` bands amounts and initials payers for anything quoted off this

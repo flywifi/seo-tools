@@ -68,8 +68,9 @@ consequential-action gate. Invoice documents are drafted, never sent; the human 
 Real records are `pipeline/finance/*.local.json` (gitignored). Invoice numbering is
 deterministic: `INV-<deal_id>-<seq:03d>`, assigned by `tools/finance.py`, never by the model.
 A ledger `entry_id` is `BK-<yyyymmdd>-<8 hex>` over the fields that make two proposals the same
-event (date, payer and item without case or extra spaces, kind, amount, invoice id, evidence hash,
-evidence reference, sequence), assigned by `tools/books.py`.
+event (date, payer without case or extra spaces, kind, amount, invoice id, evidence hash, evidence
+reference, sequence, and for a product its item, quantity and retail price), assigned by
+`tools/books.py`.
 
 ## Money arithmetic rules
 

@@ -37,15 +37,19 @@ null with a gap, not an estimate.
    always on, writes behind `finance_management`, redaction for anything quoted off the machine,
    and the boundary line on every report, CSV and set-aside result. The set-aside figure has no
    default percentage; the human's number is the only input.
-5. A deterministic `entry_id` (`BK-<yyyymmdd>-<8 hex>` over date, payer and item compared
-   without case or extra spaces, kind, amount, invoice id, evidence hash, evidence reference and
-   sequence) makes a receipt or invoice proposed twice one entry. A second identical payment on
+5. A deterministic `entry_id` (`BK-<yyyymmdd>-<8 hex>` over date, payer compared without case or
+   extra spaces, kind, amount, invoice id, evidence hash, evidence reference and sequence, and for
+   a product its item compared the same way, quantity and retail price) makes a receipt or invoice
+   proposed twice one entry. A second identical payment on
    one day is a different event only when the human says so, by its evidence reference or by
    `sequence` 2, 3 and so on; without either it is refused as a duplicate.
 6. Exports go under `pipeline/finance/exports/` as `.local.csv` files. An export path inside the
-   repo must lie under `pipeline/finance/`, which git ignores, and carry `.local.` in its name
-   (the bank-export reader's name rule); a `.local.csv` elsewhere in the repo is not ignored by
-   git, so the location is part of the rule.
+   repo must be a `.local.csv` file under `pipeline/finance/`, where git ignores it; a
+   `.local.csv` elsewhere in the repo, or a `.local.template.json` under `pipeline/finance/`, is
+   not ignored by git, so both the location and the suffix are part of the rule. The rule is
+   judged on the resolved path, for the income file and the gifts file alike, and an existing
+   file is replaced only when its first line is the boundary line (an earlier export), so an
+   export cannot overwrite the ledger, an invoice or any other file.
 
 ## Consequences
 

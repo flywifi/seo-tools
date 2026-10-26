@@ -2594,8 +2594,8 @@ def books_add(entry: dict, write: bool = False) -> str:
 def books_export(year: int) -> str:
     """Write the income ledger for a tax year as two CSV files under pipeline/finance/exports/
     (P103): <year>-income.local.csv and <year>-gifts.local.csv, each opening with the boundary
-    line. The paths are gitignored; a path inside the repo without .local. in its name is
-    refused by tools/books.py. Returns the paths and row counts."""
+    line. The paths are gitignored; tools/books.py replaces an existing file only when it is an
+    earlier export. Returns the paths and row counts."""
     sys.path.insert(0, str(HERE))
     import books as _bk  # type: ignore
     try:

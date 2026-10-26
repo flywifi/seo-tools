@@ -92,6 +92,7 @@
     "skills/content-library/SKILL.md": "cb99ba8a13c7b4420da2eca1fd97a6b63d9193c24a9ad7fec5111f2ab63a6da5",
     "tools/acquire.py": "3b7684b5cdb7534d909f39dd0f1d69d5365671010341fd3646bccbda1447cfaa",
     "tools/battery.py": "e390b33409d1328913eef275a5e4461eedc8b41cb116ba9861ed513a4755b2d8",
+    "tools/books.py": "9582bfdb41a92bf1bba2133c6229119e3ba8008c12df1374d2f6369dcf0b4f1a",
     "tools/claim-proof-manifest.json": "7e64dc2b4ad515bf693a53be1cc92473a25e6fec54d1fdec9fb9c76b13289a63",
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
     "tools/env_paths.py": "83aef4d3cc149e91ede9d3483c85070201f53a68d118860dcd099ccec528a44a",

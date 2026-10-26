@@ -22,16 +22,20 @@ gift register, a 1099 check, a CSV export and a set-aside figure. Invoices and A
   `gaps[]` names what to provide. The tool never estimates a value.
 - Writes gate on `finance_management`; a refused write returns the validated entry and the gate's
   name, and touches nothing.
-- `entry_id` is deterministic over date, payer and item (without case or extra spaces), kind,
-  amount, invoice id, evidence hash, evidence reference and sequence, and a duplicate id is
-  refused, so one receipt or invoice is one entry. A second identical payment on one day needs its
+- `entry_id` is deterministic over date, payer (without case or extra spaces), kind, amount,
+  invoice id, evidence hash, evidence reference and sequence, and for a product its item (compared
+  the same way), quantity and retail price; a duplicate id is refused, so one receipt or invoice is
+  one entry. A second identical payment on one day needs its
   own evidence reference or `sequence: 2`.
 - An added entry is stored as `proposed` whatever status it carries; only `--confirm` confirms.
 - A ledger file that does not parse (an empty file included) or has another shape stops the
   write; it is never overwritten.
-- An export inside the repo must lie under `pipeline/finance/` and carry `.local.` in its name <!-- verify: tools/books.py::export_csv -->
-  (a `.local.csv` elsewhere in the repo is not gitignored); a relative path is read from the repo
-  root.
+- An export inside the repo must be a `.local.csv` file under `pipeline/finance/` (a `.local.csv` <!-- verify: tools/books.py::export_csv -->
+  elsewhere in the repo is not gitignored), judged on the resolved path for both files; a
+  relative path is read from the repo root; an existing file is replaced only when it is an
+  earlier export (its first line is the boundary line).
+- The selftest's file checks run from a temporary folder, so a mutant that reads a relative path
+  from the current folder writes there and never into the checkout.
 - Set-aside has no default percentage; the creator's number is the only input.
 - Void entries leave every report; proposed and confirmed entries both count, each flagged.
 
@@ -55,10 +59,12 @@ gift register, a 1099 check, a CSV export and a set-aside figure. Invoices and A
 4. Refunds are negative and net against cash; another tax year's entries stay out; void entries
    leave the summary.
 5. The form check reports the difference between a 1099 and the ledger's cash for that payer.
-6. An in-repo export without `.local.`, or outside `pipeline/finance/`, is refused; both written
-   CSVs start with the boundary; an out name without `-income` keeps two files.
+6. An in-repo export that is not a `.local.csv` under `pipeline/finance/` is refused, also through
+   `..`; an export never overwrites the ledger or a file that is not an earlier export; both
+   written CSVs start with the boundary; an out name without `-income` keeps two files.
 7. A ledger that does not parse stops the write and is left as it was.
-8. Redacted output carries no amount, payer, item, page reference, note or content reference.
+8. Redacted output carries no amount (with or without its cents), payer, item, page reference,
+   note or content reference, and keeps one row per payer when initials collide.
 Mapped to evals/evals.json and `python3 tools/books.py --selftest`.
 
 ## Approval-gated changes
