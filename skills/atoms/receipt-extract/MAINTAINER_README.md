@@ -41,8 +41,8 @@ Mapped to evals/evals.json and `python3 tools/receipt_extract.py --selftest`.
 The confidence rule, the direction phrases, the record shapes, and anything that writes.
 
 ## Minority-report policy
-When the document and the person disagree, the person's correction is written and the proposal's
-reading stays in the wizard's confirmation text.
+When the document and the person disagree, the person's correction is written; an income entry
+whose date, name or amount was changed is stored with confidence `edited`.
 
 ## Update checklist
 1. Edit SKILL.md / this file.

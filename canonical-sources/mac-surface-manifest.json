@@ -26,7 +26,7 @@
     "docs/DEPENDENCIES.md": "2e86c2a4e00d1ed537e038b9648e0f2928a8d665396958a8f4d207e726fc3dc0",
     "docs/DEPLOYMENT.md": "4eb078984695b6f4c19cce747781e31a7cbcda2bb5f55592d2dd76d6fd4bfbae",
     "docs/DOC-MAINTENANCE.md": "d24ae8064e12c3a0883133c2e26540137dd601833f139881f3fda3061573aa60",
-    "docs/DRIVE-HUB.md": "2976726067196ca368170fe1dad3276029cb75478beb43f409d3a753f5b1ee6a",
+    "docs/DRIVE-HUB.md": "65e6672bfa6523afee73a7fa11c121dd74e6c91003d8e6a2b5bfd418c4e037d9",
     "docs/FRESHNESS.md": "cb3baa4af60adc0fa23e92b6ea90813afb4c910ff021d7369b85de38392db16b",
     "docs/INSTALL-SCOPE.md": "612374fff79c3f1001c89d0c3a89091b9cc2ad7f8d078c0976fe42fc1be76236",
     "docs/MAC-VALIDATION.md": "f31107b34b665afacd43cbcfba0986f8b2ceb19b24f987aeb331368392655478",
@@ -39,7 +39,7 @@
     "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
     "docs/VIDEO_EDITING.md": "fc6dcd66a90be29de277aa9a7e21c348a494b1382e5639d857b0619abc701d91",
     "docs/VIDEO_TOOLING_EVAL.md": "845e02231809d709208e7d1f60c36b2774c5bebd154b5ced95fc8bc365b290eb",
-    "docs/WIZARD.md": "9b951483b049bee2be9aad0d0cc7bd79d34103c79507dcc8b40bdfdeb577bd9f",
+    "docs/WIZARD.md": "4b1c07eb0c6edea200dae313afc9dff7b87ce3dcbbff545501d77ad3ca8827e2",
     "docs/adr/0013-p29-media-tool-integration.md": "c6daebb703c4e021c85a0ae248acc2cee8d654eebe392d4854ffa0b4f8249171",
     "docs/adr/0030-p45-content-import.md": "202bfac8e19ae00b96a97c39481bb058e0f7bdacdcf43e27e221b93a55ca7ca3",
     "docs/adr/0031-p46-content-import-hardening.md": "84c051ba8d6a2a63cd792b89308f01838e0001de2200ae1473839fd5314933f3",
@@ -92,13 +92,13 @@
     "skills/content-library/SKILL.md": "cb99ba8a13c7b4420da2eca1fd97a6b63d9193c24a9ad7fec5111f2ab63a6da5",
     "tools/acquire.py": "3b7684b5cdb7534d909f39dd0f1d69d5365671010341fd3646bccbda1447cfaa",
     "tools/battery.py": "e390b33409d1328913eef275a5e4461eedc8b41cb116ba9861ed513a4755b2d8",
-    "tools/books.py": "2882ab3d886423d99c8d32513d984ab3bd257b9aa86b98257208cd5641ec8a32",
+    "tools/books.py": "aed529bca2734c40774e23734a4164e931b8fdb6598c55b7e9db546859ebaa78",
     "tools/claim-proof-manifest.json": "7e64dc2b4ad515bf693a53be1cc92473a25e6fec54d1fdec9fb9c76b13289a63",
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
     "tools/env_paths.py": "83aef4d3cc149e91ede9d3483c85070201f53a68d118860dcd099ccec528a44a",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
     "tools/handoff/MAINTAINER_README.md": "bb63c02552c0d54f3ca3ae486be8570adc42802cd42aa50d5975eef141c2187a",
-    "tools/handoff/inbox.py": "f586283a6ceacf20e7c017b828feb4d73cad3e98177cfa3d81156a7de4e5bd96",
+    "tools/handoff/inbox.py": "09049c4e30dc3d55d0bce8cc6dd85ee69bcb778344d7796b068831487673010c",
     "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
     "tools/handoff/watcher.py": "5430e3462ba9b39418064c289de5d1fc7533b3c6de657f4f33209447a92bc87f",
     "tools/library_complete.py": "a0c3e049fc0a34c47f1d920f6421a6bd03d2a56e4a1129c2f7b825914cc3dcba",
@@ -116,7 +116,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "c33dcfab09bfd32701dbba0832cd7b5a3ab99fd580bb9b9622029442edad143e"
+    "tools/wizard.py": "648e399f97df3f0c695e8e0473a3d4a8a535164c5239401a2d79f97adefb7abb"
   },
   "excluded": {}
 }

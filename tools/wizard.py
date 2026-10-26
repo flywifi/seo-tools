@@ -3023,6 +3023,10 @@ def _screen_inbox(scan_result: dict | None = None, token: str = "",
                 '<p><a class="btn btn-primary" href="/drive-hub">Set up the Drive hub first</a></p>')
         return _page("Inbox", f"<h1>Your drop folder</h1>{body}")
     preview = ""
+    waiting = len(_pending_receipts(info["hub"]))
+    if waiting:
+        saved_block += (f'<div class="note">{waiting} receipt(s) filed earlier are waiting to be recorded: '
+                        f'<a href="/inbox-receipts">record them</a>.</div>')
     if scan_result is not None:
         rows = ""
         for p in scan_result.get("proposals", []):
@@ -3116,6 +3120,16 @@ def _compute_switch_banner() -> str:
             f'{tail} Change it any time on <a href="/compute">the compute screen</a>.</div>')
 
 
+def _receipt_gate_note() -> str:
+    """P103: when finance record writes are off, say so on the work order and link the switch."""
+    import books as _bk_gn
+    if _bk_gn._write_allowed()[0]:
+        return ""
+    return ('<div class="note">Recording is off: turn on <strong>Track invoices and money</strong> on '
+            '<a href="/brand-deals">the brand-deal screen</a>, then open <a href="/inbox-receipts">the '
+            'receipts waiting to be recorded</a>. Your receipts stay filed until then.</div>')
+
+
 def _bk_boundary_html() -> str:
     """The finance boundary line (tools/books.py BOUNDARY), escaped, in its own strong tag."""
     import books as _bk_bd
@@ -3138,17 +3152,28 @@ def _receipt_rows(receipts) -> str:
             f'{" checked" if r.get("direction") == v else ""}> {lbl}</label>'
             for v, lbl in (("received", "Money I received"), ("paid", "Money I paid")))
         ptypes = "".join(f'<option value="{t}">{t.replace("_", " ")}</option>' for t in _bk_rr.PAYER_TYPES)
+        kinds = "".join(f'<option value="{k}">{lbl}</option>' for k, lbl in (
+            ("cash", "a fee or payment"), ("ad_revenue", "ad revenue"), ("revenue_share", "revenue share"),
+            ("affiliate", "affiliate earnings")))
+        scr = r.get("screen") or {}
+        warn = ("" if scr.get("risk_level") in (None, "CLEAN") else
+                f'<div class="error-box">The offline check marked this text {esc(scr.get("risk_level"))} '
+                f'({esc(", ".join(scr.get("categories") or []))}). Compare every field with the document '
+                f'before you record it.</div>')
         cats = "".join(f'<option value="{c}">{c.replace("_", " ")}</option>' for c in _bk_rr.COST_CATEGORIES)
         out += f"""
 <fieldset style="margin:10px 0;padding:10px">
 <legend><code>{name}</code> (read as {esc(r.get("confidence"))})</legend>
+{warn}
 <label><input type="checkbox" name="rc_{i}"> Record this entry in my books</label>
 <p>{radio}</p>
 <label>Date (YYYY-MM-DD) <input name="rdate_{i}" value="{esc(r.get("date"))}"></label>
 <label>Who paid, or who you paid <input name="rparty_{i}" value="{esc(r.get("counterparty"))}"></label>
 <label>Amount <input name="ramount_{i}" value="{esc(r.get("total"))}"></label>
 <label>If you received it, the payer is a <select name="rptype_{i}"><option value="">choose</option>{ptypes}</select></label>
-<label>If you paid it, the category is <select name="rcat_{i}"><option value="">none yet</option>{cats}</select></label>
+<label>and it was <select name="rkind_{i}">{kinds}</select></label>
+<label>If you paid it, what was bought <input name="rdesc_{i}" value="{esc(r.get("description"))}"></label>
+<label>and the category is <select name="rcat_{i}"><option value="">none yet</option>{cats}</select></label>
 {f'<p class="hint">What the reader could not find:</p><ul>{gaps}</ul>' if gaps else ''}
 </fieldset>"""
     return out
@@ -3187,7 +3212,7 @@ the computer runs.</p>
 <form method="POST" action="/api/inbox-queue-work">
 <input type="hidden" name="token" value="{html.escape(token)}">
 {'<table><tr><th>Do it?</th><th>File</th><th>Work</th><th>What it does</th></tr>' + rows + '</table>' if rows else ''}
-{'<h2>Receipts and payment notices</h2><p>Check each entry against the document, correct anything the reader got wrong, and tick the ones to record. A recorded entry starts as proposed in your books; nothing is sent anywhere. ' + _bk_boundary_html() + '</p>' + _receipt_rows(receipts) if receipts else ''}
+{'<h2>Receipts and payment notices</h2><p>Check each entry against the document, correct anything the reader got wrong, and tick the ones to record. Money you received is stored as proposed until you confirm it; money you paid is recorded in your spending record as final. Nothing is sent anywhere. ' + _bk_boundary_html() + '</p>' + _receipt_gate_note() + _receipt_rows(receipts) if receipts else ''}
 <label for="amendment" style="margin-top:12px;display:block">Anything to change? (optional; a note for review, not a command)</label>
 <textarea id="amendment" name="amendment" rows="3" style="width:100%"></textarea>
 <button class="btn btn-primary" type="submit" style="margin-top:10px;width:auto;padding:8px 14px">{"Queue this work" if not receipts else "Confirm" if not rows else "Queue this work and record the ticked entries"}</button>
@@ -4092,6 +4117,7 @@ anything, and closing this window does not stop the work.</p>
             "/drive-hub": _screen_drive_hub,
             "/compute": _screen_compute,
             "/inbox": _screen_inbox,
+            "/inbox-receipts": _screen_inbox_receipts,
         }
         if path in routes:
             self._send(routes[path]())
@@ -4600,6 +4626,9 @@ anything, and closing this window does not stop the work.</p>
                     why = "; ".join(res.get("problems") or []) or res.get("reason") or "not written"
                     msg += (f" Not recorded: {html.escape((r.get('ref') or '').rsplit('/', 1)[-1])} "
                             f"({html.escape(why)}).")
+                if not_done or len(done) < len(work["receipts"]):
+                    msg += (" A receipt not recorded stays filed: record it from "
+                            "<a href='/inbox-receipts'>the receipts waiting to be recorded</a>.")
             if note:
                 msg += " Your note was attached to the work for review (it does not change what runs)."
             self._send(_screen_inbox(saved=msg.strip()))
@@ -5221,8 +5250,45 @@ def _receipt_proposals(hub, followups) -> list:
                     "counterparty": pr.get("counterparty"), "date": pr.get("date"), "total": pr.get("total"),
                     "description": rec.get("description") or "; ".join(
                         x.get("description", "") for x in (pr.get("line_items") or [])[:5])[:120],
-                    "gaps": pr.get("gaps") or []})
+                    "gaps": pr.get("gaps") or [], "screen": pr.get("screen")})
     return out
+
+
+def _pending_receipts(hub) -> list:
+    """P103: follow-ups for the receipts the inbox ledger shows as approved (classified_as
+    invoice_receipt) whose file is still under Inbox/Processed/ and whose sha256 neither books store
+    records yet, so a receipt the person could not record (recording off, a field missing, a stale
+    tab, a wizard restart) can be recorded later from /inbox-receipts. Reads only."""
+    from handoff import inbox as _ib_pr
+    import books as _bk_pr
+    out = []
+    for sha, e in sorted(_ib_pr.load_ledger(_ib_pr.LEDGER_PATH).items(),
+                         key=lambda kv: str(kv[1].get("approved_at"))):
+        if e.get("classified_as") != "invoice_receipt" or e.get("status") != "approved":
+            continue
+        try:
+            if _bk_pr._document_recorded(sha):
+                continue
+        except ValueError:
+            continue
+        ref = f"Inbox/Processed/{str(e.get('approved_at') or '')[:10]}/{e.get('file_name')}"
+        if (pathlib.Path(hub) / ref).is_file():
+            out.append({"file": ref, "job_type": None, "review": "receipt", "processed_ref": ref})
+    return out
+
+
+def _screen_inbox_receipts() -> str:
+    """P103: the work order for the receipts filed earlier that are not recorded yet."""
+    hub = _drive_hub_status().get("hub")
+    if not hub:
+        return _screen_inbox()
+    receipts = _receipt_proposals(hub, _pending_receipts(hub))
+    if not receipts:
+        return _screen_inbox(saved="No receipts are waiting to be recorded.")
+    token = secrets.token_urlsafe(16)
+    _set(inbox_work={"token": token, "hub": hub, "followups": [], "receipts": receipts})
+    return _screen_work_order(filed=f"{len(receipts)} receipt(s) filed earlier are waiting to be recorded.",
+                              followups=[], token=token, receipts=receipts)
 
 
 def _record_receipt(r, form, i) -> dict:
@@ -5232,15 +5298,19 @@ def _record_receipt(r, form, i) -> dict:
     import books as _bk
     val = lambda k: (form.get(f"{k}_{i}") or "").strip()  # noqa: E731
     direction = val("rd")
+    edited = any(val(k) != str(r.get(f) or "") for k, f in (("rdate", "date"), ("rparty", "counterparty"),
+                                                             ("ramount", "total")))
     if direction == "received":
         return _bk.add_entry({
-            "date": val("rdate"), "payer": val("rparty"), "payer_type": val("rptype") or None, "kind": "cash",
-            "amount": val("ramount"), "source": "receipt_extract", "evidence_ref": r.get("ref"),
-            "evidence_sha256": r.get("sha256"), "confidence": r.get("confidence")}, write=True)
+            "date": val("rdate"), "payer": val("rparty"), "payer_type": val("rptype") or None,
+            "kind": val("rkind") or "cash", "amount": val("ramount"), "source": "receipt_extract",
+            "evidence_ref": r.get("ref"), "evidence_sha256": r.get("sha256"),
+            "confidence": "edited" if edited else r.get("confidence")}, write=True)
     if direction == "paid":
+        category = val("rcat") or None
         return _bk.add_cost_actual({
-            "date": val("rdate"), "vendor": val("rparty"), "description": r.get("description") or "",
-            "category": val("rcat") or None, "amount": val("ramount"), "is_capex": False,
+            "date": val("rdate"), "vendor": val("rparty"), "description": val("rdesc"),
+            "category": category, "amount": val("ramount"), "is_capex": category == "equipment_capex",
             "receipt_ref": r.get("ref"), "receipt_sha256": r.get("sha256")}, write=True)
     return {"written": False, "problems": ["choose money received or money paid"]}
 
@@ -6746,6 +6816,7 @@ def _selftest_p101() -> int:
     _saved_rc_state = dict(_g_rc["_state"])
     _saved_rc_env = os.environ.get("CREATOR_OS_ROOT")
     _saved_rc_defaults, _saved_rc_gate = _inbox_t.approve.__defaults__, _bk_t._write_allowed
+    _saved_rc_ledger = _inbox_t.LEDGER_PATH
     _sent_rc = []
 
     def _post_rc(path, form):
@@ -6762,6 +6833,7 @@ def _selftest_p101() -> int:
         _g_rc["_drive_hub_status"] = lambda: {"hub": str(_rc_hub)}
         os.environ["CREATOR_OS_ROOT"] = str(_rc_root / "repo")
         _inbox_t.approve.__defaults__ = (_rc_root / "inbox-ledger.json", None)
+        _inbox_t.LEDGER_PATH = _rc_root / "inbox-ledger.json"
         _bk_t._write_allowed = lambda config=None: (True, "ok")
         _scan_rc = _inbox_t.scan(_rc_hub, ledger={})
         _scan_rc["needs_review"].append({"file": "Inbox/huge.txt", "sha256": "0" * 64,
@@ -6786,21 +6858,40 @@ def _selftest_p101() -> int:
                 _form_rc[f"rc_{_i}"] = "on"
             _form_rc.update({f"rd_{_i}": _r["direction"] or "", f"rdate_{_i}": _r["date"] or "",
                              f"rparty_{_i}": _r["counterparty"] or "", f"ramount_{_i}": _r["total"] or "",
-                             f"rptype_{_i}": "brand", f"rcat_{_i}": "production_materials"})
+                             f"rptype_{_i}": "brand", f"rcat_{_i}": "equipment_capex",
+                             **({f"rdate_{_i}": "2026-05-01"} if _r["direction"] == "paid" else {}),
+                             f"rdesc_{_i}": "Brad nailer and nails"})
         _post_rc("/api/inbox-queue-work", _form_rc)
         _msg_rc = _sent_rc[-1][1]
         _unticked = _bk_t.load_ledger(_bk_t.ledger_path())["entries"]
-        _recv_i = next(i for i, r in enumerate(_rcpts) if r["direction"] == "received")
-        _recv = _record_receipt(_rcpts[_recv_i], _form_rc, _recv_i)
-        _led_rc = _bk_t.load_ledger(_bk_t.ledger_path())["entries"]
         _ca_rc = json.loads(_bk_t.cost_actuals_path().read_text(encoding="utf-8"))["entries"]
-        if not ([(e["payer"], e["amount"], e["source"], e["status"]) for e in _led_rc]
-                == [("Hearthline Paint partner payouts", "900.00", "receipt_extract", "proposed")]
-                and [(e["vendor"], e["amount"], e["category"]) for e in _ca_rc]
-                == [("Northstar Tools Co", "239.61", "production_materials")]
+        if not ([(e["vendor"], e["amount"], e["category"], e["is_capex"], e["description"], e["date"]) for e in _ca_rc]
+                == [("Northstar Tools Co", "239.61", "equipment_capex", True, "Brad nailer and nails", "2026-05-01")]
                 and _ca_rc[0]["receipt_ref"].startswith("Inbox/Processed/") and "Recorded 1 entry " in _msg_rc
-                and _unticked == [] and _recv["written"] is True):
-            _rc_fail.append(f"the ticked entries were not recorded as reviewed ({_led_rc}, {_ca_rc})")
+                and "/inbox-receipts" in _msg_rc and _unticked == []):
+            _rc_fail.append(f"the ticked spending entry was not recorded as the person left it ({_ca_rc}, {_msg_rc})")
+        # The remittance was left unticked, so it waits on /inbox-receipts. With no payer type chosen it
+        # is refused and still waits; with one chosen and the amount edited, it is recorded as edited.
+        _waiting = _pending_receipts(_rc_hub)
+        _page_w = _screen_inbox_receipts()
+        _w1 = _get("inbox_work") or {}
+        _wr = (_w1.get("receipts") or [{}])[0]
+        _fw = {"token": _w1.get("token", ""), "rc_0": "on", "rd_0": "received", "rdate_0": _wr.get("date") or "",
+               "rparty_0": _wr.get("counterparty") or "", "ramount_0": "901.00", "rptype_0": "", "rkind_0": "cash"}
+        _post_rc("/api/inbox-queue-work", _fw)
+        _still = _pending_receipts(_rc_hub)
+        _screen_inbox_receipts()
+        _w2 = _get("inbox_work") or {}
+        _post_rc("/api/inbox-queue-work", dict(_fw, token=_w2.get("token", ""), rptype_0="platform",
+                                               rkind_0="ad_revenue"))
+        _led_rc = _bk_t.load_ledger(_bk_t.ledger_path())["entries"]
+        if not (len(_waiting) == 1 and "remit.eml" in _page_w and len(_still) == 1
+                and [(e["payer"], e["amount"], e["kind"], e["payer_type"], e["confidence"], e["status"])
+                     for e in _led_rc]
+                == [("Hearthline Paint partner payouts", "901.00", "ad_revenue", "platform", "edited", "proposed")]
+                and _pending_receipts(_rc_hub) == []):
+            _rc_fail.append(f"a receipt left unrecorded did not wait on /inbox-receipts and record as edited "
+                            f"({_waiting}, {_still}, {_led_rc})")
         _paid_i = next(i for i, r in enumerate(_rcpts) if r["direction"] == "paid")
         _again = _record_receipt(_rcpts[_paid_i], _form_rc, _paid_i)
         _nodir = _record_receipt(_rcpts[_paid_i], dict(_form_rc, **{f"rd_{_paid_i}": ""}), _paid_i)
@@ -6814,12 +6905,20 @@ def _selftest_p101() -> int:
                                                                        "counterparty": "<script>", "gaps": ["<i>"]}])
         if "<script>" in _plain_wo or "&lt;script&gt;" not in _plain_wo or 'name="rc_0" checked' in _plain_wo:
             _rc_fail.append("the receipt row does not escape what the reader found, or starts ticked")
+        _rows_none = _receipt_rows([{"ref": "a.txt", "direction": None}])
+        _rows_paid = _receipt_rows([{"ref": "a.txt", "direction": "paid",
+                                     "screen": {"risk_level": "REVIEW", "categories": ["REDIRECT"]}}])
+        if (" checked" in _rows_none or 'value="paid" checked' not in _rows_paid
+                or "marked this text REVIEW (REDIRECT)" not in _rows_paid or "Recording is off" not in _plain_wo):
+            _rc_fail.append("a direction is pre-checked when the reader found none, a REVIEW verdict is not "
+                            "shown, or the closed gate is not named")
     finally:
         _g_rc.update(_saved_rc)
         with _lock:
             _g_rc["_state"].clear()
             _g_rc["_state"].update(_saved_rc_state)
         _inbox_t.approve.__defaults__, _bk_t._write_allowed = _saved_rc_defaults, _saved_rc_gate
+        _inbox_t.LEDGER_PATH = _saved_rc_ledger
         if _saved_rc_env is None:
             os.environ.pop("CREATOR_OS_ROOT", None)
         else:

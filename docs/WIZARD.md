@@ -195,7 +195,8 @@ note, and a second click queues only the checked jobs. The note is attached to t
 (the ticket `consent_note`); it never changes what runs. A document waiting for a session can be
 ticked as a receipt or payment notice (P103): its text is checked by the offline pattern tier, and
 the work order shows the entry the receipt reader proposes, with editable fields and a tick, off by
-default, that records it in the books (`tools/books.py`, gated on `finance_management`). A **Background work: ON/OFF** banner on
+default, that records it in the books (`tools/books.py`, gated on `finance_management`). A receipt
+filed but not recorded waits on `/inbox-receipts`. A **Background work: ON/OFF** banner on
 the work-order screen and beside `/inbox` shows the compute switch state and links to `/compute` to
 change it, so queued work that is waiting is never invisible. `/compute` also carries the
 default-off **direct saves** toggle (`job_store_writes_enabled`): enabling it requires an

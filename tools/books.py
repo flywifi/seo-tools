@@ -299,6 +299,15 @@ def add_entry(entry, write=False, config=None, path=None):
             out["reason"] = (f"duplicate: {e['entry_id']} is already in the ledger (a second identical "
                              f"payment that day needs its evidence_ref or sequence 2)")
             return out
+        try:
+            seen = _document_recorded(e.get("evidence_sha256"), ledger=data)
+        except ValueError:
+            out["reason"] = "cost actuals do not parse, so a duplicate cannot be ruled out; nothing was written"
+            return out
+        if seen:
+            out["reason"] = ("duplicate: this document is already recorded (its evidence_sha256 is on an "
+                             "income entry or a cost actual)")
+            return out
         data["entries"].append(e)
         _save(data, p)
     out["written"] = True
@@ -330,6 +339,23 @@ COST_CATEGORIES = ("production_materials", "equipment_capex", "software_subscrip
 
 def cost_actuals_path():
     return _root() / "pipeline" / "finance" / "cost-actuals.local.json"
+
+
+def _document_recorded(sha, ledger=None, costs=None):
+    """True when a document's sha256 is already recorded: an income entry's evidence_sha256 (one not
+    void) or a cost-actuals receipt_sha256. One receipt is one entry across both stores (P103). A
+    store that does not parse raises ValueError, so the caller writes nothing."""
+    if not sha:
+        return False
+    led = load_ledger() if ledger is None else ledger
+    if any(isinstance(e, dict) and e.get("evidence_sha256") == sha and e.get("status") != "void"
+           for e in led.get("entries", [])):
+        return True
+    if costs is None:
+        cp = cost_actuals_path()
+        costs = json.loads(cp.read_text(encoding="utf-8")) if cp.exists() else {}
+    entries = costs.get("entries") if isinstance(costs, dict) else None
+    return any(isinstance(x, dict) and x.get("receipt_sha256") == sha for x in (entries or []))
 
 
 def add_cost_actual(entry, write=False, config=None, path=None, today=None):
@@ -391,9 +417,13 @@ def add_cost_actual(entry, write=False, config=None, path=None, today=None):
         data.setdefault("currency", "USD")
         data.setdefault("entries", [])
         data.setdefault("human_review_required", True)
-        if e["receipt_sha256"] and any(isinstance(x, dict) and x.get("receipt_sha256") == e["receipt_sha256"]
-                                       for x in data["entries"]):
-            out["reason"] = "duplicate: this receipt is already recorded in cost actuals"
+        try:
+            seen = _document_recorded(e["receipt_sha256"], costs=data)
+        except ValueError:
+            out["reason"] = "the income ledger does not parse, so a duplicate cannot be ruled out; nothing was written"
+            return out
+        if seen:
+            out["reason"] = "duplicate: this receipt is already recorded (in cost actuals or the income ledger)"
             return out
         data["entries"].append(e)
         _save(data, p)
@@ -1048,6 +1078,28 @@ def selftest():
             _c("cost actual: a future or malformed date, no vendor, a negative amount, an unknown "
                "category and a non-bool is_capex are refused",
                [b.split()[0] for b in bads] == ["date", "vendor", "amount", "category", "is_capex", "date"], f)
+            odd = add_cost_actual(dict(spend, amount="239.6", receipt_sha256="cd" * 32), write=False)
+            _c("cost actual: an amount is stored in cents", odd["entry"]["amount"] == "239.60", f)
+            twice_in = add_entry({"date": "2024-05-03", "payer": "Northstar Tools", "payer_type": "brand",
+                                  "kind": "cash", "amount": "239.61", "source": "receipt_extract",
+                                  "evidence_sha256": "ab" * 32}, write=True, config=on)
+            first_in = add_entry({"date": "2024-05-04", "payer": "Hearthline", "payer_type": "brand", "kind": "cash",
+                                  "amount": "900", "source": "receipt_extract", "evidence_sha256": "ef" * 32},
+                                 write=True, config=on)
+            again_in = add_entry({"date": "2024-05-05", "payer": "Hearthline", "payer_type": "brand", "kind": "cash",
+                                  "amount": "901", "source": "receipt_extract", "evidence_sha256": "ef" * 32},
+                                 write=True, config=on)
+            cost_after_in = add_cost_actual(dict(spend, receipt_sha256="ef" * 32), write=True, config=on)
+            _c("one document is one entry across both stores, whatever its date or amount",
+               not twice_in["written"] and "already recorded" in twice_in["reason"] and first_in["written"]
+               and not again_in["written"] and not cost_after_in["written"]
+               and "already recorded" in cost_after_in["reason"], f)
+            dated_today = add_cost_actual(dict(spend, date=date.today().isoformat(), receipt_sha256="12" * 32))
+            _c("cost actual: a receipt dated today is accepted", "problems" not in dated_today, f)
+            ca.write_text("[]", encoding="utf-8")
+            listed = add_cost_actual(dict(spend, receipt_sha256="34" * 32), write=True, config=on)
+            _c("cost actual: a file that is not an object is left as it is",
+               not listed["written"] and ca.read_text(encoding="utf-8") == "[]", f)
             ca.write_text("{oops", encoding="utf-8")
             kept = add_cost_actual(dict(spend, receipt_sha256="cd" * 32), write=True, config=on)
             _c("cost actual: a file that does not parse is left as it is",

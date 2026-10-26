@@ -21,8 +21,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   editable fields and a tick that is off by default; a tick records money received with
   `books.add_entry` and money paid with the new `books.add_cost_actual` (`--add-cost` on the CLI),
   both gated on `finance_management`. `parse_text` reads `.eml` through the email module, the
-  `invoice_receipt` rule names the new `receipt-extract` atom, and the extractor's patterns read at
-  most 200,000 characters with bounded repeats.
+  `invoice_receipt` rule names the new `receipt-extract` atom. A receipt that was filed but not
+  recorded (recording off, a field missing, a stale tab, a wizard restart) waits on `/inbox-receipts`,
+  rebuilt from the inbox ledger and the books. One document is one entry across the income ledger and
+  cost actuals (`books._document_recorded`). The screen reads every text part of a labelled file (an
+  email's HTML part, a document's headers, footers and comments, `parse_text.screen_text`); a REVIEW
+  verdict is shown on the receipt row. Direction is asked for when a document reads both ways, and
+  an invoice or a "bill to" line decides neither. The extractor's patterns stay on one line with
+  bounded gaps, and `parse_text` walks a PDF's streams once, strips tags without backtracking and
+  inflates at most 16 MB per zip member or stream; the selftests time crafted files of each kind.
+  An `.eml` is not held as oversize: approve keeps a session's or the label's record for it.
 - P103 (income ledger): `tools/books.py` keeps `pipeline/finance/income-ledger.local.json`, the
   record of what the content business received (brand fees, platform payouts, affiliate deposits,
   revenue share, gifted or loaned product), as entries proposed by the tool or a session and

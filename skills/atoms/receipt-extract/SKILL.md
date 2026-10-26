@@ -52,7 +52,7 @@ BLOCK verdict, or a file over 2 MB, gets no proposed record. Otherwise it return
 counterparty, date, total, subtotal, the card's last four digits, the line items, the direction
 (`received` or `paid`, from the document's own wording, else null) and a confidence tier:
 - `exact`: total, date, counterparty and direction found, and the lines add up to the subtotal or
-  the total (an email needs no lines);
+  the total;
 - `probable`: total and date found;
 - `uncertain`: anything less.
 
@@ -78,9 +78,10 @@ The proposal alone is a structured reading of the receipt, with its fingerprint,
 can type into any bookkeeping tool.
 
 ## Failure modes
-- A scanned PDF with no text layer, or a PDF on a computer with no local PDF library: no text, an
-  `uncertain` proposal, and the person types the entry.
-- A document that does not say who paid whom: direction null, asked for.
+- A scanned PDF, or one whose text `parse_text` does not decode: no text, an `uncertain` proposal,
+  and the person types the entry.
+- A document that does not say who paid whom, or reads both ways, or is an invoice: direction null,
+  asked for.
 - A receipt whose lines do not add up (discounts, tips): `probable`, never `exact`.
 
 ## Cross-modality

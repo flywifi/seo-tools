@@ -27,6 +27,11 @@ except ImportError:  # run as a script, imported with shared/docintel on sys.pat
     import textdecode as _td
 
 PDF_MIN_YIELD = 24
+# The most a zip member or a compressed PDF stream is inflated to: a few-KB file can inflate to
+# hundreds of MB, so text past this is not read (P103).
+MEMBER_MAX = 16_000_000
+# A tag that a "<" with no ">" before the next "<" cannot stretch across, so stripping is linear.
+_TAG = re.compile(r"<[^<>]*>")
 
 
 def result(path, ftype, status, text="", tables=None, confidence="high", notes="", needs=None):
@@ -54,7 +59,7 @@ def read_text(path):
 
 
 def strip_tags(markup):
-    text = re.sub(r"<[^>]+>", " ", markup)
+    text = _TAG.sub(" ", markup)
     return re.sub(r"[ \t]+\n", "\n", html.unescape(text)).strip()
 
 
@@ -77,19 +82,28 @@ def parse_office_xml(path, member_glob, para_close, run_tag):
     with zipfile.ZipFile(path) as z:
         members = sorted(n for n in z.namelist() if re.match(member_glob, n))
         for name in members:
-            xml = z.read(name).decode("utf-8", "replace")
+            xml = _read_member(z, name).decode("utf-8", "replace")
             xml = xml.replace(para_close, "\n")
-            xml = re.sub(r"<[^>]+>", "", xml)
+            xml = _TAG.sub("", xml)
             chunks.append((name, html.unescape(xml).strip()))
     return chunks
 
 
+def _read_member(z, name):
+    """A zip member's bytes, at most MEMBER_MAX of them."""
+    with z.open(name) as fh:
+        return fh.read(MEMBER_MAX)
+
+
+def _docx_xml_text(xml):
+    xml = xml.replace("</w:p>", "\n").replace("<w:tab/>", "\t")
+    return html.unescape(_TAG.sub("", xml)).strip()
+
+
 def parse_docx(path):
     with zipfile.ZipFile(path) as z:
-        xml = z.read("word/document.xml").decode("utf-8", "replace")
-    xml = xml.replace("</w:p>", "\n").replace("<w:tab/>", "\t")
-    text = html.unescape(re.sub(r"<[^>]+>", "", xml)).strip()
-    return result(path, "docx", "content_ingested", text)
+        xml = _read_member(z, "word/document.xml").decode("utf-8", "replace")
+    return result(path, "docx", "content_ingested", _docx_xml_text(xml))
 
 
 def parse_pptx(path):
@@ -137,13 +151,33 @@ def parse_csv(path, delimiter):
                   notes=f"{len(rows)} rows parsed (capped at 500)")
 
 
+def _pdf_streams(data):
+    """Each stream's bytes, found by walking the file once: a "stream" keyword followed by a line
+    end, up to the next "endstream". A stream with no "endstream" after it ends the walk, so a file
+    of repeated "stream" lines is read in linear time (P103)."""
+    pos = 0
+    while True:
+        i = data.find(b"stream", pos)
+        if i < 0:
+            return
+        j = i + 6
+        if data[i - 3:i] == b"end" or data[j:j + 1] not in (b"\r", b"\n"):
+            pos = j
+            continue
+        j += 2 if data[j:j + 2] == b"\r\n" else 1
+        k = data.find(b"endstream", j)
+        if k < 0:
+            return
+        yield data[j:k].rstrip(b"\r\n")
+        pos = k + 9
+
+
 def parse_pdf(path):
     data = Path(path).read_bytes()
     pieces = []
-    for match in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", data, re.S):
-        raw = match.group(1)
+    for raw in _pdf_streams(data):
         try:
-            dec = zlib.decompress(raw)
+            dec = zlib.decompressobj().decompress(raw, MEMBER_MAX)
         except zlib.error:
             continue
         for grp in re.findall(rb"\((?:[^()\\]|\\.)*\)", dec):
@@ -189,6 +223,37 @@ def parse_eml(path):
                       notes=f"the email could not be decoded ({type(exc).__name__})")
     notes = f"{attached} attachment(s) not read" if attached else ""
     return result(path, "eml", "content_ingested", "\n".join(head) + "\n\n" + text, notes=notes)
+
+
+def screen_text(path):
+    """Every text a screen should read from a file, joined: for an .eml each decoded text part (the
+    plain and the HTML ones) and the subject, for a .docx the body, headers, footers, footnotes,
+    endnotes and comments, and for anything else parse()'s text. Never raises; "" when nothing
+    could be read (P103)."""
+    p = Path(path)
+    ext = p.suffix.lower().lstrip(".")
+    try:
+        if ext == "eml":
+            import email
+            import email.policy
+            msg = email.message_from_bytes(p.read_bytes(), policy=email.policy.default)
+            texts = [str(msg.get("subject", ""))]
+            for part in msg.walk():
+                if part.get_content_maintype() == "text" and not part.is_attachment():
+                    try:
+                        content = part.get_content()
+                    except (LookupError, ValueError):
+                        content = part.get_payload(decode=True).decode("utf-8", "replace")
+                    texts.append(strip_tags(content) if part.get_content_subtype() == "html" else content)
+            return "\n".join(t for t in texts if t)
+        if ext == "docx" and zipfile.is_zipfile(p):
+            with zipfile.ZipFile(p) as z:
+                names = [n for n in sorted(z.namelist()) if re.fullmatch(
+                    r"word/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml", n)]
+                return "\n".join(_docx_xml_text(_read_member(z, n).decode("utf-8", "replace")) for n in names)
+        return parse(p).get("text") or ""
+    except Exception:  # noqa: BLE001 -- a screen input never raises; the caller sees ""
+        return ""
 
 
 def parse(path):
@@ -258,6 +323,12 @@ def main(argv):
         return 1
 
 
+def _zip_one(path, name, text):
+    """A zip holding one deflated member (selftest helper)."""
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(name, text)
+
+
 def selftest() -> int:
     """Offline proof over synthetic documents built in a temp dir. No network, no real user files.
 
@@ -315,6 +386,39 @@ def selftest() -> int:
         r6 = parse(str(em))
         ok("an .eml whose charset Python lacks degrades to metadata_only, no traceback",
            r6["file_type"] == "eml" and r6["ingestion_status"] == "metadata_only" and r6["text"] == "")
+
+        import time as _time
+        mixed = d / "mixed.eml"
+        mixed.write_bytes(b"From: s@shop.example\nSubject: Receipt\nMIME-Version: 1.0\n"
+                          b"Content-Type: multipart/alternative; boundary=b2\n\n--b2\n"
+                          b"Content-Type: text/plain; charset=utf-8\n\nTotal $9.00\n--b2\n"
+                          b"Content-Type: text/html; charset=utf-8\nContent-Transfer-Encoding: base64\n\n"
+                          + __import__("base64").b64encode(b"<p>Total $90.00</p><p style='display:none'>hidden note</p>")
+                          + b"\n--b2--\n")
+        r7, s7 = parse(str(mixed)), screen_text(str(mixed))
+        ok("an .eml with plain and HTML parts: parse reads the plain part, screen_text reads both",
+           "$9.00" in r7["text"] and "$90.00" not in r7["text"] and "$90.00" in s7 and "hidden note" in s7
+           and "$9.00" in s7)
+        with zipfile.ZipFile(d / "parts.docx", "w") as z:
+            z.writestr("word/document.xml", "<w:p><w:t>body text</w:t></w:p>")
+            z.writestr("word/footer1.xml", "<w:p><w:t>footer note</w:t></w:p>")
+            z.writestr("word/comments.xml", "<w:p><w:t>comment note</w:t></w:p>")
+        s8 = screen_text(str(d / "parts.docx"))
+        ok("screen_text reads a docx's body, footers and comments",
+           all(t in s8 for t in ("body text", "footer note", "comment note")))
+        slow = []
+        for name, build in (("streams.pdf", lambda f: f.write_bytes(b"%PDF-1.4\n" + b"stream\n" * 20000)),
+                            ("lt.docx", lambda f: _zip_one(f, "word/document.xml", "<" * 100000)),
+                            ("bomb.docx", lambda f: _zip_one(f, "word/document.xml", "a" * 40_000_000))):
+            f = d / name
+            build(f)
+            t0 = _time.monotonic()
+            parse(str(f))
+            screen_text(str(f))
+            slow.append((name, _time.monotonic() - t0))
+        ok(f"repeated stream keywords, a run of '<' and an inflating docx are read in bounded time ({slow}), "
+           "and an inflating docx is read only up to MEMBER_MAX",
+           all(t < 5 for _n, t in slow) and len(parse(str(d / "bomb.docx"))["text"]) == MEMBER_MAX)
 
         bad = d / "c.docx"
         bad.write_bytes(b"not a zip at all")

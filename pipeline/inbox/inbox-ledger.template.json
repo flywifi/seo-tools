@@ -9,6 +9,7 @@
       "classified_as": null,
       "injection_scan_result": null,
       "routed_to": null,
+      "category_source": null,
       "status": null,
       "approved_at": null,
       "notes": null
