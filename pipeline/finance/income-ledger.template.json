@@ -1,0 +1,50 @@
+{
+  "_schema_version": "0.1.0",
+  "_note": "Blank schema for the creator's income ledger: one entry per payment or product RECEIVED for the content business (brand fees, platform payouts, affiliate commissions, revenue share, gifted or loaned product). Real entries live in pipeline/finance/income-ledger.local.json (gitignored by the pipeline/finance allowlist-invert rule). Entries are proposed by tools/books.py from paid invoices, approved receipts and remittance files, or typed by the human, and confirmed by the human; nothing is invented. A product entry carries a retail price ONLY with its source (the brand or retailer page, or the human's own statement) and the date it was captured; with no source the price stays null and gaps[] names what to provide. payer totals per tax_year feed the form_check against the 1099 forms the human enters.",
+  "_boundary": "ARITHMETIC AND RESEARCH NOTES. NOT TAX, ACCOUNTING, OR INVESTMENT ADVICE. REVIEW WITH A CPA OR TAX PROFESSIONAL BEFORE FILING OR RELYING ON CATEGORIZATIONS.",
+  "currency": "USD",
+  "entries": [
+    {
+      "entry_id": null,
+      "status": "proposed | confirmed | void",
+      "date": null,
+      "tax_year": null,
+      "payer": null,
+      "payer_type": "brand | platform | affiliate_network | agency | other",
+      "kind": "cash | product | affiliate | ad_revenue | revenue_share | refund",
+      "amount": null,
+      "product": {
+        "item": null,
+        "quantity": null,
+        "retail_price": null,
+        "price_source": "brand_page | retailer_page | user_stated",
+        "price_source_ref": null,
+        "price_captured_at": null,
+        "disposition": "kept | returned | given_away | loaned"
+      },
+      "deal_id": null,
+      "invoice_id": null,
+      "shipment_id": null,
+      "content_refs": [],
+      "evidence_ref": null,
+      "evidence_sha256": null,
+      "sequence": null,
+      "payment_method": null,
+      "source": "invoice_paid | receipt_extract | user_entry | platform_statement",
+      "confidence": "exact | probable | uncertain",
+      "gaps": [],
+      "notes": ""
+    }
+  ],
+  "forms_received": [
+    {
+      "tax_year": null,
+      "payer": null,
+      "form": "1099-NEC | 1099-MISC | 1099-K",
+      "amount": null,
+      "received_at": null
+    }
+  ],
+  "human_review_required": true,
+  "last_updated": null
+}

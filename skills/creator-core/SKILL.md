@@ -117,6 +117,7 @@ Use this hierarchy when a spoke needs to resolve conflicting signals.
 | `cashflow_projection` | Pipeline/CRM | `finance-desk` | weekly cash-movement view over the horizon (read-only; redacted output available) |
 | `payment_reconcile` | Pipeline/CRM | `finance-desk` | match a bank/PayPal export to open invoices; proposal-only, gated mark-paid after human confirmation |
 | `dunning_draft` | Pipeline/CRM | `finance-desk` | escalating payment-reminder DRAFTS keyed to aging buckets; never sends |
+| `income_ledger` | Pipeline/CRM | `finance-desk` | record what the content business received (cash and gifted product, per payer); gift register with price sources; 1099 check; CSV export; set-aside at a percentage the creator states (income-ledger; writes gated by finance_management) |
 | `task_status` | Pipeline/CRM | `task-desk` | create/update source-cited tasks, record a governed status change or approval hand-off, and view what is outstanding (waiting-on vs I-owe); gated by task_tracking; nothing sent |
 | `task_plan` | Pipeline/CRM | `task-desk` | schedule a project's tasks forward from a trigger event or backward from a deadline, with a negative-slack feasibility check (offline date math) |
 | `coverage_check` | Pipeline/CRM | `task-desk` | verify a deliverable covered its required points by reconciling media transcripts and citing the supporting sentence per point; abstains rather than infers |

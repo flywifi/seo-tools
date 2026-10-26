@@ -53,9 +53,24 @@ consequential-action gate. Invoice documents are drafted, never sent; the human 
   and confidence label, plus time phases and totals.
 - `cost-actuals.template.json` — what was actually spent, entry by entry, with vendor, category,
   capex flag, and receipt reference. Carries the boundary line.
+- `income-ledger.template.json` (P103) — what the content business RECEIVED, one entry per
+  payment or product: payer and payer type, kind (cash, product, affiliate, ad_revenue,
+  revenue_share, refund), amount for a cash kind, and for a product the item, quantity and a
+  retail price that is stored only with its source (`brand_page`, `retailer_page`,
+  `user_stated`), the page for a brand or retailer price, and the capture date; links to the
+  deal, invoice, shipment and content; the evidence file and its hash; `status` proposed,
+  confirmed or void; and `forms_received[]` for the 1099 check. Owned by `tools/books.py`
+  (entries proposed from paid invoices, approved receipts or the human, confirmed by the human;
+  per-payer and per-month summaries, the gift register, the form check, a CSV export under
+  `pipeline/finance/exports/`, and a set-aside figure at a percentage the human states). A
+  product with no sourced price is recorded with a gap, not valued (ADR 0082).
 
 Real records are `pipeline/finance/*.local.json` (gitignored). Invoice numbering is
 deterministic: `INV-<deal_id>-<seq:03d>`, assigned by `tools/finance.py`, never by the model.
+A ledger `entry_id` is `BK-<yyyymmdd>-<8 hex>` over the fields that make two proposals the same
+event (date, payer without case or extra spaces, kind, amount, invoice id, evidence hash, evidence
+reference, sequence, and for a product its item, quantity and retail price), assigned by
+`tools/books.py`.
 
 ## Money arithmetic rules
 
@@ -186,7 +201,10 @@ for invoice writes), sha256 bucket manifest over `pipeline/finance/*.local.json`
 selftest. MCP tools (`finance_scan`, `invoice_build`, `cost_rollup`, `proposal_price`, <!-- verify: tools/finance.py::proposal_price --> <!-- verify: tools/finance.py::cost_rollup -->
 `import_finance`) delegate to it so the model never does the arithmetic. `import_finance` fans
 results out to the existing join points: chase dates to the content calendar and production
-tasks, deposit due dates to deal-resourcing — never a parallel calendar.
+tasks, deposit due dates to deal-resourcing — never a parallel calendar. `tools/books.py` (P103)
+is the same lane for the income ledger: reads always on, writes behind `finance_management`, the
+`books_add`, `books_summary` and `books_export` MCP tools as the handoff, and `redact()` (bands,
+initials, hidden page references) for anything quoted off this machine.
 
 ## Reuse map (what this engine does NOT own)
 

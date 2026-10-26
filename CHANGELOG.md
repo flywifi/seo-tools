@@ -13,6 +13,32 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (income ledger): `tools/books.py` keeps `pipeline/finance/income-ledger.local.json`, the
+  record of what the content business received (brand fees, platform payouts, affiliate deposits,
+  revenue share, gifted or loaned product), as entries proposed by the tool or a session and
+  confirmed by the human (`--add`, `--confirm`, `--void`, `--propose-from-invoices` for paid
+  invoices the ledger does not hold). It reports per payer and per month for a tax year
+  (`--summary`), lists gifted items with the source of each retail price (`--gifts`), compares
+  each 1099 the human enters with the ledger's cash for that payer (`--form-check`), writes
+  `<year>-income.local.csv` and `<year>-gifts.local.csv` under `pipeline/finance/exports/`
+  (`--export`; an export path inside the repo must be a `.local.csv` file under
+  `pipeline/finance/`, a relative path is read from the repo root, and an existing file is
+  replaced only when it is an earlier export, so a ledger or invoice is not overwritten), and
+  multiplies year-to-date net by a percentage the human states (`--set-aside`; a trailing `%` is
+  read, a comma decimal is refused). An amount that is not a number, or too large to hold in
+  cents, is refused with the field named and the value left out of the message. A product's retail price is stored only with its source and capture
+  date, and a brand or retailer price only with its page; otherwise the price is null and the
+  entry carries a gap (ADR 0082). An added entry is stored as proposed whatever status it
+  carries; a refund's amount is negative; a quantity is a whole number of 1 or more, and 1 when
+  not given. The entry id compares payer and item without case or extra spaces, so a re-sent
+  receipt is one entry, and a second identical payment on one day is told apart by its
+  `evidence_ref` or `sequence: 2`. The form check matches payers the same way. Writes gate on
+  `finance_management`; `--redacted` bands the ledger's amounts and hides payer and item names,
+  page references, notes and content references, keeping one row per payer when two payers share
+  initials. The `income-ledger` atom (composed by
+  `finance-desk`, routed as `income_ledger`) and the `books_add`, `books_summary` and
+  `books_export` MCP tools are the handoff. The template joins the invariant 20 allowlist; the
+  selftest runs with the Windows path stand-in.
 - P102 (creator-facing text has no em dash): drift invariant 62
   (`sync_check.check_creator_text_dashes`) fails the build on an em dash, `&mdash;`, or `&#8212;` or
   `&#x2014;` with or without the semicolon, in the local tools' creator-facing text: the string
