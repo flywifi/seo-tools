@@ -168,6 +168,29 @@ def parse_pdf(path):
                   notes="best-effort stdlib extraction; verify critical figures against the source")
 
 
+def parse_eml(path):
+    """An email file (.eml) through Python's email module: its From, Subject and Date lines, then
+    the text part, else the HTML part with the tags stripped. Attachments are not read (the notes
+    say how many there were). A message the module cannot decode degrades to metadata_only."""
+    import email
+    import email.policy
+    try:
+        msg = email.message_from_bytes(Path(path).read_bytes(), policy=email.policy.default)
+        head = [f"From: {msg.get('from', '')}", f"Subject: {msg.get('subject', '')}",
+                f"Date: {msg.get('date', '')}"]
+        body = msg.get_body(preferencelist=("plain", "html"))
+        text = ""
+        if body is not None:
+            content = body.get_content()
+            text = strip_tags(content) if body.get_content_type() == "text/html" else content
+        attached = sum(1 for _ in msg.iter_attachments())
+    except (ValueError, LookupError, TypeError, AttributeError) as exc:
+        return result(path, "eml", "metadata_only", confidence="low",
+                      notes=f"the email could not be decoded ({type(exc).__name__})")
+    notes = f"{attached} attachment(s) not read" if attached else ""
+    return result(path, "eml", "content_ingested", "\n".join(head) + "\n\n" + text, notes=notes)
+
+
 def parse(path):
     p = Path(path)
     if not p.exists():
@@ -183,6 +206,8 @@ def parse(path):
             return parse_xlsx(p)
         if ftype == "pdf":
             return parse_pdf(p)
+        if ftype == "eml":
+            return parse_eml(p)
         if ftype in ("csv",):
             return parse_csv(p, ",")
         if ftype in ("tsv",):
@@ -273,6 +298,23 @@ def selftest() -> int:
         ok("an absent file names what to provide instead of inventing content",
            isinstance(r3["needs_more_info"], dict)
            and r3["needs_more_info"].get("reason") == "missing_file")
+
+        em = d / "m.eml"
+        em.write_bytes(b"From: Shop <s@shop.example>\nSubject: Your receipt\nDate: Tue, 07 Jul 2026 10:00:00 -0400\n"
+                       b"MIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=b1\n\n--b1\n"
+                       b"Content-Type: text/html; charset=utf-8\n\n<p>Total <b>$4.00</b></p>\n--b1\n"
+                       b"Content-Type: application/pdf\nContent-Disposition: attachment; filename=r.pdf\n\n"
+                       b"%PDF-1.4\n--b1--\n")
+        r5 = parse(str(em))
+        ok("an .eml is read through the email module: headers, the HTML part stripped, attachments counted",
+           r5["file_type"] == "eml" and r5["ingestion_status"] == "content_ingested"
+           and r5["text"].startswith("From: Shop <s@shop.example>\nSubject: Your receipt")
+           and " ".join(r5["text"].split()).endswith("Total $4.00") and "%PDF" not in r5["text"]
+           and "1 attachment" in r5["notes"])
+        em.write_bytes(b"From: a@b.example\nContent-Type: text/plain; charset=\"no-such-codec\"\n\nhi\n")
+        r6 = parse(str(em))
+        ok("an .eml whose charset Python lacks degrades to metadata_only, no traceback",
+           r6["file_type"] == "eml" and r6["ingestion_status"] == "metadata_only" and r6["text"] == "")
 
         bad = d / "c.docx"
         bad.write_bytes(b"not a zip at all")

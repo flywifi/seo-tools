@@ -31,7 +31,8 @@ ARITHMETIC AND RESEARCH NOTES. NOT TAX, ACCOUNTING, OR INVESTMENT ADVICE. REVIEW
 Do NOT use for:
 - Drafting or chasing invoices (`invoice-generate`, `ar-review`, `dunning-draft`).
 - Matching a bank or PayPal export to invoices (`payment-reconcile`).
-- Recording spending; cost actuals belong to the finance-desk estimate lane.
+- Recording spending from a receipt (`receipt-extract`, which writes cost actuals through
+  `tools/books.py --add-cost`).
 - Deciding what is taxable, deductible or how a gift should be valued. The atom records a retail
   price with its source; the creator and the CPA decide the treatment.
 

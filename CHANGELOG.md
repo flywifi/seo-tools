@@ -13,6 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (receipt capture): on the wizard's Inbox screen a document waiting for a Claude session (PDF,
+  Word, HTML, text, Markdown or `.eml`) can be ticked as a receipt or payment notice;
+  `inbox.person_labelled` runs the offline pattern tier on the text `parse_text` extracts and
+  approves it with the batch, or leaves a flagged file in the Inbox (ADR 0083). The work order shows
+  the entry `tools/receipt_extract.py` reads (direction, date, name, amount, confidence, gaps), with
+  editable fields and a tick that is off by default; a tick records money received with
+  `books.add_entry` and money paid with the new `books.add_cost_actual` (`--add-cost` on the CLI),
+  both gated on `finance_management`. `parse_text` reads `.eml` through the email module, the
+  `invoice_receipt` rule names the new `receipt-extract` atom, and the extractor's patterns read at
+  most 200,000 characters with bounded repeats.
 - P103 (income ledger): `tools/books.py` keeps `pipeline/finance/income-ledger.local.json`, the
   record of what the content business received (brand fees, platform payouts, affiliate deposits,
   revenue share, gifted or loaned product), as entries proposed by the tool or a session and

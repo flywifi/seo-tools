@@ -163,7 +163,15 @@ exact follow-up work (transcribe a dropped video via `transcribe_media`, normali
 transcript via `transcript_normalize`, preview an export via `import_parse_preview`) with a
 per-item checkbox and an "Anything to change?" note, and a second click queues only the checked
 jobs. The note travels with the work as the ticket `consent_note` for human review; it is never
-parsed or executed. Jobs are proposal-only by default; a job writes to the library directly only
+parsed or executed. A document waiting for a Claude session that is a receipt or a payment notice
+(a PDF, Word, web page, text or saved `.eml` file) can be labelled so on the Inbox screen instead
+(P103, ADR 0083): the wizard reads its text on this computer, runs the offline pattern tier on that
+text, and approves it with the batch when the tier finds nothing (a flagged file stays in the
+Inbox, never routed). The work order then shows the entry `tools/receipt_extract.py` reads from it
+(money in or out, date, name, amount, confidence and gaps), with each field editable and its own
+tick, off until you turn it on; a tick records money received in the income ledger and money paid
+in `pipeline/finance/cost-actuals.local.json` through `tools/books.py`, when `finance_management`
+is on <!-- verify: tools/handoff/inbox.py::person_labelled -->. Jobs are proposal-only by default; a job writes to the library directly only
 when the local `job_store_writes_enabled` capability is on (an acknowledged toggle on `/compute`)
 AND its ticket asks. Unknown files are flagged and left in place, never guessed. The wizard's hub
 screen offers a Drive for desktop folder named as `drive_hub.folder_name` in your config says

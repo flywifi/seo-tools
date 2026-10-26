@@ -501,9 +501,68 @@ def plan_followups(moved_entries) -> list:
             else:
                 plan.append({"file": ref, "job_type": None,
                              "note": "export format is ambiguous; pick it on the /import screen"})
+        elif cat == "invoice_receipt":
+            plan.append({"file": ref, "job_type": None, "review": "receipt", "processed_ref": ref,
+                         "note": "receipt or payment notice: review the proposed entry"})
         else:
             plan.append({"file": ref, "job_type": None, "note": "handled in a Claude session"})
     return plan
+
+
+# Content categories the person may assign on the wizard's Inbox screen, in place of a session
+# (P103, ADR 0083), and the formats each may be assigned to.
+PERSON_LABELS = {"invoice_receipt": frozenset({"pdf", "docx", "txt", "md", "html", "htm", "eml"})}
+_LABEL_MAX_BYTES = 2_000_000
+
+
+def person_labelled(hub_root, entries, category, rules=None) -> dict:
+    """{"proposals", "refused"}: needs_review entries the person labelled `category` on the Inbox
+    screen, made into proposal entries approve() accepts. A category outside PERSON_LABELS, a format
+    it does not cover, a file that moved, changed since the scan, is over 2 MB or resolves outside
+    the Inbox is refused. The text parse_text reads from the file runs through the offline injection
+    tier; a QUARANTINE or BLOCK verdict refuses the file (left in place, never routed), and with the
+    screener unavailable every file is refused. A file with no readable text (a PDF with no local PDF
+    library) is accepted with no screen record: nothing is read from it, and the person types the
+    entry. pass2_pending stays True. Reads files, writes nothing."""
+    from shared.docintel import parse_text as _pt
+    hub = Path(hub_root)
+    rule = (load_rules() if rules is None else rules).get(category) or {}
+    out = {"proposals": [], "refused": []}
+    allowed = PERSON_LABELS.get(category)
+    scr = _screener()
+    for e in entries:
+        rel = e.get("file", "")
+        src, refusal = _confined_inbox_file(hub, rel)
+        ext = Path(rel).suffix.lower().lstrip(".")
+        if not refusal and (allowed is None or ext not in allowed):
+            refusal = f"a {category} label is not offered for .{ext} files"
+        if not refusal and scr is None:
+            refusal = "the offline screener is unavailable, so the text cannot be checked; not routed"
+        if not refusal and src.stat().st_size > _LABEL_MAX_BYTES:
+            refusal = "over 2 MB; type the entry in, or ask a Claude session to read it"
+        if not refusal and _sha256(src) != e.get("sha256"):
+            refusal = "file changed since the scan; re-scan first"
+        if refusal:
+            out["refused"].append({"file": rel, "why": refusal})
+            continue
+        text = _pt.parse(str(src)).get("text") or ""
+        record = None
+        if text.strip():
+            rec = scr.scan_text(text, artifact_id=src.name)
+            record = {"risk_level": rec["risk_level"], "total_score": rec["total_score"],
+                      "patterns_detected": rec["patterns_detected"], "read": "extracted_text"}
+            if rec["risk_level"] in ("QUARANTINE", "BLOCK"):
+                out["refused"].append({"file": rel, "why": (
+                    f"the offline injection tier flagged its text ({rec['risk_level']}); left in the "
+                    "Inbox, never routed")})
+                continue
+        out["proposals"].append({
+            "file": rel, "sha256": e["sha256"], "classified_as": category, "category_source": "person",
+            "route_to": {"handler": rule.get("handler"), "store": rule.get("store")},
+            "offline_pattern_scan": record, "pass2_pending": True,
+            "note": "labelled by the person on the Inbox screen" + (
+                "" if record else "; no text could be read, so the entry is typed in")})
+    return out
 
 
 _RISK_RANK = {"CLEAN": 0, "REVIEW": 1, "QUARANTINE": 2, "BLOCK": 3}
@@ -654,6 +713,7 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
                                      "injection_scan_result": item.get("injection_scan_result"),
                                      "reconciliation": review},
                 "routed_to": item.get("route_to"),
+                "category_source": item.get("category_source"),
                 "status": "approved",
                 "approved_at": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "notes": item.get("note"),
@@ -1739,6 +1799,58 @@ def _selftest_checks() -> int:
     ok("the shortcut note names the download route and the Google Drive connector",
        all(e["note"] == _POINTER_NOTE for e in held_g.values())
        and "Download" in _POINTER_NOTE and "Google Drive connector" in _POINTER_NOTE)
+
+    # P103: documents the person labels as receipts on the Inbox screen become proposals once their
+    # extracted text passes the offline tier; anything else is refused and left in place.
+    import zipfile as _zf_pl
+    pl = Path(tempfile.mkdtemp()); (pl / "Inbox").mkdir()
+    (pl / "Inbox" / "order.txt").write_text("Your receipt\nVendor: Corner Hardware\nTotal $4.00\n", encoding="utf-8")
+    with _zf_pl.ZipFile(pl / "Inbox" / "note.docx", "w") as z:
+        z.writestr("word/document.xml", '<?xml version="1.0"?><w:document xmlns:w="x"><w:body><w:p><w:r><w:t>'
+                   + poison + '</w:t></w:r></w:p></w:body></w:document>')
+    (pl / "Inbox" / "scan.pdf").write_bytes(b"%PDF-1.4 no text layer here")
+    (pl / "Inbox" / "data.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    (pl / "outside.txt").write_text("Total $9.00\n", encoding="utf-8")
+    ent = {n: {"file": f"Inbox/{n}", "sha256": _sha256(pl / "Inbox" / n)}
+           for n in ("order.txt", "note.docx", "scan.pdf", "data.csv")}
+    lab = person_labelled(pl, list(ent.values()) + [
+        {"file": "Inbox/../outside.txt", "sha256": _sha256(pl / "outside.txt")},
+        dict(ent["order.txt"], file="Inbox/order.txt", sha256="0" * 64)], "invoice_receipt")
+    props = {e["file"]: e for e in lab["proposals"]}
+    why = {r["file"]: r["why"] for r in lab["refused"][:4]}
+    ok("a labelled receipt becomes a proposal: person-labelled, routed to receipt-extract, its text screened",
+       sorted(props) == ["Inbox/order.txt", "Inbox/scan.pdf"]
+       and props["Inbox/order.txt"]["category_source"] == "person"
+       and props["Inbox/order.txt"]["route_to"]["handler"] == "receipt-extract"
+       and props["Inbox/order.txt"]["offline_pattern_scan"]["read"] == "extracted_text"
+       and props["Inbox/order.txt"]["pass2_pending"] is True)
+    ok("a labelled document with no readable text is proposed with no screen record, to be typed in",
+       props["Inbox/scan.pdf"]["offline_pattern_scan"] is None and "typed in" in props["Inbox/scan.pdf"]["note"])
+    ok("labelled text the offline tier flags, a format the label does not cover, a path outside the Inbox "
+       "and a file changed since the scan are refused",
+       "flagged" in why.get("Inbox/note.docx", "") and "not offered for .csv" in why.get("Inbox/data.csv", "")
+       and len(lab["refused"]) == 4 and "changed since the scan" in lab["refused"][-1]["why"]
+       and any(r["file"] == "Inbox/../outside.txt" for r in lab["refused"])
+       and (pl / "Inbox" / "note.docx").is_file())
+    other = person_labelled(pl, [ent["order.txt"]], "brand_contract")
+    real_scr = globals()["_screener"]
+    globals()["_screener"] = lambda: None
+    try:
+        blind = person_labelled(pl, [ent["order.txt"]], "invoice_receipt")
+    finally:
+        globals()["_screener"] = real_scr
+    ok("a category the person may not assign, or no screener, refuses every file",
+       not other["proposals"] and "not offered" in other["refused"][0]["why"]
+       and not blind["proposals"] and "unavailable" in blind["refused"][0]["why"])
+    pl_led = Path(tempfile.mkdtemp()) / "pl-ledger.json"
+    ap = approve(pl, {"proposals": [props["Inbox/order.txt"]]}, ledger_path=pl_led)
+    fu = plan_followups(ap["moved_details"])
+    ok("an approved receipt is filed with its label recorded, and its follow-up is a receipt review",
+       ap["moved"] == ["Inbox/order.txt"]
+       and json.loads(pl_led.read_text(encoding="utf-8"))["entries"][0]["category_source"] == "person"
+       and fu == [{"file": ap["moved_details"][0]["processed_ref"], "job_type": None, "review": "receipt",
+                   "processed_ref": ap["moved_details"][0]["processed_ref"],
+                   "note": "receipt or payment notice: review the proposed entry"}])
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

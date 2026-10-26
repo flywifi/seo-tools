@@ -8,7 +8,7 @@
     "analytics": {"handler": "video-import", "store": "pipeline/video-library/", "category_source": "content"},
     "analytics_export": {"handler": "video-import", "store": "pipeline/video-library/", "category_source": "content"},
     "platform_export": {"handler": "video-import", "store": "pipeline/video-library/", "category_source": "format"},
-    "invoice_receipt": {"handler": "payment-reconcile", "store": "pipeline/finance/", "category_source": "content"},
+    "invoice_receipt": {"handler": "receipt-extract", "store": "pipeline/finance/", "category_source": "content"},
     "transcript": {"handler": "transcript-import", "store": "pipeline/video-library/", "category_source": "format"},
     "video_media": {"handler": "library-complete", "store": "pipeline/video-library/", "category_source": "format"},
     "audio_media": {"handler": "library-complete", "store": "pipeline/video-library/", "category_source": "format"},

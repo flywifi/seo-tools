@@ -63,6 +63,9 @@ creator-core). A QUARANTINE or BLOCK scan verdict stops the file here.
 Map the category through `shared/docintel/inbox_rules.json` (data, not code): each rule names the
 handler atom or tool and the target store. A category with no rule, or a file with no confident
 category, is `unknown`.
+A receipt or payment notice (`invoice_receipt`) is handled by `receipt-extract`; on the wizard's
+Inbox screen the person may label such a document directly, and the offline pattern tier checks its
+extracted text before it is approved (`docs/adr/0083-p103-person-labelled-receipts-in-the-inbox.md`).
 
 ### Step 4: assemble ONE proposal batch
 One entry per new file: the file, its sha256, its category, its scan verdict, the matched rule
