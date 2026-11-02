@@ -292,7 +292,7 @@ def selftest():
     with tempfile.TemporaryDirectory() as td, file_hash.windows_paths():
         t = Path(td)
         r = t / "order.txt"
-        r.write_text(RECEIPT_TXT, encoding="utf-8")
+        r.write_bytes(RECEIPT_TXT.encode("utf-8"))  # bytes: text mode on Windows writes CR LF
         pr = extract(r, ref="Inbox/Processed/2026-05-03/order.txt")
         ok("receipt: total, date, vendor and last four are read", pr["total"] == "239.61"
            and pr["date"] == "2026-05-02" and pr["counterparty"] == "Northstar Tools Co" and pr["card_last4"] == "4242")
