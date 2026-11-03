@@ -47,8 +47,10 @@ Follow `shared/method.md`. The model never reads figures off the document itself
 ### Step 1: extract
 `python3 tools/receipt_extract.py <file> --ref Inbox/Processed/<date>/<name>` reads the text <!-- verify: tools/receipt_extract.py::extract -->
 through `shared/docintel/parse_text.py` (an `.eml` through Python's email module; attachments are
-not read) and runs the offline injection tier on it (`tools/injection_scan.py`). A QUARANTINE or
-BLOCK verdict, or a file over 2 MB, gets no proposed record. Otherwise it returns the
+not read for the fields) and runs the offline injection tier on the text parts `screen_text`
+exposes (headers, each text part, a document's headers, footers and notes) with it
+(`tools/injection_scan.py`). A QUARANTINE or BLOCK verdict, a file over 2 MB, or a part that cannot
+be read whole, gets no proposed record. Otherwise it returns the
 counterparty, date, total, subtotal, the card's last four digits, the line items, the direction
 (`received` or `paid`, from the document's own wording, else null) and a confidence tier:
 - `exact`: total, date, counterparty and direction found, and the lines add up to the subtotal or
@@ -80,8 +82,8 @@ can type into any bookkeeping tool.
 ## Failure modes
 - A scanned PDF, or one whose text `parse_text` does not decode: no text, an `uncertain` proposal,
   and the person types the entry.
-- A document that does not say who paid whom, or reads both ways, or is an invoice: direction null,
-  asked for.
+- A document that does not say who paid whom, or reads both ways, or is headed as an invoice or
+  carries a "Bill to" line: direction null, asked for.
 - A receipt whose lines do not add up (discounts, tips): `probable`, never `exact`.
 
 ## Cross-modality

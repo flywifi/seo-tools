@@ -74,7 +74,7 @@ def _pats(*sources) -> list:
 
 _PATTERNS = {
     "OVERRIDE": _pats(
-        r"\b(?:ignore|disregard|forget|override)\b[\w\s,]*?\b(?:instructions?|rules?|guidelines?|constraints?|previous|prior|all)\b",
+        r"\b(?:ignore|disregard|forget|override)\b[\w\s,]{0,80}?\b(?:instructions?|rules?|guidelines?|constraints?|previous|prior|all)\b",
         r"you no longer need to follow",
         r"your previous instructions are cancell?ed",
         r"starting now,? ignore everything above",
@@ -113,10 +113,10 @@ _PATTERNS = {
         r"output the (?:contents of|text of) your (?:context|system)",
     ),
     "REDIRECT": _pats(
-        r"\b(?:fetch|call|request|load)\b[\w\s]*?https?://",
+        r"\b(?:fetch|call|request|load)\b[\w\s]{0,80}?https?://",
         r"send (?:this|the data|my information) to\b",
         r"(?:check|visit) (?:this|the following) (?:link|url|endpoint) for (?:your|new) instructions",
-        r"for (?:updated|new) (?:instructions|rules)\b[\w\s]*?https?://",
+        r"for (?:updated|new) (?:instructions|rules)\b[\w\s]{0,80}?https?://",
     ),
     "ENCODE": _pats(
         r"base64 (?:encoded|message)",
@@ -579,6 +579,14 @@ def selftest() -> int:
     ok("render_prior on a non-record is honest, never crashes",
        "not screened offline" in render_prior({}))
 
+    # P103: a gap between a trigger word and its terminal word is bounded, so a text of repeated
+    # trigger words with no terminal word is scanned in linear time.
+    import time as _time_is
+    t0 = _time_is.monotonic()
+    scan_text("ignore " * 10_000)
+    scan_text("fetch " * 10_000)
+    took_is = _time_is.monotonic() - t0
+    ok(f"repeated trigger words with no terminal word are scanned in bounded time ({took_is:.2f} s)", took_is < 2)
     passed = sum(1 for _, c in checks if c)
     print(f"injection_scan selftest: {passed}/{len(checks)} passed")
     return 0 if passed == len(checks) else 1

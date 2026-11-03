@@ -17,16 +17,18 @@ knows what it is.
 
 1. The person may assign the `invoice_receipt` category on the wizard's Inbox screen, in place of a
    session, to a document waiting there (formats in `tools/handoff/inbox.py::PERSON_LABELS`: PDF,
-   Word, HTML, text, Markdown and `.eml`). `person_labelled` reads every text part `parse_text` extracts on
-   this computer and runs the offline pattern tier on it; QUARANTINE or BLOCK leaves the file in the
-   Inbox, never routed, and so do a changed file, a file over 2 MB, another format and a missing
-   screener. The approved entry carries `category_source: "person"` and `pass2_pending: true`.
+   Word, HTML, text, Markdown and `.eml`). `person_labelled` reads, on this computer, the text parts
+   `parse_text.screen_text` exposes (an email's From, Subject and Date and each text part, attachments
+   included; a Word file's body, headers, footers, notes, comments, SmartArt data and alternative-format
+   chunks) together with the parsed text, and runs the offline pattern tier on them; QUARANTINE or BLOCK
+   leaves the file in the Inbox, never routed, and so do a part that cannot be read whole, a changed
+   file, a file over 2 MB, another format and a missing screener. The approved entry carries `category_source: "person"` and `pass2_pending: true`.
 2. `.eml` joins the parseable formats: `parse_text` reads it with Python's email module (headers,
    then the text part, else the HTML part; attachments are counted, not read).
 3. The work order shows, per labelled file, what `tools/receipt_extract.py` reads from it after the
    approval (never at scan time): money in or out, date, name, amount, what was bought, the kind
    of income, confidence and gaps, each field editable, with a tick that is off until the person
-   turns it on. An entry whose date, name or amount the person changed is stored with confidence
+   turns it on. An income entry whose date, name or amount the person changed is stored with confidence
    `edited`. A tick writes through
    `tools/books.py`: money received with `add_entry` (an income-ledger entry, `source:
    receipt_extract`, stored as proposed), money paid with the new `add_cost_actual` (a cost-actuals
@@ -41,11 +43,18 @@ knows what it is.
   date, an amount), the person reviews each one, and nothing is sent anywhere.
 - A PDF whose text `parse_text` cannot read (a scanned page, or text it does not decode) is accepted
   with no screen record and typed in by the person; nothing is read from it.
-- The screen reads every text part the file holds (`parse_text.screen_text`), so an email's HTML
-  part or a document's footer cannot carry text past it; a REVIEW verdict is shown on the row.
+- The screen reads the text parts `parse_text.screen_text` exposes together with the parsed text,
+  so text in an email's HTML part, its encoded From header or a text attachment, or in a document's
+  footer, comment or SmartArt, is screened too (each is a selftest case); a part that cannot be read
+  whole refuses the label; a REVIEW verdict is shown on the row.
 - The extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters,
-  and `parse_text` walks PDF streams once, strips tags without backtracking and inflates at most
-  16 MB per zip member or stream. The selftests time crafted files of each kind.
+  and `parse_text` walks PDF streams once, strips tags and trailing spaces in one pass, cuts an email
+  header longer than 8 KB undecoded, and inflates at most 16 MB per file across its zip members or
+  PDF streams, stopping there. The selftests time crafted files of each kind.
+- A document headed as an invoice, or carrying a Bill to line, gets no direction even when it thanks
+  for an order; the person chooses.
+- A receipt row carries the inbox ledger's sha256 when its file could not be read at proposal time;
+  a row with no sha256 is not recorded.
 - A filed receipt that was not recorded waits on `/inbox-receipts` until it is; one document is one
   entry across the income ledger and cost actuals. A remittance recorded from the Inbox and the
   invoice it settles marked paid still propose two income entries; the person voids one.

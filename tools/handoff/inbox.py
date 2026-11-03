@@ -502,7 +502,7 @@ def plan_followups(moved_entries) -> list:
                 plan.append({"file": ref, "job_type": None,
                              "note": "export format is ambiguous; pick it on the /import screen"})
         elif cat == "invoice_receipt":
-            plan.append({"file": ref, "job_type": None, "review": "receipt", "processed_ref": ref,
+            plan.append({"file": ref, "job_type": None, "review": "receipt", "processed_ref": ref, "sha256": e.get("sha256"),
                          "note": "receipt or payment notice: review the proposed entry"})
         else:
             plan.append({"file": ref, "job_type": None, "note": "handled in a Claude session"})
@@ -521,11 +521,13 @@ def person_labelled(hub_root, entries, category, rules=None) -> dict:
     it does not cover, a file that moved, changed since the scan, is over 2 MB or resolves outside
     the Inbox is refused. The text parse_text reads from the file runs through the offline injection
     tier; a QUARANTINE or BLOCK verdict refuses the file (left in place, never routed), and with the
-    screener unavailable every file is refused. The tier reads every text part parse_text.screen_text
-    finds (an email's HTML part, a document's footers and comments). A file with no readable text (a
-    PDF whose text parse_text does not decode) is accepted with no screen record: nothing is read
-    from it, and the person types the entry. A REVIEW verdict is accepted with a note. pass2_pending
-    stays True. Reads files, writes nothing."""
+    screener unavailable every file is refused. The tier reads the text parts parse_text.screen_text
+    exposes (an email's From, Subject and Date and each text part; a document's headers, footers,
+    notes and comments) together with the parsed text; a file with a part that cannot be read whole
+    (a damaged member, text inflating past parse_text.INFLATE_MAX) is refused. A file with no
+    readable text (a PDF whose text parse_text does not decode) is accepted with no screen record:
+    nothing is read from it, and the person types the entry. A REVIEW verdict is accepted with a
+    note. pass2_pending stays True. Reads files, writes nothing."""
     from shared.docintel import parse_text as _pt
     hub = Path(hub_root)
     rule = (load_rules() if rules is None else rules).get(category) or {}
@@ -547,8 +549,15 @@ def person_labelled(hub_root, entries, category, rules=None) -> dict:
         if refusal:
             out["refused"].append({"file": rel, "why": refusal})
             continue
-        # every text part the file holds (an email's HTML part, a document's footers and comments)
-        text = _pt.screen_text(str(src)) or _pt.parse(str(src)).get("text") or ""
+        # the text parts parse_text.screen_text exposes (an email's headers and parts, a document's
+        # headers, footers and notes) with the parsed text; a part that could not be read whole (a
+        # damaged member, the inflation budget reached) refuses the file
+        text, whole = _pt.screen_input(str(src))
+        if not whole:
+            out["refused"].append({"file": rel, "why": (
+                "the screen could not read every part of this file (a damaged part, or text inflating past "
+                f"{_pt.INFLATE_MAX} bytes); not routed")})
+            continue
         record = None
         if text.strip():
             rec = scr.scan_text(text, artifact_id=src.name)
@@ -730,7 +739,7 @@ def approve(hub_root, proposal, ledger_path=LEDGER_PATH, now=None) -> dict:
             results["moved_details"].append({
                 "file": item["file"], "classified_as": item.get("classified_as"),
                 "export_kind": item.get("export_kind"),
-                "processed_ref": f"Inbox/Processed/{stamp}/{target.name}"})
+                "sha256": item["sha256"], "processed_ref": f"Inbox/Processed/{stamp}/{target.name}"})
         data["entries"] = entries
         _write_ledger(ledger_path, data)
     return results
@@ -1860,6 +1869,24 @@ def _selftest_checks() -> int:
        and "flagged" in mwhy.get("Inbox/h.eml", "")
        and sorted(mprop) == ["Inbox/m.eml", "Inbox/rv.txt"]
        and "REVIEW" in mprop["Inbox/rv.txt"]["note"] and "REVIEW" not in mprop["Inbox/m.eml"]["note"])
+    (pl / "Inbox" / "from.eml").write_bytes(
+        b"From: =?utf-8?b?" + _b64.b64encode(poison.encode("utf-8")) + b"?= <pay@brand.example>\n"
+        b"Subject: Remittance advice\n\nWe've sent your payment.\nPayment amount: $900.00\n")
+    with _zf_pl.ZipFile(pl / "Inbox" / "crc.docx", "w") as z:
+        z.writestr("word/document.xml", "<w:p><w:t>Your receipt. Total $4.00</w:t></w:p>")
+        z.writestr("word/header1.xml", "<w:p><w:t>header words</w:t></w:p>")
+    crc_bytes = bytearray((pl / "Inbox" / "crc.docx").read_bytes())
+    crc_bytes[crc_bytes.find(b"header words")] ^= 1
+    (pl / "Inbox" / "crc.docx").write_bytes(bytes(crc_bytes))
+    with open(pl / "Inbox" / "edge.txt", "wb") as fh:
+        fh.write(b"Total $1.00\n" + b"a" * (_LABEL_MAX_BYTES - 12))
+    third = person_labelled(pl, [{"file": f"Inbox/{n}", "sha256": _sha256(pl / "Inbox" / n)}
+                                 for n in ("from.eml", "crc.docx", "edge.txt")], "invoice_receipt")
+    twhy = {r["file"]: r["why"] for r in third["refused"]}
+    ok("injected text in an encoded From header, and a document with a part that cannot be read whole, are "
+       "refused; a file of exactly 2 MB is proposed",
+       "flagged" in twhy.get("Inbox/from.eml", "") and "every part" in twhy.get("Inbox/crc.docx", "")
+       and [e["file"] for e in third["proposals"]] == ["Inbox/edge.txt"])
     pe = Path(tempfile.mkdtemp()); (pe / "Inbox").mkdir()
     with open(pe / "Inbox" / "pitch.eml", "wb") as fh:
         fh.write(b"From: brand@example.com\nSubject: Collab\nContent-Type: text/plain\n\nHello\n" + b"x" * 2_100_000)
@@ -1888,7 +1915,7 @@ def _selftest_checks() -> int:
        ap["moved"] == ["Inbox/order.txt"]
        and json.loads(pl_led.read_text(encoding="utf-8"))["entries"][0]["category_source"] == "person"
        and fu == [{"file": ap["moved_details"][0]["processed_ref"], "job_type": None, "review": "receipt",
-                   "processed_ref": ap["moved_details"][0]["processed_ref"],
+                   "processed_ref": ap["moved_details"][0]["processed_ref"], "sha256": ent["order.txt"]["sha256"],
                    "note": "receipt or payment notice: review the proposed entry"}])
 
     failed = [n for n, c in checks if not c]

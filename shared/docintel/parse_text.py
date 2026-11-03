@@ -32,6 +32,21 @@ PDF_MIN_YIELD = 24
 MEMBER_MAX = 16_000_000
 # A tag that a "<" with no ">" before the next "<" cannot stretch across, so stripping is linear.
 _TAG = re.compile(r"<[^<>]*>")
+# A tag that ends a line of text: a newline in its place keeps a receipt's lines apart (P103).
+_BLOCK = re.compile(r"</(?:p|div|tr|li|h[1-6]|table|blockquote|ul|ol|title|pre)\s*>|<br\s*/?>", re.I)
+# An email's header lines as parse_eml prints them; a screen compares them without the prefix.
+_HEADER_LINE = re.compile(r"^(?:From|Subject|Date): ")
+# The most one file's zip members or PDF streams inflate to in all; a read stops there and the
+# result says so (P103).
+INFLATE_MAX = 16_000_000
+# An email header value longer than this (in the file) is cut and left undecoded: the email
+# module's decoding cost grows faster than the header (P103).
+EML_HEADER_MAX = 8192
+# The parts of a .docx a screen reads (P103).
+_DOCX_SCREEN = re.compile(r"word/(?:document|header\d*|footer\d*|footnotes|endnotes|comments|diagrams/data\d*)\.xml"
+                          r"|word/afchunk[^/]*")
+# A PDF content stream's string literals, and the operators that start a new text line.
+_PDF_TOKEN = re.compile(rb"\((?:[^()\\]|\\.)*\)|(?<![A-Za-z])(?:T\*|Td|TD|ET)(?![A-Za-z])|'|\"")
 
 
 def result(path, ftype, status, text="", tables=None, confidence="high", notes="", needs=None):
@@ -59,8 +74,10 @@ def read_text(path):
 
 
 def strip_tags(markup):
-    text = _TAG.sub(" ", markup)
-    return re.sub(r"[ \t]+\n", "\n", html.unescape(text)).strip()
+    """Markup as text: a block-level closing tag or a <br> ends a line, another tag becomes a space,
+    and each line is stripped; linear in the text (P103)."""
+    text = html.unescape(_TAG.sub(" ", _BLOCK.sub("\n", markup)))
+    return "\n".join(line.strip(" \t\r") for line in text.split("\n")).strip()
 
 
 def detect(path):
@@ -78,21 +95,46 @@ def detect(path):
 
 
 def parse_office_xml(path, member_glob, para_close, run_tag):
+    """(chunks, cut): each member's text, and whether a read stopped at the file's inflation budget."""
     chunks = []
+    b = _budget()
     with zipfile.ZipFile(path) as z:
         members = sorted(n for n in z.namelist() if re.match(member_glob, n))
         for name in members:
-            xml = _read_member(z, name).decode("utf-8", "replace")
+            if b["left"] <= 0:
+                b["cut"] = True
+                break
+            xml = _read_member(z, name, b).decode("utf-8", "replace")
             xml = xml.replace(para_close, "\n")
             xml = _TAG.sub("", xml)
             chunks.append((name, html.unescape(xml).strip()))
-    return chunks
+    return chunks, b["cut"]
 
 
-def _read_member(z, name):
-    """A zip member's bytes, at most MEMBER_MAX of them."""
+def _budget():
+    """The inflation budget one file gets: the bytes still allowed, and whether a read stopped at it."""
+    return {"left": INFLATE_MAX, "cut": False}
+
+
+def _cut(res, cut):
+    """The result, marked truncated when a read stopped at INFLATE_MAX."""
+    if cut:
+        res["truncated"] = True
+        res["notes"] = (res["notes"] + "; " if res["notes"] else "") + f"text past {INFLATE_MAX} inflated bytes not read"
+    return res
+
+
+def _read_member(z, name, budget=None):
+    """A zip member's bytes: at most MEMBER_MAX of them, and at most what the file's budget has left;
+    a member cut there marks the budget."""
+    b = budget if budget is not None else _budget()
+    cap = min(MEMBER_MAX, max(b["left"], 0))
     with z.open(name) as fh:
-        return fh.read(MEMBER_MAX)
+        data = fh.read(cap + 1)
+    if len(data) > cap:
+        data, b["cut"] = data[:cap], True
+    b["left"] -= len(data)
+    return data
 
 
 def _docx_xml_text(xml):
@@ -101,19 +143,20 @@ def _docx_xml_text(xml):
 
 
 def parse_docx(path):
+    b = _budget()
     with zipfile.ZipFile(path) as z:
-        xml = _read_member(z, "word/document.xml").decode("utf-8", "replace")
-    return result(path, "docx", "content_ingested", _docx_xml_text(xml))
+        xml = _read_member(z, "word/document.xml", b).decode("utf-8", "replace")
+    return _cut(result(path, "docx", "content_ingested", _docx_xml_text(xml)), b["cut"])
 
 
 def parse_pptx(path):
-    parts = parse_office_xml(path, r"ppt/slides/slide\d+\.xml", "</a:p>", "a:t")
+    parts, cut = parse_office_xml(path, r"ppt/slides/slide\d+\.xml", "</a:p>", "a:t")
     blocks = []
     for i, (_name, txt) in enumerate(parts, 1):
         if txt:
             blocks.append(f"--- slide {i} ---\n{txt}")
     text = "\n\n".join(blocks)
-    return result(path, "pptx", "content_ingested", text, notes=f"{len(parts)} slides")
+    return _cut(result(path, "pptx", "content_ingested", text, notes=f"{len(parts)} slides"), cut)
 
 
 def parse_xlsx(path):
@@ -173,23 +216,36 @@ def _pdf_streams(data):
 
 
 def parse_pdf(path):
+    """The text a PDF's content streams show: each string literal, with a new line at the operators
+    that move to the next text line (Td, TD, T*, ', ", ET), so a receipt's lines stay apart. The
+    streams inflate to at most INFLATE_MAX in all (P103)."""
     data = Path(path).read_bytes()
-    pieces = []
+    b = _budget()
+    lines, cur = [], []
     for raw in _pdf_streams(data):
+        cap = min(MEMBER_MAX, max(b["left"], 0))
         try:
-            dec = zlib.decompressobj().decompress(raw, MEMBER_MAX)
+            dec = zlib.decompressobj().decompress(raw, cap + 1)
         except zlib.error:
             continue
-        for grp in re.findall(rb"\((?:[^()\\]|\\.)*\)", dec):
-            inner = grp[1:-1]
-            inner = re.sub(rb"\\([()\\])", rb"\1", inner)
-            try:
-                pieces.append(inner.decode("latin-1"))
-            except Exception:
-                continue
-    text = re.sub(r"[ \t]{2,}", " ", " ".join(pieces)).strip()
+        if len(dec) > cap:
+            dec, b["cut"] = dec[:cap], True
+        b["left"] -= len(dec)
+        for m in _PDF_TOKEN.finditer(dec):
+            tok = m.group(0)
+            if tok.startswith(b"("):
+                inner = re.sub(rb"\\([()\\])", rb"\1", tok[1:-1])
+                try:
+                    cur.append(inner.decode("latin-1"))
+                except Exception:
+                    continue
+            elif cur:
+                lines.append(" ".join(cur))
+                cur = []
+    lines.append(" ".join(cur))
+    text = "\n".join(ln for ln in (re.sub(r"[ \t]{2,}", " ", x).strip() for x in lines) if ln)
     if len(text) < PDF_MIN_YIELD:
-        return result(
+        return _cut(result(
             path, "pdf", "metadata_only", text, confidence="low",
             notes="best-effort stdlib extraction yielded little text; likely a scanned or complex PDF",
             needs={
@@ -197,9 +253,23 @@ def parse_pdf(path):
                 "what_to_provide": "install an optional local PDF library (pypdf or pdfminer.six) or "
                                    "run local OCR, or paste the relevant section as text",
             },
-        )
-    return result(path, "pdf", "content_ingested", text, confidence="medium",
-                  notes="best-effort stdlib extraction; verify critical figures against the source")
+        ), b["cut"])
+    return _cut(result(path, "pdf", "content_ingested", text, confidence="medium",
+                       notes="best-effort stdlib extraction; verify critical figures against the source"), b["cut"])
+
+
+def _eml_headers(raw, msg):
+    """The From, Subject and Date values as text, decoded by the email module. A value longer than
+    EML_HEADER_MAX bytes in the file is cut there and left undecoded, so a crafted header cannot
+    keep the module's decoder busy (its cost grows faster than the header) (P103)."""
+    import email.parser
+    import email.policy
+    heads = email.parser.BytesHeaderParser(policy=email.policy.compat32).parsebytes(raw)
+    out = []
+    for name in ("from", "subject", "date"):
+        rawv = heads.get(name) or ""
+        out.append(rawv[:EML_HEADER_MAX] if len(rawv) > EML_HEADER_MAX else str(msg.get(name, "")))
+    return out
 
 
 def parse_eml(path):
@@ -209,9 +279,10 @@ def parse_eml(path):
     import email
     import email.policy
     try:
-        msg = email.message_from_bytes(Path(path).read_bytes(), policy=email.policy.default)
-        head = [f"From: {msg.get('from', '')}", f"Subject: {msg.get('subject', '')}",
-                f"Date: {msg.get('date', '')}"]
+        raw = Path(path).read_bytes()
+        msg = email.message_from_bytes(raw, policy=email.policy.default)
+        frm, subj, when = _eml_headers(raw, msg)
+        head = [f"From: {frm}", f"Subject: {subj}", f"Date: {when}"]
         body = msg.get_body(preferencelist=("plain", "html"))
         text = ""
         if body is not None:
@@ -225,35 +296,62 @@ def parse_eml(path):
     return result(path, "eml", "content_ingested", "\n".join(head) + "\n\n" + text, notes=notes)
 
 
-def screen_text(path):
-    """Every text a screen should read from a file, joined: for an .eml each decoded text part (the
-    plain and the HTML ones) and the subject, for a .docx the body, headers, footers, footnotes,
-    endnotes and comments, and for anything else parse()'s text. Never raises; "" when nothing
-    could be read (P103)."""
+def screen_text(path, parsed=None):
+    """The text a screen should read from a file, joined: for an .eml its From, Subject and Date
+    (as parse_eml reads them) and each text part, attachments included, an HTML part as its text
+    and then its tags (so comment and attribute text is read too); for a .docx the body, headers,
+    footers, footnotes, endnotes, comments, SmartArt data and alternative-format chunks; for
+    anything else parse()'s text (parsed, when the caller already has it). "" when nothing could
+    be read; None when a part could not be read whole (a damaged member, the inflation budget
+    reached, a read that raised), so the caller refuses the file rather than screens a part of it
+    (P103). Never raises."""
     p = Path(path)
     ext = p.suffix.lower().lstrip(".")
     try:
         if ext == "eml":
             import email
             import email.policy
-            msg = email.message_from_bytes(p.read_bytes(), policy=email.policy.default)
-            texts = [str(msg.get("subject", ""))]
+            raw = p.read_bytes()
+            msg = email.message_from_bytes(raw, policy=email.policy.default)
+            texts = list(_eml_headers(raw, msg))
             for part in msg.walk():
-                if part.get_content_maintype() == "text" and not part.is_attachment():
+                if part.get_content_maintype() == "text":
                     try:
                         content = part.get_content()
                     except (LookupError, ValueError):
-                        content = part.get_payload(decode=True).decode("utf-8", "replace")
-                    texts.append(strip_tags(content) if part.get_content_subtype() == "html" else content)
+                        content = (part.get_payload(decode=True) or b"").decode("utf-8", "replace")
+                    if part.get_content_subtype() == "html":
+                        texts.append(strip_tags(content))
+                        texts.append(html.unescape("\n".join(_TAG.findall(content))))
+                    else:
+                        texts.append(content)
             return "\n".join(t for t in texts if t)
         if ext == "docx" and zipfile.is_zipfile(p):
+            b = _budget()
             with zipfile.ZipFile(p) as z:
-                names = [n for n in sorted(z.namelist()) if re.fullmatch(
-                    r"word/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml", n)]
-                return "\n".join(_docx_xml_text(_read_member(z, n).decode("utf-8", "replace")) for n in names)
-        return parse(p).get("text") or ""
-    except Exception:  # noqa: BLE001 -- a screen input never raises; the caller sees ""
-        return ""
+                names = [n for n in sorted(z.namelist()) if _DOCX_SCREEN.fullmatch(n)]
+                text = "\n".join(_docx_xml_text(_read_member(z, n, b).decode("utf-8", "replace")) for n in names)
+            return None if b["cut"] else text
+        res = parse(p) if parsed is None else parsed
+        return None if res.get("truncated") else (res.get("text") or "")
+    except Exception:  # noqa: BLE001 -- a screen input never raises; the caller sees None
+        return None
+
+
+def screen_input(path, parsed=None):
+    """(text, whole): what a screen reads for a file, and whether every part was read whole. The
+    text is screen_text's parts plus the lines of parse()'s text not already among them (an email's
+    header lines compared without their "From: " prefixes), so nothing the fields are read from
+    escapes the screen and nothing is counted twice. When a part could not be read whole the text
+    is None and whole is False (P103)."""
+    parsed = parse(path) if parsed is None else parsed
+    screened = screen_text(path, parsed)  # None when a part was not read whole, a truncated parse included
+    if screened is None:
+        return None, False
+    have = {ln.strip() for ln in screened.split("\n")}
+    extra = [ln.strip() for ln in (parsed.get("text") or "").split("\n")
+             if ln.strip() and _HEADER_LINE.sub("", ln.strip()) not in have]
+    return "\n".join(([screened] if screened else []) + extra), True
 
 
 def parse(path):
@@ -419,6 +517,81 @@ def selftest() -> int:
         ok(f"repeated stream keywords, a run of '<' and an inflating docx are read in bounded time ({slow}), "
            "and an inflating docx is read only up to MEMBER_MAX",
            all(t < 5 for _n, t in slow) and len(parse(str(d / "bomb.docx"))["text"]) == MEMBER_MAX)
+        ok("a block tag ends a line, a cell tag does not, and a docx cut at the budget is marked truncated",
+           strip_tags("<p>Total</p><p>$4</p>") == "Total\n$4"
+           and strip_tags("<tr><td>Total</td><td>$4.00</td></tr><tr><td>Tax</td><td>$0.10</td></tr>")
+           == "Total  $4.00\nTax  $0.10"
+           and parse(str(d / "bomb.docx")).get("truncated") is True)
+        t0 = _time.monotonic()
+        sp, tg = strip_tags(" " * 120_000 + "x"), strip_tags("<b></b>" * 60_000 + "x")
+        took_s = _time.monotonic() - t0
+        ok(f"a run of spaces and a run of empty tags are stripped in bounded time ({took_s:.2f} s)",
+           took_s < 2 and sp == "x" and tg == "x")
+        import zlib as _zlib
+
+        def _pdf(lines, streams=1):
+            body = b"BT\n" + b"\n".join(b"(" + ln + b") Tj T*" for ln in lines) + b"\nET"
+            return (b"%PDF-1.4\n" + b"".join(b"1 0 obj\nstream\n" + _zlib.compress(body) + b"\nendstream\nendobj\n"
+                                             for _ in range(streams)) + b"%%EOF\n")
+        (d / "lines.pdf").write_bytes(_pdf([b"Vendor: Corner Hardware", b"Total $4.00", b"Date 2026-01-02"]))
+        r9 = parse(str(d / "lines.pdf"))
+        ok("a PDF's text-positioning operators end lines, so each receipt line stands alone",
+           r9["ingestion_status"] == "content_ingested" and "truncated" not in r9
+           and r9["text"] == "Vendor: Corner Hardware\nTotal $4.00\nDate 2026-01-02")
+        t0 = _time.monotonic()
+        (d / "deep.pdf").write_bytes(_pdf([b"a" * 9_000_000], streams=3))
+        r10, s10 = parse(str(d / "deep.pdf")), screen_text(str(d / "deep.pdf"))
+        with zipfile.ZipFile(d / "many.docx", "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("word/document.xml", "<w:p><w:t>body words</w:t></w:p>")
+            for i in range(3):
+                z.writestr(f"word/header{i + 1}.xml", "b" * 9_000_000)
+        r11, s11 = parse(str(d / "many.docx")), screen_text(str(d / "many.docx"))
+        took_b = _time.monotonic() - t0
+        ok(f"streams or members that inflate past INFLATE_MAX in all are read up to it and marked, and the screen "
+           f"then says it could not read every part ({took_b:.2f} s)",
+           r10.get("truncated") is True and len(r10["text"]) <= INFLATE_MAX and s10 is None
+           and r11["text"] == "body words" and "truncated" not in r11 and s11 is None and took_b < 10)
+        big_subject = b" ".join([b"=?utf-8?b?aGk=?="] * 20000)
+        (d / "head.eml").write_bytes(b"From: s@shop.example\nSubject: " + big_subject + b"\n\nTotal $1.00\n")
+        t0 = _time.monotonic()
+        r12, s12 = parse(str(d / "head.eml")), screen_text(str(d / "head.eml"))
+        took_h = _time.monotonic() - t0
+        ok(f"a header longer than EML_HEADER_MAX is cut undecoded, so the email module's decoder is not kept "
+           f"busy ({took_h:.2f} s)",
+           took_h < 3 and r12["text"].startswith("From: s@shop.example\nSubject: =?utf-8?b?aGk=?=")
+           and len(r12["text"].split("\n")[1]) <= EML_HEADER_MAX + len("Subject: ") and "Total $1.00" in s12)
+        import base64 as _b64
+        (d / "att.eml").write_bytes(
+            b"From: =?utf-8?b?" + _b64.b64encode("Café Shop".encode("utf-8")) + b"?= <s@shop.example>\n"
+            b"Subject: Receipt note\nMIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=b5\n\n--b5\n"
+            b"Content-Type: text/plain\n\nTotal $1.00\n--b5\nContent-Type: text/plain\n"
+            b"Content-Disposition: attachment; filename=note.txt\n\nattached words\n--b5\n"
+            b"Content-Type: text/html\nContent-Transfer-Encoding: base64\n\n"
+            + _b64.b64encode(b"<p>body words</p><!-- comment words --><img alt='alt words'>") + b"\n--b5--\n")
+        s13 = screen_text(str(d / "att.eml"))
+        ok("screen_text reads the decoded From, the subject, a text attachment, and an HTML part's comment and "
+           "attribute text",
+           all(w in s13 for w in ("Café Shop", "Receipt note", "attached words", "comment words",
+                                   "alt words", "Total $1.00")))
+        with zipfile.ZipFile(d / "deep.docx", "w") as z:
+            z.writestr("word/document.xml", "<w:p><w:t>body</w:t></w:p>")
+            z.writestr("word/diagrams/data1.xml", "<a:t>smartart words</a:t>")
+            z.writestr("word/afchunk.htm", "<p>chunk words</p>")
+        s14 = screen_text(str(d / "deep.docx"))
+        crc = bytearray((d / "parts.docx").read_bytes())
+        crc[crc.find(b"footer note")] ^= 1
+        (d / "crc.docx").write_bytes(bytes(crc))
+        ok("screen_text reads a docx's SmartArt data and alternative-format chunks, and says None for a member "
+           "it cannot read whole while parse still reads the body",
+           "smartart words" in s14 and "chunk words" in s14 and screen_text(str(d / "crc.docx")) is None
+           and parse(str(d / "crc.docx"))["text"] == "body text")
+        si, si_whole = screen_input(str(mixed))
+        si_extra = screen_input(str(mixed), parsed=dict(parse(str(mixed)), text="Total $9.00\nunseen line"))[0]
+        ok("screen_input holds an email's header value and body line once each, and adds a parsed line the "
+           "screen lacks",
+           si_whole and si.count("s@shop.example") == 1 and si.count("Total $9.00") == 1 and "$90.00" in si
+           and si_extra.count("unseen line") == 1 and si_extra.count("Total $9.00") == 1
+           and screen_input(str(d / "crc.docx")) == (None, False))
 
         bad = d / "c.docx"
         bad.write_bytes(b"not a zip at all")

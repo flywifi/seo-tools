@@ -1094,6 +1094,17 @@ def selftest():
                not twice_in["written"] and "already recorded" in twice_in["reason"] and first_in["written"]
                and not again_in["written"] and not cost_after_in["written"]
                and "already recorded" in cost_after_in["reason"], f)
+            void_led = {"entries": [{"evidence_sha256": "ab" * 32, "status": "void"}]}
+            live_led = {"entries": [{"evidence_sha256": "ab" * 32, "status": "proposed"}]}
+            _c("a void income entry releases its document; a live one holds it",
+               _document_recorded("ab" * 32, ledger=void_led, costs={}) is False
+               and _document_recorded("ab" * 32, ledger=live_led, costs={}) is True, f)
+            zero = add_cost_actual(dict(spend, amount="0", receipt_sha256="56" * 32), write=False)
+            plain = add_cost_actual({k: v for k, v in dict(spend, category="", receipt_sha256="78" * 32).items()
+                                     if k != "is_capex"}, write=False)
+            _c("cost actual: a zero amount is refused; a missing is_capex reads False and an empty category None",
+               any(b.startswith("amount") for b in zero.get("problems", [])) and plain["entry"]["is_capex"] is False
+               and plain["entry"]["category"] is None, f)
             dated_today = add_cost_actual(dict(spend, date=date.today().isoformat(), receipt_sha256="12" * 32))
             _c("cost actual: a receipt dated today is accepted", "problems" not in dated_today, f)
             ca.write_text("[]", encoding="utf-8")
