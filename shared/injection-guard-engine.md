@@ -236,10 +236,11 @@ What it catches and what it does not: it matches the known phrasings enumerated 
 targets above, so a reworded attack can still pass it; a QUARANTINE or BLOCK verdict from it is
 enough to seal a file or refuse a ticket, but a CLEAN verdict is not a guarantee, and content that
 reaches a session is still scanned by the full guard. It reads a text with its Unicode format
-characters, its invisible default-ignorable characters and its control characters other than a tab, a
-line end or a page break dropped and, when the text holds such a control character or a zero-width
-space, word joiner or byte-order mark, once more with each as a space, and keeps the higher score, so
-those characters between a word's letters, or in place of its spaces, do not hide a phrase from the
+characters, the invisible characters `injection_scan.INVISIBLE` lists (a combining grapheme joiner,
+the Hangul fillers, the variation selectors, the unassigned default-ignorable ranges, the braille
+blank) and its control characters other than a tab, a line end or a page break dropped and, when the
+text holds any of them, once more with each as a space, and keeps the higher score, so those
+characters between a word's letters, or in place of its spaces, do not hide a phrase from the
 patterns (P103). The
 tool's selftest asserts its category set equals this document's `### <NAME>` headings, so the two
 cannot drift apart silently; changing a category here means updating the tool in the same change.

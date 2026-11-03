@@ -64,12 +64,13 @@ knows what it is.
 - The text drops Unicode format characters (direction marks and overrides, the zero-width space, the
   byte-order mark, tag characters) and the invisible characters the screen folds before the patterns
   run, keeps the zero-width joiner and non-joiner after a virama or between two characters outside
-  ASCII letters and digits (a tag-sequence flag loses its tags), and the invoice rule reads the text
+  ASCII letters and digits, judging a run of joiners by the character after it, and one variation
+  selector after its base (a tag-sequence flag loses its tags, which can carry hidden text, and a run
+  of selectors keeps none past the first for the same reason), and the invoice rule reads the text
   once more with its control characters other than a tab, a line end or a page break dropped, so a
   keyword such as Bill to or Invoice, and a name in ASCII letters, read the same with or without them;
-  the offline pattern tier reads a text with those characters dropped and, when it holds such a
-  control character or a zero-width word separator, once more with each as a space, and keeps the
-  higher score. An amount that
+  the offline pattern tier reads a text with those characters dropped and, when it holds any of them,
+  once more with each as a space, and keeps the higher score. An amount that
   rounds to 0.00 is refused in both stores; a confidence is one of the template's tiers.
 - A stale or replayed work-order submit is refused and leaves the open work orders; a row carries the
   inbox ledger's sha256, and a filed receipt whose file changed since is listed with its tick off

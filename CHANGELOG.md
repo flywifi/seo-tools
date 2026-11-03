@@ -36,16 +36,18 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   characters, and the invisible characters outside those categories the screen folds) from the
   text before its patterns run, keeps the zero-width joiner and non-joiner after a virama or between
   two characters outside ASCII letters and digits (emoji sequences, Persian and Urdu words, a Malayalam
-  chillu before a space), judging a joiner by its kept neighbours, and reads the invoice rule once
-  more with the control characters other than a tab, a line end or a page break dropped, so a
-  zero-width space, a joiner, a combining grapheme joiner or a control character inside "Bill to",
-  "Invoice" or a name does not hide it from the patterns; a field turns a control character into a
-  space. The offline pattern tier (`injection_scan.scan_text`) reads a text with its format
-  characters, its invisible default-ignorable characters and its control characters other than a
-  tab, a line end or a page break dropped and, when it holds such a control character or a
-  zero-width space, word joiner or byte-order mark, once more with each as a space, keeping the
-  higher score, so an injection laced with those characters, or whose words they separate, is flagged
-  as the plain one is; `scan_file`
+  chillu before a space), judging a run of joiners by its last kept neighbour and the character after
+  the run, keeps one variation selector after its base (an emoji's, a keycap's, a CJK ideograph's, a
+  Mongolian letter's), and reads the invoice rule once more with the control characters other than a
+  tab, a line end or a page break dropped, so a zero-width space, a joiner, a combining grapheme
+  joiner, a tag code point or a control character inside "Bill to", "Invoice" or a name does not hide
+  it from the patterns; a field turns a control character into a space. The offline pattern tier
+  (`injection_scan.scan_text`) reads a text with its format characters, the invisible characters
+  `injection_scan.INVISIBLE` lists (a combining grapheme joiner, the Hangul fillers, the variation
+  selectors, the unassigned default-ignorable ranges, the braille blank) and its control characters
+  other than a tab, a line end or a page break dropped and, when it holds any of them, once more with
+  each as a space, keeping the higher score, so an injection laced with those characters, or whose
+  words they separate, is flagged as the plain one is; `scan_file`
   reads a file behind a wide byte-order mark in each byte order and as UTF-8, leaves the NUL folding
   to `scan_text`, and names at a tie the reading with the fewest folded characters. The
   extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters;
