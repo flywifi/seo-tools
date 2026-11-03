@@ -113,22 +113,25 @@ def money_value(raw):
     return str(-val if neg else val)
 
 
-# The format characters (Unicode Cf) a field keeps: the zero-width non-joiner and joiner, which emoji
+# The format characters (Unicode Cf) the text keeps: the zero-width non-joiner and joiner, which emoji
 # sequences and Persian, Urdu, Malayalam and Sinhala words are written with. Every other Cf character
 # (a direction mark or override, an isolate, the zero-width space, a word joiner, the byte-order mark,
-# the soft hyphen, a tag character, an interlinear annotation) is dropped (P103).
+# the soft hyphen, a tag character, an interlinear annotation) is dropped from the text before the
+# patterns run, so it can neither reshape nor hide a name or a keyword such as "Bill to" (P103).
 _KEEP = frozenset("\u200c\u200d")
 
 
+def _drop_format(text):
+    """The text without its format characters (Unicode Cf) outside _KEEP."""
+    return "".join(ch for ch in text if ch in _KEEP or unicodedata.category(ch) != "Cf")
+
+
 def _clean(text):
-    """A field from the document: a control character (Unicode Cc) becomes a space, a format character
-    (Cf) outside _KEEP is dropped so it can neither reshape nor hide a name, spaces are collapsed and
-    the result is cut at FIELD_MAX."""
-    out = []
-    for ch in text:
-        cat = unicodedata.category(ch)
-        out.append(" " if cat == "Cc" else "" if cat == "Cf" and ch not in _KEEP else ch)
-    return " ".join("".join(out).split())[:FIELD_MAX]
+    """A field from the text: a control character (Unicode Cc) becomes a space, spaces are collapsed and
+    the result is cut at FIELD_MAX. The format characters were dropped from the text by _drop_format
+    before the patterns ran."""
+    out = "".join(" " if unicodedata.category(ch) == "Cc" else ch for ch in text)
+    return " ".join(out.split())[:FIELD_MAX]
 
 
 def _first_date(text):
@@ -198,6 +201,7 @@ def extract(path, ref=None):
                     gaps=[f"the injection screen flagged this text ({screen['risk_level']}); nothing is proposed"])
     gaps = [note] if note else []
     text = text[:TEXT_MAX]
+    text = _drop_format(text)  # a zero-width space inside "Bill to" or a name does not hide it from the rules
     total_m = next((m for m in (rx.search(text) for rx in _TOTAL_RES) if m), None)
     total = money_value(total_m.group(1)) if total_m else None
     sub_m = _SUBTOTAL_RE.search(text)
@@ -520,6 +524,9 @@ def selftest():
            marks["counterparty"] == "Shop Co Ltd" and guarded["proposed_record"] is None and guarded["screen"] is None
            and guarded["gaps"][0].startswith("the email is not read: a Content-Type")
            and guarded["gaps"][0].endswith("nothing is proposed"))
+        zwsp_bill = read("zwspbill.txt", "Bill\u200b to: Jane Creator\nYour receipt\nTotal $5.00\nDate 2026-01-02\n")
+        ok("a zero-width space inside Bill to does not hide the line from the invoice rule",
+           zwsp_bill["direction"] is None and any("invoice" in g for g in zwsp_bill["gaps"]))
         ok("a Subtotal line is not the total whichever comes first, and the first Vendor line names the vendor",
            sub_first["total"] == "239.61" and total_first["total"] == "239.61" and two["counterparty"] == "First Co")
         far = read("far.txt", "Your receipt\n" + "x" * TEXT_MAX + "\nTotal $4.00\n")
