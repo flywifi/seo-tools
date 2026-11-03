@@ -240,12 +240,13 @@ characters, the invisible characters `injection_scan.INVISIBLE` lists (a combini
 the Hangul fillers, the variation selectors, the unassigned default-ignorable ranges, the braille
 blank) and its control characters other than a tab, a line end or a page break dropped and, when the
 text holds any of them, once more with each as a space, crediting a match in that reading when a
-spaced character lies inside it or, a soft hyphen aside, at its edge, and keeps the higher score; a
-space in its patterns reads a run of whitespace, a line break included. One such character between a
-word's letters, or one other than a soft hyphen in place of its spaces, does not hide a phrase from
-the patterns; a word both laced and separated by the same character reads as split or run-together
-words and is missed, and a soft hyphen in place of the space before or after a phrase is read as a
-hyphenation point and missed (P103). The
+spaced character lies inside it or a run of them holding one other than a soft hyphen touches it, and
+keeps the higher score; a space in its patterns reads a run of whitespace other than a line break.
+One such character between a word's letters, or one other than a soft hyphen in place of its spaces,
+does not hide a phrase from the patterns; a word laced with one such character and separated from the
+next by the same or another reads as split or run-together words and is missed, as are a soft hyphen
+alone in place of the space before or after a phrase (read as a hyphenation point) and a phrase
+wrapped across a line break (P103). The
 tool's selftest asserts its category set equals this document's `### <NAME>` headings, so the two
 cannot drift apart silently; changing a category here means updating the tool in the same change.
 
