@@ -5475,10 +5475,10 @@ _MUTANTS = (
      '    scored = [_score(readings[0])] + [_score(t, spaced) for t in readings[1:]]\n',
      '    scored = [_score(t) for t in readings]\n'),
     ('IS26 a space in a pattern reads one space', 'injection_scan.py',
-     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n]+"), _I) for s in sources]\n',
+     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n\\x0c\\u2028\\u2029]+"), _I) for s in sources]\n',
      '    return [re.compile(s, _I) for s in sources]\n'),
     ('IS27 a space in a pattern reads spaces and tabs only', 'injection_scan.py',
-     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n]+"), _I) for s in sources]\n',
+     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n\\x0c\\u2028\\u2029]+"), _I) for s in sources]\n',
      '    return [re.compile(s.replace(" ", r"[ \\t]+"), _I) for s in sources]\n'),
     ('IS28 the spaced positions leave the supplementary characters out', 'injection_scan.py',
      '        cps = sorted(_fold_tables()[0])\n',
@@ -5510,8 +5510,8 @@ _MUTANTS = (
     # P103 (eleventh review): the spaced reading's edges, a line break in a pattern's space, the
     # selector bases.
     ('IS33 a spaced character at a match edge is not credited', 'injection_scan.py',
-     '                             if _inside(at, m.start(), m.end()) or m.start() - 1 in edges or m.end() in edges)\n',
-     '                             if _inside(at, m.start(), m.end()))\n'),
+     '    return _inside(at, start, end) or start - 1 in edges or end in edges\n',
+     '    return _inside(at, start, end)\n'),
     ('IS34 a soft hyphen at a match edge is credited', 'injection_scan.py',
      '            if any(text[j] != "\\u00ad" for j in run):\n',
      '            if True:\n'),
@@ -5519,7 +5519,7 @@ _MUTANTS = (
      '    return j < len(at) and at[j] < end\n',
      '    return j < len(at) and at[j] <= end\n'),
     ('IS36 a space in a pattern reads a line break', 'injection_scan.py',
-     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n]+"), _I) for s in sources]\n',
+     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n\\x0c\\u2028\\u2029]+"), _I) for s in sources]\n',
      '    return [re.compile(s.replace(" ", r"\\s+"), _I) for s in sources]\n'),
     ('RX76 a selector stays after So only', 'receipt_extract.py',
      '    return (unicodedata.category(prev) in ("So", "Sm", "Sk") or prev in _EMOJI_BASES\n',
@@ -5552,6 +5552,23 @@ _MUTANTS = (
     ('RX82 an emoji base keeps its selector before a space only', 'receipt_extract.py',
      '    return (unicodedata.category(prev) in ("So", "Sm", "Sk") or prev in _EMOJI_BASES\n',
      '    return (unicodedata.category(prev) in ("So", "Sm", "Sk") or (prev in _EMOJI_BASES and nxt == " ")\n'),
+    # P103 (thirteenth review): the line breaks a pattern's space leaves out, a match no spaced character
+    # touches, the run grouping.
+    ('IS40 a space in a pattern reads a page break and the line and paragraph separators', 'injection_scan.py',
+     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n\\x0c\\u2028\\u2029]+"), _I) for s in sources]\n',
+     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n]+"), _I) for s in sources]\n'),
+    ('IS41 a spaced-reading match no spaced character touches is not counted', 'injection_scan.py',
+     '        return True  # no spaced character inside or beside it: it reads so in the dropped reading too\n',
+     '        return False  # no spaced character inside or beside it: it reads so in the dropped reading too\n'),
+    ('IS42 the whole text decides an edge run, not the run', 'injection_scan.py',
+     '            if any(text[j] != "\\u00ad" for j in run):\n',
+     '            if any(text[j] != "\\u00ad" for j in at):\n'),
+    ('IS43 a run of spaced characters never resets', 'injection_scan.py',
+     '            run = []\n',
+     '            pass\n'),
+    ('IS44 runs one character apart merge', 'injection_scan.py',
+     '        if run and (i is None or i != run[-1] + 1):\n',
+     '        if run and (i is None or i > run[-1] + 2):\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

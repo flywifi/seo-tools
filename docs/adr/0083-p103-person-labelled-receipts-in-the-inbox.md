@@ -73,13 +73,15 @@ knows what it is.
   once more with its control characters other than a tab, a line end or a page break dropped, so a
   keyword such as Bill to or Invoice, and a name in ASCII letters, read the same with or without them;
   the offline pattern tier reads a text with those characters dropped and, when it holds any of them,
-  once more with each as a space, crediting a match there when a spaced character lies inside it or a
-  run of them holding one other than a soft hyphen touches it, and keeps the higher score; a space in
-  its patterns reads a run of whitespace other than a line break. A word laced with one such character
-  and separated from the next by the same or another is missed, as ADR 0080 notes for NUL bytes, as
-  are a soft hyphen alone in place of the space before or after a phrase and a phrase wrapped across a
-  line break, and a soft hyphen inside a word in a phrase's middle can complete the phrase and raise
-  the verdict (a QUARANTINE withholds the record); the
+  once more with each as a space, crediting a match there when no spaced character touches it, when
+  one lies inside it, or when a run of them holding one other than a soft hyphen touches it, and keeps
+  the higher score; a space in its patterns reads a run of whitespace other than a line feed, a
+  carriage return, a page break or a line or paragraph separator. A word laced with one such character
+  and separated from the next by the same or another is missed, as ADR 0080 notes for NUL bytes; a
+  soft hyphen alone in place of the space before or after a phrase, and a phrase whose words a line
+  break separates outside an OVERRIDE or REDIRECT gap, can be missed; a soft hyphen inside a word in a
+  phrase's middle, or one next to another such character at a word's edge, can complete a phrase and
+  raise the verdict (a QUARANTINE withholds the record); the
   session guard stays authoritative. An amount that
   rounds to 0.00 is refused in both stores; a confidence is one of the template's tiers.
 - A stale or replayed work-order submit is refused and leaves the open work orders; a row carries the
