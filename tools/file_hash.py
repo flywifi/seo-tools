@@ -4855,7 +4855,7 @@ _MUTANTS = (
     ('PT5 the tag pattern can stretch across tags', '../shared/docintel/parse_text.py',
      '_TAG = re.compile(r"<[^<>]*>")',
      '_TAG = re.compile(r"<[^>]+>")'),
-    # P103 (second review): the screen's parts, the inflation budget, the header cap, the PDF
+    # P103: the screen's parts, the inflation budget, the header cap, the PDF
     # and HTML line structure, the invoice heading, the two work-order keys and the fingerprint.
     ('PT6 strip_tags goes back to the trailing-space regex', '../shared/docintel/parse_text.py',
      '    return "\\n".join(line.strip(" \\t\\r") for line in text.split("\\n")).strip()\n',
@@ -4980,7 +4980,7 @@ _MUTANTS = (
     ('WR28 a follow-up with a job gets a receipt row', 'wizard.py',
      '        if f.get("review") != "receipt":\n            continue\n        ref = f.get("processed_ref") or f.get("file") or ""\n        try:\n            pr = _rx.extract(',
      '        if False:\n            continue\n        ref = f.get("processed_ref") or f.get("file") or ""\n        try:\n            pr = _rx.extract('),
-    # P103 (third review): the one-pass PDF and workbook scans, the email guard, the raw header
+    # P103: the one-pass PDF and workbook scans, the email guard, the raw header
     # lengths, the screen's routing and parts, the invoice rule's branches, the field cleaner, the
     # sign on the stored cents, the confidence tiers, the two work-order keys and the ledger fingerprint.
     ('PT23 an escape pair outside a literal is no token', '../shared/docintel/parse_text.py',
@@ -5133,7 +5133,7 @@ _MUTANTS = (
     ('IS4 the REDIRECT gap bound is 8', 'injection_scan.py',
      '\\b(?:fetch|call|request|load)\\b[\\w\\s]{0,80}?https?://',
      '\\b(?:fetch|call|request|load)\\b[\\w\\s]{0,8}?https?://'),
-    # P103 (fourth review): the guard's line ends and aggregate cap, the cell tag's attributes, the
+    # P103: the guard's line ends and aggregate cap, the cell tag's attributes, the
     # one-pass literal unescape, the invisible set, the changed-file row and the gap bound's value.
     ('PT47 the guard reads the raw bytes without normalising line ends', '../shared/docintel/parse_text.py',
      '    scan = raw.replace(b"\\r\\n", b"\\n").replace(b"\\r", b"\\n")\n',
@@ -5192,7 +5192,7 @@ _MUTANTS = (
     ('IS6 the REDIRECT gap bound is 72', 'injection_scan.py',
      '\\b(?:fetch|call|request|load)\\b[\\w\\s]{0,80}?https?://',
      '\\b(?:fetch|call|request|load)\\b[\\w\\s]{0,72}?https?://'),
-    # P103 (fifth review): CR LF for the guard, the total cap's edge, the transfer encoding, the cell
+    # P103: CR LF for the guard, the total cap's edge, the transfer encoding, the cell
     # tag's attributes, the one-pass unescape, the kept joiners, the changed-file row and the ledger check.
     ('PT55 CR LF becomes two line ends for the guard', '../shared/docintel/parse_text.py',
      '    scan = raw.replace(b"\\r\\n", b"\\n").replace(b"\\r", b"\\n")\n',
@@ -5296,7 +5296,7 @@ _MUTANTS = (
     ('WR48 an empty ledger fingerprint is not compared', 'wizard.py',
      '    if r.get("sha256") != r.get("ledger_sha256"):\n',
      '    if (r.get("ledger_sha256") or "") and r.get("sha256") != r.get("ledger_sha256"):\n'),
-    # P103 (sixth review): the Content-ID header, the transfer encoding's folds and total, and the
+    # P103: the Content-ID header, the transfer encoding's folds and total, and the
     # format characters the patterns read past.
     ('PT73 Content-ID is not guarded', '../shared/docintel/parse_text.py',
      '_EML_STRUCT = re.compile(rb"^content-(?:type|disposition|transfer-encoding|id)[ \\t]*:", re.I | re.M)\n',
@@ -5313,7 +5313,7 @@ _MUTANTS = (
     ('RX49 a format character inside a keyword hides it from the rules', 'receipt_extract.py',
      '    text = _drop_format(text)  # a zero-width space inside "Bill to" or a name does not hide it from the rules\n',
      '    text = text  # a zero-width space inside "Bill to" or a name does not hide it from the rules\n'),
-    # P103 (seventh review): the separator cap and the once-per-read header parse, the joiner rule
+    # P103: the separator cap and the once-per-read header parse, the joiner rule
     # and the invoice rule's second reading, the strip's order, and the screen's readings.
     ('PT77 the separator cap refuses nothing', '../shared/docintel/parse_text.py',
      '        if scan.count(b";", m.start(), end) > EML_PARAMS_MAX:\n',
@@ -5381,7 +5381,7 @@ _MUTANTS = (
     ('IS13 a clean file names the reading with the fewest folded characters', 'injection_scan.py',
      '        key = (score, len(reading.translate(drop)) - len(reading) if score else 0)\n',
      '        key = (score, len(reading.translate(drop)) - len(reading))\n'),
-    # P103 (eighth review): the folds' whitespace, the invisible characters, the word breakers, the
+    # P103: the folds' whitespace, the invisible characters, the word breakers, the
     # joiner after a virama and its kept neighbours, the cap on the other headers, the policy's defects.
     ('IS14 a vertical tab is whitespace to the fold', 'injection_scan.py',
      '            if cat == "Cf" or cp in INVISIBLE or (cat == "Cc" and ch not in WHITESPACE):\n',
@@ -5425,7 +5425,7 @@ _MUTANTS = (
     ('RX61 the joiner pass is skipped', 'receipt_extract.py',
      '    if _JUDGED.isdisjoint(t):\n',
      '    if True:\n'),
-    # P103 (ninth review): the spaced reading of the dropped characters, the unassigned default-ignorable
+    # P103: the spaced reading of the dropped characters, the unassigned default-ignorable
     # ranges, a run of joiners, the variation selectors a name keeps.
     ('IS19 the unassigned tag code points are kept', 'injection_scan.py',
      '                      | set(range(0xFFF0, 0xFFF9)) | set(range(0xE0000, 0xE1000)))\n',
@@ -5466,7 +5466,7 @@ _MUTANTS = (
     ('RX70 the selectors are dropped by the table', 'receipt_extract.py',
      '_JUDGED = _KEEP | _SELECTORS  # judged by their neighbours, not by the table\n',
      '_JUDGED = _KEEP  # judged by their neighbours, not by the table\n'),
-    # P103 (tenth review): the spaced reading's crediting, the whitespace runs, the INVISIBLE sub-ranges,
+    # P103: the spaced reading's crediting, the whitespace runs, the INVISIBLE sub-ranges,
     # one joiner in a row, the selectors after a joiner and their bases.
     ('IS24 the spaced reading credits a match whose spaced character lies at its edge', 'injection_scan.py',
      '    j = bisect.bisect_right(at, start)\n',
@@ -5507,7 +5507,7 @@ _MUTANTS = (
     ('RX75 an ideographic selector stays only after the unified ideographs', 'receipt_extract.py',
      '        return 0x3400 <= p < 0xA000 or 0xF900 <= p < 0xFB00 or 0x20000 <= p < 0x40000\n',
      '        return 0x4E00 <= p < 0xA000\n'),
-    # P103 (eleventh review): the spaced reading's edges, a line break in a pattern's space, the
+    # P103: the spaced reading's edges, a line break in a pattern's space, the
     # selector bases.
     ('IS33 a spaced character at a match edge is not credited', 'injection_scan.py',
      '    return _inside(at, start, end) or start - 1 in edges or end in edges\n',
@@ -5533,7 +5533,7 @@ _MUTANTS = (
     ('RX79 the emoji with a punctuation or letter base lose their selector', 'receipt_extract.py',
      '_EMOJI_BASES = frozenset("\\u203c\\u2049\\u2139\\u3030\\u303d")\n',
      '_EMOJI_BASES = frozenset()\n'),
-    # P103 (twelfth review): the run touching a match, the edge characters, the five emoji bases.
+    # P103: the run touching a match, the edge characters, the five emoji bases.
     ('IS37 a run touching a match is read at its adjacent character only', 'injection_scan.py',
      '                edges.update(run)\n',
      '                edges.update(j for j in run if text[j] != "\\u00ad")\n'),
@@ -5552,7 +5552,7 @@ _MUTANTS = (
     ('RX82 an emoji base keeps its selector before a space only', 'receipt_extract.py',
      '    return (unicodedata.category(prev) in ("So", "Sm", "Sk") or prev in _EMOJI_BASES\n',
      '    return (unicodedata.category(prev) in ("So", "Sm", "Sk") or (prev in _EMOJI_BASES and nxt == " ")\n'),
-    # P103 (thirteenth review): the line breaks a pattern's space leaves out, a match no spaced character
+    # P103: the line breaks a pattern's space leaves out, a match no spaced character
     # touches, the run grouping.
     ('IS40 a space in a pattern reads a page break and the line and paragraph separators', 'injection_scan.py',
      '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n\\x0c\\u2028\\u2029]+"), _I) for s in sources]\n',
@@ -5569,6 +5569,13 @@ _MUTANTS = (
     ('IS44 runs one character apart merge', 'injection_scan.py',
      '        if run and (i is None or i != run[-1] + 1):\n',
      '        if run and (i is None or i > run[-1] + 2):\n'),
+    # P103: a carriage return in a pattern's space, the near edge of the untouched test.
+    ('IS45 a space in a pattern reads a carriage return', 'injection_scan.py',
+     '    return [re.compile(s.replace(" ", r"[^\\S\\r\\n\\x0c\\u2028\\u2029]+"), _I) for s in sources]\n',
+     '    return [re.compile(s.replace(" ", r"[^\\S\\n\\x0c\\u2028\\u2029]+"), _I) for s in sources]\n'),
+    ('IS46 a spaced character two before a match touches it', 'injection_scan.py',
+     '    j = bisect.bisect_left(at, start - 1)\n',
+     '    j = bisect.bisect_left(at, start - 2)\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch

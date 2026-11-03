@@ -715,7 +715,7 @@ def selftest() -> int:
            and si_extra.count("unseen line") == 1 and si_extra.count("Total $9.00") == 1
            and screen_input(str(d / "crc.docx")) == (None, False))
 
-        # P103 (second review): a PDF stream is scanned in one pass; an email with a structural header
+        # P103: a PDF stream is scanned in one pass; an email with a structural header
         # past the cap, or too many part lines, is not read; a raw 8-bit header reads; a workbook
         # (under any of the zip suffixes) reads within the budget and in one pass.
         def _stream_pdf(body):
@@ -797,7 +797,7 @@ def selftest() -> int:
            and screen_input(str(d / "grid.docx"))[1] is True and r22.get("truncated") is True
            and len(r22["text"]) <= INFLATE_MAX and screen_input(str(d / "gridbomb.docx")) == (None, False)
            and r23["text"] == "" and took_x < 5)
-        # P103 (third review): line ends of either kind, the aggregate header cap, a tab fold, the cap's
+        # P103: line ends of either kind, the aggregate header cap, a tab fold, the cap's
         # edge, a duplicate header, and an unclosed cell tag with an attribute
         cr = lambda b: b.replace(b"\n", b"\r")  # noqa: E731
         (d / "ct_cr.eml").write_bytes(cr(b"From: s@shop.example\n" + ct_head + b"\n\nTotal $4.00\n"))
@@ -828,7 +828,7 @@ def selftest() -> int:
         took_c = _time.monotonic() - t0
         ok(f"a sheet of 100,000 unclosed cell tags with an attribute is scanned in one pass ({took_c:.2f} s)",
            r25["text"] == "" and took_c < 5)
-        # P103 (fourth review): CR LF folds and edges, the total cap's edge, and the transfer encoding
+        # P103: CR LF folds and edges, the total cap's edge, and the transfer encoding
         crlf = lambda b: b.replace(b"\n", b"\r\n")  # noqa: E731
         (d / "ct_crlf_fold.eml").write_bytes(crlf(b"From: s@shop.example\n" + folded + b"\n\nTotal $4.00\n"))
         (d / "ct_crlf_over.eml").write_bytes(crlf(b"From: s@shop.example\n" + exact + b"v\n\nTotal $4.00\n"))
@@ -858,7 +858,7 @@ def selftest() -> int:
            and all(got[n]["ingestion_status"] == "content_ingested" and "Total $4.00" in got[n]["text"]
                    for n in ("ct_crlf_exact.eml", "ct_total_eq.eml"))
            and screen_text(str(d / "cte.eml")) is None and took_e < 2)
-        # P103 (fifth review): a Content-ID a related message's root is found by, and the transfer
+        # P103: a Content-ID a related message's root is found by, and the transfer
         # encoding's folds and total
         (d / "cid.eml").write_bytes(
             b"From: s@shop.example\nMIME-Version: 1.0\nContent-Type: multipart/related; boundary=bc; start=\"<root>\"\n\n"
@@ -878,7 +878,7 @@ def selftest() -> int:
            and "header longer" in got2["cid.eml"]["notes"] and "header longer" in got2["cte_fold.eml"]["notes"]
            and "in total" in got2["cte_total.eml"]["notes"]
            and all(screen_text(str(d / n)) is None for n in got2) and took_i < 2)
-        # P103 (sixth review): a Content-ID's folds, total, cap edge and top level; the separator cap;
+        # P103: a Content-ID's folds, total, cap edge and top level; the separator cap;
         # headers within the caps parsed once per read
         rel = (b"From: s@shop.example\nMIME-Version: 1.0\nContent-Type: multipart/related; boundary=bc; "
                b"start=\"<root>\"\n\n")

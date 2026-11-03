@@ -77,9 +77,9 @@ knows what it is.
   one lies inside it, or when a run of them holding one other than a soft hyphen touches it, and keeps
   the higher score; a space in its patterns reads a run of whitespace other than a line feed, a
   carriage return, a page break or a line or paragraph separator. A word laced with one such character
-  and separated from the next by the same or another is missed, as ADR 0080 notes for NUL bytes; a
+  and separated from the next by the same or another can be missed, as ADR 0080 notes for NUL bytes; a
   soft hyphen alone in place of the space before or after a phrase, and a phrase whose words a line
-  break separates outside an OVERRIDE or REDIRECT gap, can be missed; a soft hyphen inside a word in a
+  break separates outside an OVERRIDE or REDIRECT gap or a TEMPLATE delimiter, can be missed; a soft hyphen inside a word in a
   phrase's middle, or one next to another such character at a word's edge, can complete a phrase and
   raise the verdict (a QUARANTINE withholds the record); the
   session guard stays authoritative. An amount that
