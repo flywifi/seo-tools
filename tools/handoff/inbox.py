@@ -555,8 +555,8 @@ def person_labelled(hub_root, entries, category, rules=None) -> dict:
         text, whole = _pt.screen_input(str(src))
         if not whole:
             out["refused"].append({"file": rel, "why": (
-                "the screen could not read every part of this file (a damaged part, or text inflating past "
-                f"{_pt.INFLATE_MAX} bytes); not routed")})
+                "the screen could not read every part of this file (a damaged part, an email header past the "
+                f"reader's cap, or text inflating past {_pt.INFLATE_MAX} bytes); not routed")})
             continue
         record = None
         if text.strip():
@@ -1880,13 +1880,15 @@ def _selftest_checks() -> int:
     (pl / "Inbox" / "crc.docx").write_bytes(bytes(crc_bytes))
     with open(pl / "Inbox" / "edge.txt", "wb") as fh:
         fh.write(b"Total $1.00\n" + b"a" * (_LABEL_MAX_BYTES - 12))
+    (pl / "Inbox" / "raw8.eml").write_bytes(b"From: Caf\xc3\xa9 Shop <s@shop.example>\nSubject: Your receipt\n\n"
+                                            b"Your receipt\nTotal $4.00\nDate 2026-01-02\n")
     third = person_labelled(pl, [{"file": f"Inbox/{n}", "sha256": _sha256(pl / "Inbox" / n)}
-                                 for n in ("from.eml", "crc.docx", "edge.txt")], "invoice_receipt")
+                                 for n in ("from.eml", "crc.docx", "edge.txt", "raw8.eml")], "invoice_receipt")
     twhy = {r["file"]: r["why"] for r in third["refused"]}
     ok("injected text in an encoded From header, and a document with a part that cannot be read whole, are "
-       "refused; a file of exactly 2 MB is proposed",
+       "refused; a file of exactly 2 MB and an email whose From holds raw UTF-8 bytes are proposed",
        "flagged" in twhy.get("Inbox/from.eml", "") and "every part" in twhy.get("Inbox/crc.docx", "")
-       and [e["file"] for e in third["proposals"]] == ["Inbox/edge.txt"])
+       and [e["file"] for e in third["proposals"]] == ["Inbox/edge.txt", "Inbox/raw8.eml"])
     pe = Path(tempfile.mkdtemp()); (pe / "Inbox").mkdir()
     with open(pe / "Inbox" / "pitch.eml", "wb") as fh:
         fh.write(b"From: brand@example.com\nSubject: Collab\nContent-Type: text/plain\n\nHello\n" + b"x" * 2_100_000)

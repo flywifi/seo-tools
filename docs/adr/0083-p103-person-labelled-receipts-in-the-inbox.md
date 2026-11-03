@@ -48,11 +48,19 @@ knows what it is.
   footer, comment or SmartArt, is screened too (each is a selftest case); a part that cannot be read
   whole refuses the label; a REVIEW verdict is shown on the row.
 - The extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters,
-  and `parse_text` walks PDF streams once, strips tags and trailing spaces in one pass, cuts an email
-  header longer than 8 KB undecoded, and inflates at most 16 MB per file across its zip members or
-  PDF streams, stopping there. The selftests time crafted files of each kind.
-- A document headed as an invoice, or carrying a Bill to line, gets no direction even when it thanks
-  for an order; the person chooses.
+  and `parse_text` walks PDF streams once and scans each in one pass, strips tags and trailing
+  spaces in one pass, reads a workbook's shared strings in one pass and within the budget, cuts an
+  email's From, Subject or Date header longer than 8 KB undecoded, does not read an email whose
+  Content-Type or Content-Disposition header (in the message or a part) is longer than 8 KB or that
+  has more than 5,000 part lines, and inflates at most 16 MB per file across its zip members or PDF
+  streams, stopping there. The selftests time crafted files of these kinds.
+- A document headed as an invoice (a Tax invoice too), or carrying a Bill to or Billed to line, gets
+  no direction even when it thanks for an order or says a payment was sent; the person chooses. A
+  remittance that lists the invoices it settles at line starts asks too: the rule errs toward asking.
+- A name drops Unicode format characters (a direction override, a zero-width character); an amount
+  that rounds to 0.00 is refused in both stores; a confidence is one of the template's tiers.
+- A stale or replayed work-order submit is refused and leaves the open work orders; a row carries the
+  inbox ledger's sha256, and a filed receipt whose file changed since is not recorded.
 - A receipt row carries the inbox ledger's sha256 when its file could not be read at proposal time;
   a row with no sha256 is not recorded.
 - A filed receipt that was not recorded waits on `/inbox-receipts` until it is; one document is one

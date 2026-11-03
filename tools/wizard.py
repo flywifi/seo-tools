@@ -4592,7 +4592,7 @@ anything, and closing this window does not stop the work.</p>
                     work, key = w, k
                     break
             if work is None:
-                _set(inbox_work=None, inbox_receipts_work=None)
+                # the open work orders stay: a stale tab's submit does not discard them (P103)
                 self._send(_screen_inbox(error=(
                     "This work order did not match (stale tab or token). Scan and approve again.")),
                     status=409)
@@ -5241,7 +5241,8 @@ def _receipt_proposals(hub, followups) -> list:
     """P103: for each follow-up marked review "receipt", what tools/receipt_extract.py reads from the
     file approve just filed under Inbox/Processed/ (read here, after the approval, never at scan
     time). A file that cannot be read still gets a row, with the reason as a gap and the inbox
-    ledger's sha256 (carried on the follow-up), so the person can type the entry."""
+    ledger's sha256 (carried on the follow-up), so the person can type the entry. Every row carries the
+    ledger's sha256 as ledger_sha256, so a file that changed since it was filed is not recorded."""
     import receipt_extract as _rx
     out = []
     for f in followups:
@@ -5254,7 +5255,7 @@ def _receipt_proposals(hub, followups) -> list:
             pr = {"file": ref, "sha256": f.get("sha256"), "confidence": "uncertain",
                   "gaps": [f"the file could not be read ({type(exc).__name__}); type the entry in"]}
         rec = (pr.get("proposed_record") or {}).get("entry") or {}
-        out.append({"ref": ref, "sha256": pr.get("sha256") or f.get("sha256"), "format": pr.get("format"),
+        out.append({"ref": ref, "sha256": pr.get("sha256"), "ledger_sha256": f.get("sha256"), "format": pr.get("format"),
                     "confidence": pr.get("confidence"), "direction": pr.get("direction"),
                     "counterparty": pr.get("counterparty"), "date": pr.get("date"), "total": pr.get("total"),
                     "description": rec.get("description") or "; ".join(
@@ -5304,7 +5305,9 @@ def _screen_inbox_receipts() -> str:
 def _record_receipt(r, form, i) -> dict:
     """P103: write one receipt row of the work-order form through tools/books.py, with the values the
     person left in the form: money received as an income-ledger entry (books.add_entry), money paid
-    as a cost-actuals entry (books.add_cost_actual). Both are gated on finance_management."""
+    as a cost-actuals entry (books.add_cost_actual). Both are gated on finance_management. A row with no
+    fingerprint, or whose file changed since it was filed (its hash differs from the inbox ledger's), is
+    refused; a row with no confidence is stored as uncertain."""
     import books as _bk
     val = lambda k: (form.get(f"{k}_{i}") or "").strip()  # noqa: E731
     direction = val("rd")
@@ -5313,6 +5316,9 @@ def _record_receipt(r, form, i) -> dict:
     if not r.get("sha256"):
         return {"written": False, "problems": ["the file's fingerprint is unknown (it could not be read when it "
                                                "was filed); scan and approve it again"]}
+    if r.get("ledger_sha256") and r.get("sha256") != r["ledger_sha256"]:
+        return {"written": False, "problems": ["the file changed since it was filed (its fingerprint differs from "
+                                               "the inbox ledger's); scan and approve it again"]}
     edited = any(val(k) != str(r.get(f) or "") for k, f in (("rdate", "date"), ("rparty", "counterparty"),
                                                              ("ramount", "total")))
     if direction == "received":
@@ -5320,7 +5326,7 @@ def _record_receipt(r, form, i) -> dict:
             "date": val("rdate"), "payer": val("rparty"), "payer_type": val("rptype") or None,
             "kind": val("rkind") or "cash", "amount": val("ramount"), "source": "receipt_extract",
             "evidence_ref": r.get("ref"), "evidence_sha256": r.get("sha256"),
-            "confidence": "edited" if edited else r.get("confidence")}, write=True)
+            "confidence": "edited" if edited else (r.get("confidence") or "uncertain")}, write=True)
     if direction == "paid":
         category = val("rcat") or None
         return _bk.add_cost_actual({
@@ -6928,19 +6934,19 @@ def _selftest_p101() -> int:
         _remit = next(r for r in _rcpts if r["direction"] == "received")
         _nf = {"rd_0": "received", "rdate_0": _remit["date"] or "", "rparty_0": _remit["counterparty"] or "",
                "ramount_0": _remit["total"] or "", "rptype_0": "brand"}
-        _nm = _record_receipt(dict(_remit, sha256="ee" * 32), dict(_nf, rparty_0="Hearthline Paint"), 0)
-        _asis = _record_receipt(dict(_remit, sha256="dd" * 32), _nf, 0)
-        _nosha = _record_receipt(dict(_remit, sha256=None), _nf, 0)
+        _nm = _record_receipt(dict(_remit, sha256="ee" * 32, ledger_sha256="ee" * 32), dict(_nf, rparty_0="Hearthline Paint"), 0)
+        _asis = _record_receipt(dict(_remit, sha256="dd" * 32, ledger_sha256="dd" * 32), _nf, 0)
+        _nosha = _record_receipt(dict(_remit, sha256=None, ledger_sha256=None), _nf, 0)
         if not (_nm.get("written") and _nm["entry"]["confidence"] == "edited" and _nm["entry"]["payer"] == "Hearthline Paint"
                 and _asis.get("written") and _asis["entry"]["confidence"] == _remit["confidence"]
-                and _nosha.get("written") is False and "fingerprint" in " ".join(_nosha.get("problems") or [])):
+                and _nosha.get("written") is False and "fingerprint is unknown" in " ".join(_nosha.get("problems") or [])):
             _rc_fail.append(f"a name edit is not stored as edited, an unedited entry does not keep the reader's "
                             f"confidence, or a row with no fingerprint is recorded ({_nm}, {_asis}, {_nosha})")
         _paid_i = next(i for i, r in enumerate(_rcpts) if r["direction"] == "paid")
         _again = _record_receipt(_rcpts[_paid_i], _form_rc, _paid_i)
         _nodir = _record_receipt(_rcpts[_paid_i], dict(_form_rc, **{f"rd_{_paid_i}": ""}), _paid_i)
         _bk_t._write_allowed = lambda config=None: (False, "finance_management is off")
-        _gated = _record_receipt(dict(_rcpts[_paid_i], sha256="ff" * 32), _form_rc, _paid_i)
+        _gated = _record_receipt(dict(_rcpts[_paid_i], sha256="ff" * 32, ledger_sha256="ff" * 32), _form_rc, _paid_i)
         if not (_again["written"] is False and "duplicate" in _again["reason"]
                 and _nodir["problems"] == ["choose money received or money paid"]
                 and _gated["written"] is False and "finance_management" in _gated["reason"]):
@@ -6968,6 +6974,50 @@ def _selftest_p101() -> int:
                 and [r["ref"].rsplit("/", 1)[-1] for r in (_work2.get("receipts") or [])] == ["second.txt"]
                 and 'name="rc_0"' in (_sent_rc[-1][1] if _sent_rc else "")):
             _rc_fail.append(f"a batch with a receipt and no job did not reach the work order ({_work2})")
+        # a filed receipt whose file changed since is not recorded; a file that cannot be read keeps the
+        # ledger's sha on its row
+        _row2 = (_work2.get("receipts") or [{}])[0]
+        _chg = _rc_hub / _row2["ref"]
+        _orig = _chg.read_bytes()
+        _chg.write_bytes(_orig + b"\nAppended line\n")
+        _fu2 = {"review": "receipt", "processed_ref": _row2["ref"], "sha256": _row2["sha256"]}
+        _chg_rows = _receipt_proposals(_rc_hub, [_fu2])
+        _chg_res = _record_receipt(_chg_rows[0], {"rd_0": "paid", "rdate_0": "2026-05-04", "rparty_0": "Second Shop",
+                                                  "ramount_0": "6.00", "rdesc_0": "x"}, 0)
+        _chg.unlink()
+        _chg.mkdir()
+        _dir_rows = _receipt_proposals(_rc_hub, [dict(_fu2, sha256="ab" * 32)])
+        _chg.rmdir()
+        _chg.write_bytes(_orig)
+        if not (_row2.get("ledger_sha256") == _row2["sha256"] and _chg_rows[0]["sha256"] != _row2["sha256"]
+                and _chg_rows[0]["ledger_sha256"] == _row2["sha256"] and _chg_res.get("written") is False
+                and "changed" in " ".join(_chg_res.get("problems") or [])
+                and _dir_rows[0]["sha256"] == "ab" * 32 and "could not be read" in " ".join(_dir_rows[0]["gaps"])):
+            _rc_fail.append(f"a changed file was recorded, or an unreadable file's row lost the ledger's sha "
+                            f"({_chg_rows}, {_chg_res}, {_dir_rows})")
+        # the two work-order keys: a submit consumes its own order, a token is single use, and a stale
+        # token leaves both orders
+        _set(inbox_work={"token": "WA", "hub": str(_rc_hub), "followups": [], "receipts": []},
+             inbox_receipts_work={"token": "WB", "hub": str(_rc_hub), "followups": [], "receipts": []})
+        _post_rc("/api/inbox-queue-work", {"token": "WB"})
+        _s1 = _sent_rc[-1][0]
+        _k1 = ((_get("inbox_work") or {}).get("token"), _get("inbox_receipts_work"))
+        _post_rc("/api/inbox-queue-work", {"token": "WB"})
+        _s2 = _sent_rc[-1][0]
+        _post_rc("/api/inbox-queue-work", {"token": "nope"})
+        _s3 = _sent_rc[-1][0]
+        _k3 = (_get("inbox_work") or {}).get("token")
+        _post_rc("/api/inbox-queue-work", {"token": "WA"})
+        _s4 = _sent_rc[-1][0]
+        if not ((_s1, _s2, _s3, _s4) == (200, 409, 409, 200) and _k1 == ("WA", None) and _k3 == "WA"
+                and _get("inbox_work") is None):
+            _rc_fail.append(f"a submit did not consume its own order alone, a token was reused, or a stale token "
+                            f"discarded an open order ({(_s1, _s2, _s3, _s4)}, {_k1}, {_k3})")
+        # a row with no confidence is stored as uncertain
+        _bk_t._write_allowed = lambda config=None: (True, "ok")
+        _noconf = _record_receipt(dict(_remit, sha256="cc" * 32, ledger_sha256="cc" * 32, confidence=None), _nf, 0)
+        if not (_noconf.get("written") and _noconf["entry"]["confidence"] == "uncertain"):
+            _rc_fail.append(f"a row with no confidence was not stored as uncertain ({_noconf})")
     finally:
         _g_rc.update(_saved_rc)
         with _lock:

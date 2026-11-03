@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "4374b7b2895dfb109ca96f8d6b17687381a54b94818f2762950dcc3cafa237e6",
+        "tools/wizard.py": "60666e70ed54fe9c23aecb579a15e6198c8b17254534020eece045b1e0ba726c",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -86,7 +86,7 @@
     },
     "shared/injection-guard-engine.md": {
       "sources": {
-        "tools/injection_scan.py": "bdc0e851f9ced0d1f5e2a4bc5c1ae5b23e32e791a17687229f689c6777d3ac15"
+        "tools/injection_scan.py": "b0b6cae71e18c03af1f11b78be49ac1cdfd55b2f2077065c69b185f6a2e71ede"
       }
     },
     "skills/finance-desk/MAINTAINER_README.md": {
@@ -136,7 +136,7 @@
         "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
         "tools/handoff/watcher.py": "5430e3462ba9b39418064c289de5d1fc7533b3c6de657f4f33209447a92bc87f",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "a0346bd454bfceba16c19299851f51b54294298f8ee7dc31615419878b357867",
+        "tools/handoff/inbox.py": "71e30d53ac18dbde25b77d16a537f345da1dab81a6e3d851d1ee53b5531a9991",
         "shared/docintel/inbox_rules.json": "62ad9d928bbdeefe9ec98a04e57d46e964fdad6dcd695507a67031907e5a67df",
         "tools/project_docs.py": "4225fa31df2132aa73de9a117972b2f8994badd47764d43b43f830ce69bfff47"
       }
@@ -147,7 +147,7 @@
         "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
         "tools/handoff/watcher.py": "5430e3462ba9b39418064c289de5d1fc7533b3c6de657f4f33209447a92bc87f",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "a0346bd454bfceba16c19299851f51b54294298f8ee7dc31615419878b357867",
+        "tools/handoff/inbox.py": "71e30d53ac18dbde25b77d16a537f345da1dab81a6e3d851d1ee53b5531a9991",
         "shared/docintel/inbox_rules.json": "62ad9d928bbdeefe9ec98a04e57d46e964fdad6dcd695507a67031907e5a67df"
       }
     }

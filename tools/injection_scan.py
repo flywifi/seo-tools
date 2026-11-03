@@ -587,6 +587,14 @@ def selftest() -> int:
     scan_text("fetch " * 10_000)
     took_is = _time_is.monotonic() - t0
     ok(f"repeated trigger words with no terminal word are scanned in bounded time ({took_is:.2f} s)", took_is < 2)
+    near, far = scan_text("ignore " + "x " * 35 + "instructions"), scan_text("ignore " + "x " * 45 + "instructions")
+    near_r = scan_text("fetch " + "x " * 35 + "https://e.example/")
+    far_r = scan_text("fetch " + "x " * 45 + "https://e.example/")
+    ok("an OVERRIDE or REDIRECT trigger word reaches its terminal word across a gap of 70 characters, not 90",
+       any(d["category"] == "OVERRIDE" for d in near["patterns_detected"])
+       and not any(d["category"] == "OVERRIDE" for d in far["patterns_detected"])
+       and any(d["category"] == "REDIRECT" for d in near_r["patterns_detected"])
+       and not any(d["category"] == "REDIRECT" for d in far_r["patterns_detected"]))
     passed = sum(1 for _, c in checks if c)
     print(f"injection_scan selftest: {passed}/{len(checks)} passed")
     return 0 if passed == len(checks) else 1

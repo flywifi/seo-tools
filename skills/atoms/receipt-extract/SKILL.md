@@ -82,8 +82,14 @@ can type into any bookkeeping tool.
 ## Failure modes
 - A scanned PDF, or one whose text `parse_text` does not decode: no text, an `uncertain` proposal,
   and the person types the entry.
-- A document that does not say who paid whom, or reads both ways, or is headed as an invoice or
-  carries a "Bill to" line: direction null, asked for.
+- A document that does not say who paid whom, or reads both ways, or is headed as an invoice (a
+  "Tax invoice" too) or carries a "Bill to" or "Billed to" line: direction null, asked for.
+- A remittance or payout statement that lists the invoices it settles at line starts ("Invoice
+  INV-001  $900.00"): direction null, asked for; the invoice rule errs toward asking.
+- An email whose Content-Type or Content-Disposition header is longer than 8 KB, or that has more
+  than 5,000 part lines: not read at all, no proposed record, the reason in the gaps.
+- A filed receipt whose file changed since (its hash differs from the inbox ledger's): refused on
+  the wizard's work order; scan and approve it again.
 - A receipt whose lines do not add up (discounts, tips): `probable`, never `exact`.
 
 ## Cross-modality

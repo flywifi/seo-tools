@@ -26,6 +26,7 @@ import hashlib
 import json
 import re
 import sys
+import unicodedata
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -80,9 +81,9 @@ _PAID_TO_YOU = re.compile(r"\b(remittance\s{1,3}advice|payout\s{1,3}(?:statement
                           r"|creator\s{1,3}(?:payout|earnings))\b", re.I)
 _PAID_BY_YOU = re.compile(r"\b(thank\s{1,3}you\s{1,3}for\s{1,3}your\s{1,3}(?:order|purchase|payment)|order\s{1,3}confirmation"
                           r"|your\s{1,3}receipt|receipt\s{1,3}for\s{1,3}your|charged\s{1,3}to\s{1,3}your)\b", re.I)
-# A document headed as an invoice, or carrying a "Bill to" line, decides neither: the creator issues
-# invoices as well as receiving them, so the person says whether it was paid or issued.
-_INVOICE_RE = re.compile(_LEAD + r"(?:tax" + _SP + r"{1,3})?invoice\b|" + _LEAD + r"bill" + _SP + r"{1,3}to\b",
+# A document headed as an invoice, or carrying a "Bill to" or "Billed to" line, decides neither: the
+# creator issues invoices as well as receiving them, so the person says whether it was paid or issued.
+_INVOICE_RE = re.compile(_LEAD + r"(?:tax" + _SP + r"{1,3})?invoice\b|" + _LEAD + r"bill(?:ed)?" + _SP + r"{1,3}to\b",
                          re.I | re.M)
 _LINE_RE = re.compile(r"^(?P<desc>[A-Za-z][^\n$]{2,80}?)" + _SP + r"{2,40}(?:(?P<qty>\d{1,3})" + _SP + r"{2,40})?"
                       + _MONEY.replace(r"(?:USD" + _SP + r"{0,3}|\$" + _SP + r"{0,3})?",
@@ -98,7 +99,6 @@ _PARTY_ORDER = {"received": ("payer", "from"),
 _NOISE = re.compile(r"^(subtotal|sub total|total|tax|sales tax|shipping|discount|grand total|order total"
                     r"|amount paid|amount due|amount charged|balance due|net payout|payout|net amount|payment amount"
                     r"|you were paid)\b", re.I)
-_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def money_value(raw):
@@ -114,8 +114,12 @@ def money_value(raw):
 
 
 def _clean(text):
-    """A field from the document: control characters dropped, spaces collapsed, cut at FIELD_MAX."""
-    return " ".join(_CONTROL.sub(" ", text).split())[:FIELD_MAX]
+    """A field from the document: a control character (Unicode Cc) becomes a space, a format character
+    (Cf: a direction override, a zero-width space or joiner) is dropped so it can neither reshape nor
+    hide a name, spaces are collapsed and the result is cut at FIELD_MAX."""
+    cats = {ch: unicodedata.category(ch) for ch in set(text)}
+    text = "".join(" " if cats[ch] == "Cc" else "" if cats[ch] == "Cf" else ch for ch in text)
+    return " ".join(text.split())[:FIELD_MAX]
 
 
 def _first_date(text):
@@ -171,8 +175,8 @@ def extract(path, ref=None):
     seen, whole = _pt.screen_input(str(p), parsed)
     if not whole:
         return dict(out, format=kind, confidence="uncertain", proposed_record=None, screen=None,
-                    gaps=["the screen could not read every part of this file (a damaged part, or text inflating "
-                          f"past {_pt.INFLATE_MAX} bytes); nothing is proposed"])
+                    gaps=["the screen could not read every part of this file (a damaged part, an email header past "
+                          f"the reader's cap, or text inflating past {_pt.INFLATE_MAX} bytes); nothing is proposed"])
     scr = _inj.scan_text(seen, artifact_id=p.name) if seen.strip() else {}
     screen = ({"risk_level": scr.get("risk_level"), "total_score": scr.get("total_score"),
                "categories": sorted({d.get("category") for d in scr.get("patterns_detected", []) if d.get("category")})}
@@ -469,6 +473,22 @@ def selftest():
         lone = read("lone.txt", "Your receipt\nAmount charged  $5.00\nDate 2026-01-02\n")
         ok("a total line is not a line item, so a document with no other lines stays probable",
            lone["total"] == "5.00" and lone["line_items"] == [] and lone["confidence"] == "probable")
+        billto = read("billto.txt", "Bill to: Jane Creator\nYour receipt\nTotal $5.00\nDate 2026-01-02\n")
+        billed = read("billed.txt", "Billed to: Jane Creator\nYour receipt\nTotal $5.00\nDate 2026-01-02\n")
+        taxinv = read("taxinv.txt", "Tax invoice\nThank you for your order\nTotal $5.00\nDate 2026-01-02\n")
+        invpaid = read("invpaid.txt", "Invoice INV-9\nWe've sent your payment\nTotal $5.00\nDate 2026-01-02\n")
+        ok("a Bill to or Billed to line, a Tax invoice heading, and an invoice that says a payment was sent each "
+           "withhold the direction on their own",
+           all(r["direction"] is None and any("invoice" in g for g in r["gaps"])
+               for r in (billto, billed, taxinv, invpaid)))
+        payamt = read("payamt.txt", "Your receipt\nPayment amount  $5.00\nDate 2026-01-02\n")
+        werepaid = read("werepaid.txt", "Your receipt\nYou were paid  $5.00\nDate 2026-01-02\n")
+        rtl = read("rtl.txt", "Vendor: Shop\u202eevil\nYour receipt\nTotal $2.00\n")
+        zw = read("zw.txt", "Vendor: Sh\u200bop\nYour receipt\nTotal $2.00\n")
+        ok("a Payment amount or You were paid line is the total and no line item, and a direction override or "
+           "a zero-width character inside a name is dropped",
+           payamt["line_items"] == [] and payamt["total"] == "5.00" and werepaid["line_items"] == []
+           and werepaid["total"] == "5.00" and rtl["counterparty"] == "Shopevil" and zw["counterparty"] == "Shop")
         ok("a Subtotal line is not the total whichever comes first, and the first Vendor line names the vendor",
            sub_first["total"] == "239.61" and total_first["total"] == "239.61" and two["counterparty"] == "First Co")
         far = read("far.txt", "Your receipt\n" + "x" * TEXT_MAX + "\nTotal $4.00\n")

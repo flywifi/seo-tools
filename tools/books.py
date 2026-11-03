@@ -56,6 +56,7 @@ PRICE_SOURCES = ("brand_page", "retailer_page", "user_stated")
 STATUSES = ("proposed", "confirmed", "void")
 SOURCES = ("invoice_paid", "receipt_extract", "user_entry", "platform_statement")
 CASH_KINDS = ("cash", "affiliate", "ad_revenue", "revenue_share", "refund")
+CONFIDENCES = ("exact", "probable", "uncertain", "edited")  # the ledger template's tiers; edited is a correction
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
 # The ledger's money keys that redact() bands; finance.redact bands its own (amount, net, ...).
 _LEDGER_AMOUNT_KEYS = ("cash", "product_value", "retail_price", "value", "form_amount", "ledger_cash",
@@ -178,7 +179,8 @@ def validate_entry(entry, today=None):
     price needs a source and a capture date, and a brand or retailer source needs its reference
     (the page), else the price is refused (no-fabrication). An amount is refused on a product
     entry (the value lives in product.retail_price) and required on every cash kind: positive,
-    and negative for a refund. Dates are YYYY-MM-DD and not after today."""
+    and negative for a refund, judged on the cents stored (0.004 rounds to zero and is refused).
+    confidence, when given, is one of CONFIDENCES. Dates are YYYY-MM-DD and not after today."""
     today = today or date.today()
     p = []
     if not isinstance(entry, dict):
@@ -198,12 +200,14 @@ def validate_entry(entry, today=None):
         p.append(f"kind must be one of {KINDS}")
     if entry.get("source") not in SOURCES:
         p.append(f"source must be one of {SOURCES}")
+    if entry.get("confidence") not in (None, "") + CONFIDENCES:
+        p.append(f"confidence must be one of {CONFIDENCES} when given")
     seq = entry.get("sequence")
     if seq is not None and (isinstance(seq, bool) or not isinstance(seq, int) or seq < 2):
         p.append("sequence must be a whole number of 2 or more (the second identical payment that day is 2)")
     if kind in CASH_KINDS:
         try:
-            amt = _num(entry.get("amount"), "amount")
+            amt = _fin.money(_num(entry.get("amount"), "amount"))  # the cents stored decide the sign
             if kind == "refund" and amt >= 0:
                 p.append("a refund's amount must be negative (it subtracts from the payer's cash)")
             elif kind != "refund" and amt <= 0:
@@ -268,7 +272,8 @@ def normalize(entry):
     else:
         e["product"] = None
     e["status"] = "proposed"
-    e.setdefault("confidence", "exact" if e.get("source") in ("invoice_paid", "user_entry") else "probable")
+    if not e.get("confidence"):  # absent, None or empty: the source's default tier
+        e["confidence"] = "exact" if e.get("source") in ("invoice_paid", "user_entry") else "probable"
     e.setdefault("gaps", [])
     e.setdefault("content_refs", [])
     e.setdefault("notes", "")
@@ -363,7 +368,8 @@ def add_cost_actual(entry, write=False, config=None, path=None, today=None):
     pipeline/finance/cost-actuals.local.json under its lock, written atomically. The fields are the
     template's (date, vendor, description, category, amount, is_capex, project_ref, deal_id,
     receipt_ref, notes) plus receipt_sha256; an entry whose receipt_sha256 is already recorded is
-    refused as a duplicate. category is one of COST_CATEGORIES or null; it is the person's choice."""
+    refused as a duplicate, as is an amount that rounds to 0.00. category is one of COST_CATEGORIES or
+    null; it is the person's choice."""
     p_ = []
     e = dict(entry) if isinstance(entry, dict) else None
     if e is None:
@@ -377,7 +383,7 @@ def add_cost_actual(entry, write=False, config=None, path=None, today=None):
     if not isinstance(e.get("vendor"), str) or not e["vendor"].strip():
         p_.append("vendor is required (who was paid)")
     try:
-        if _num(e.get("amount"), "amount") <= 0:
+        if _fin.money(_num(e.get("amount"), "amount")) <= 0:  # the cents stored decide the sign
             p_.append("amount must be positive")
     except ValueError as exc:
         p_.append(str(exc))
@@ -1105,6 +1111,19 @@ def selftest():
             _c("cost actual: a zero amount is refused; a missing is_capex reads False and an empty category None",
                any(b.startswith("amount") for b in zero.get("problems", [])) and plain["entry"]["is_capex"] is False
                and plain["entry"]["category"] is None, f)
+            inc = {"date": "2024-05-05", "payer": "Hearthline", "payer_type": "brand", "kind": "cash",
+                   "amount": "0.004", "source": "receipt_extract", "evidence_sha256": "9c" * 32}
+            sub = add_cost_actual(dict(spend, amount="0.004", receipt_sha256="9a" * 32), write=False)
+            half = add_cost_actual(dict(spend, amount="0.005", receipt_sha256="9b" * 32), write=False)
+            _c("an amount that rounds to 0.00 is refused in both stores, 0.005 rounds up to a cent, a refund that "
+               "rounds to 0.00 is refused, and confidence is one of the template's tiers when given, the source's "
+               "default when not",
+               any(b.startswith("amount") for b in sub.get("problems", [])) and half["entry"]["amount"] == "0.01"
+               and any(b.startswith("amount") for b in validate_entry(inc))
+               and any(b.startswith("a refund") for b in validate_entry(dict(inc, kind="refund", amount="-0.004")))
+               and any(b.startswith("confidence") for b in validate_entry(dict(inc, amount="5", confidence="banana")))
+               and validate_entry(dict(inc, amount="5", confidence="edited")) == []
+               and add_entry(dict(inc, amount="5", confidence=None))["entry"]["confidence"] == "probable", f)
             dated_today = add_cost_actual(dict(spend, date=date.today().isoformat(), receipt_sha256="12" * 32))
             _c("cost actual: a receipt dated today is accepted", "problems" not in dated_today, f)
             ca.write_text("[]", encoding="utf-8")

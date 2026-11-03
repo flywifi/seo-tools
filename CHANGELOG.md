@@ -29,16 +29,29 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   included, an HTML part's comments and attribute text; a Word file's body, headers, footers, notes,
   comments, SmartArt data and alternative-format chunks) together with the parsed text, and the label
   refuses a file with a part that cannot be read whole; a REVIEW verdict is shown on the receipt row.
-  Direction is asked for when a document reads both ways, and a document headed as an invoice, or
-  carrying a "Bill to" line, decides neither. The extractor's patterns stay on one line with bounded
-  gaps and read at most 200,000 characters; `parse_text` walks a PDF's streams once and ends a text
-  line at the PDF's line operators, strips tags and trailing spaces in one pass (a block tag ends a
-  line, so a one-line HTML receipt keeps its lines), cuts an email header longer than 8 KB undecoded,
-  and inflates at most 16 MB per file across its zip members or PDF streams; the selftests time
-  crafted files of each kind. An `.eml` is not held as oversize: approve keeps a session's or the
-  label's record for it. The work order for receipts filed earlier keeps its own state, so a visit to
-  `/inbox-receipts` does not replace a work order an approval left open, and a receipt row whose file
-  could not be read carries the inbox ledger's sha256 (a row with none is not recorded).
+  Direction is asked for when a document reads both ways, and a document headed as an invoice (a
+  "Tax invoice" too), or carrying a "Bill to" or "Billed to" line, decides neither; a "Payment
+  amount" or "You were paid" line is the total, not a line item; a name drops Unicode format
+  characters (a direction override, a zero-width character) as well as control characters. The
+  extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters;
+  `parse_text` walks a PDF's streams once, scans each in one pass (a string literal, and an escape
+  pair outside one, are read without a second look) and ends a text line at the PDF's line
+  operators, strips tags and trailing spaces in one pass (a block tag or a `<br>` ends a line, so a
+  one-line HTML receipt keeps its lines), reads a workbook's shared strings in one pass and within
+  the budget (under a `.docx` suffix too, screened through its parse), cuts an email's From, Subject
+  or Date header longer than 8 KB undecoded (a raw 8-bit header is read with the name decoded), does
+  not read an email whose Content-Type or Content-Disposition header, in the message or a part, is
+  longer than 8 KB or that has more than 5,000 part lines, and inflates at most 16 MB per file
+  across its zip members or PDF streams; the selftests time crafted files of these kinds. An `.eml`
+  is not held as oversize: approve keeps a session's or the label's record for it. The work order
+  for receipts filed earlier keeps its own state, so a visit to `/inbox-receipts` does not replace a
+  work order an approval left open; a stale or replayed submit is refused (409) and leaves the open
+  work orders in place; a receipt row carries the inbox ledger's sha256 as `ledger_sha256`, so a
+  filed receipt whose file changed since is not recorded, a row whose file could not be read keeps
+  that sha256, and a row with none is not recorded; a row with no confidence is stored as
+  uncertain. `tools/books.py` judges an amount's sign on the cents it stores (0.004 is refused as
+  zero in both stores) and accepts a confidence from the template's tiers (exact, probable,
+  uncertain, edited), refusing another and filling the source's default when none is given.
 - P103 (injection patterns): the OVERRIDE and REDIRECT patterns in `tools/injection_scan.py` bound
   the gap between a trigger word and its terminal word at 80 characters, so a text of repeated
   trigger words with no terminal word is scanned in linear time (timed in the selftest).
