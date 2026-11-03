@@ -31,7 +31,7 @@
       "sequence": null,
       "payment_method": null,
       "source": "invoice_paid | receipt_extract | user_entry | platform_statement",
-      "confidence": "exact | probable | uncertain",
+      "confidence": "exact | probable | uncertain | edited",
       "gaps": [],
       "notes": ""
     }

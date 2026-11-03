@@ -33,7 +33,7 @@ MAGIC = [
 
 EXT_FAMILY = {
     "txt": "document", "md": "document", "rtf": "document", "log": "document",
-    "html": "document", "htm": "document", "docx": "document", "doc": "document", "odt": "document",
+    "html": "document", "htm": "document", "eml": "document", "docx": "document", "doc": "document", "odt": "document",
     "pdf": "pdf",
     "xlsx": "spreadsheet", "xls": "spreadsheet", "csv": "spreadsheet", "tsv": "spreadsheet", "ods": "spreadsheet",
     "pptx": "presentation", "ppt": "presentation", "odp": "presentation",
@@ -47,7 +47,7 @@ EXT_FAMILY = {
 }
 
 OFFLINE_PARSEABLE = {
-    "txt", "md", "rtf", "log", "html", "htm", "docx", "xlsx", "csv", "tsv",
+    "txt", "md", "rtf", "log", "html", "htm", "eml", "docx", "xlsx", "csv", "tsv",
     "pptx", "json", "xml", "srt", "vtt", "pdf",
 }
 

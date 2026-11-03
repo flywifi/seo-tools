@@ -22,6 +22,7 @@ CLI (a relative --out path is read from the repository root):
   python3 tools/books.py --form-check --year 2026
   python3 tools/books.py --propose-from-invoices [--write]
   python3 tools/books.py --add entry.json [--write]
+  python3 tools/books.py --add-cost entry.json [--write]   # a spending entry (cost actuals)
   python3 tools/books.py --confirm <entry_id> | --void <entry_id>
   python3 tools/books.py --export --year 2026 [--out pipeline/finance/exports/2026-books.local.csv]
   python3 tools/books.py --set-aside --year 2026 --percent 27.5
@@ -55,6 +56,7 @@ PRICE_SOURCES = ("brand_page", "retailer_page", "user_stated")
 STATUSES = ("proposed", "confirmed", "void")
 SOURCES = ("invoice_paid", "receipt_extract", "user_entry", "platform_statement")
 CASH_KINDS = ("cash", "affiliate", "ad_revenue", "revenue_share", "refund")
+CONFIDENCES = ("exact", "probable", "uncertain", "edited")  # the ledger template's tiers; edited is a correction
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
 # The ledger's money keys that redact() bands; finance.redact bands its own (amount, net, ...).
 _LEDGER_AMOUNT_KEYS = ("cash", "product_value", "retail_price", "value", "form_amount", "ledger_cash",
@@ -177,7 +179,8 @@ def validate_entry(entry, today=None):
     price needs a source and a capture date, and a brand or retailer source needs its reference
     (the page), else the price is refused (no-fabrication). An amount is refused on a product
     entry (the value lives in product.retail_price) and required on every cash kind: positive,
-    and negative for a refund. Dates are YYYY-MM-DD and not after today."""
+    and negative for a refund, judged on the cents stored (0.004 rounds to zero and is refused).
+    confidence, when given, is one of CONFIDENCES. Dates are YYYY-MM-DD and not after today."""
     today = today or date.today()
     p = []
     if not isinstance(entry, dict):
@@ -197,12 +200,14 @@ def validate_entry(entry, today=None):
         p.append(f"kind must be one of {KINDS}")
     if entry.get("source") not in SOURCES:
         p.append(f"source must be one of {SOURCES}")
+    if entry.get("confidence") not in (None, "") + CONFIDENCES:
+        p.append(f"confidence must be one of {CONFIDENCES} when given")
     seq = entry.get("sequence")
     if seq is not None and (isinstance(seq, bool) or not isinstance(seq, int) or seq < 2):
         p.append("sequence must be a whole number of 2 or more (the second identical payment that day is 2)")
     if kind in CASH_KINDS:
         try:
-            amt = _num(entry.get("amount"), "amount")
+            amt = _fin.money(_num(entry.get("amount"), "amount"))  # the cents stored decide the sign
             if kind == "refund" and amt >= 0:
                 p.append("a refund's amount must be negative (it subtracts from the payer's cash)")
             elif kind != "refund" and amt <= 0:
@@ -267,7 +272,8 @@ def normalize(entry):
     else:
         e["product"] = None
     e["status"] = "proposed"
-    e.setdefault("confidence", "exact" if e.get("source") in ("invoice_paid", "user_entry") else "probable")
+    if not e.get("confidence"):  # absent, None or empty: the source's default tier
+        e["confidence"] = "exact" if e.get("source") in ("invoice_paid", "user_entry") else "probable"
     e.setdefault("gaps", [])
     e.setdefault("content_refs", [])
     e.setdefault("notes", "")
@@ -298,6 +304,15 @@ def add_entry(entry, write=False, config=None, path=None):
             out["reason"] = (f"duplicate: {e['entry_id']} is already in the ledger (a second identical "
                              f"payment that day needs its evidence_ref or sequence 2)")
             return out
+        try:
+            seen = _document_recorded(e.get("evidence_sha256"), ledger=data)
+        except ValueError:
+            out["reason"] = "cost actuals do not parse, so a duplicate cannot be ruled out; nothing was written"
+            return out
+        if seen:
+            out["reason"] = ("duplicate: this document is already recorded (its evidence_sha256 is on an "
+                             "income entry or a cost actual)")
+            return out
         data["entries"].append(e)
         _save(data, p)
     out["written"] = True
@@ -321,6 +336,105 @@ def set_status(entry_id, status, config=None, path=None):
                 return {"updated": True, "entry_id": entry_id, "status": status,
                         "computed_by": f"{TOOL} set_status"}
     return {"updated": False, "reason": f"no entry {entry_id}"}
+
+
+COST_CATEGORIES = ("production_materials", "equipment_capex", "software_subscriptions", "contractor_labor",
+                   "travel", "shipping_and_fees")
+
+
+def cost_actuals_path():
+    return _root() / "pipeline" / "finance" / "cost-actuals.local.json"
+
+
+def _document_recorded(sha, ledger=None, costs=None):
+    """True when a document's sha256 is already recorded: an income entry's evidence_sha256 (one not
+    void) or a cost-actuals receipt_sha256. One receipt is one entry across both stores (P103). A
+    store that does not parse raises ValueError, so the caller writes nothing."""
+    if not sha:
+        return False
+    led = load_ledger() if ledger is None else ledger
+    if any(isinstance(e, dict) and e.get("evidence_sha256") == sha and e.get("status") != "void"
+           for e in led.get("entries", [])):
+        return True
+    if costs is None:
+        cp = cost_actuals_path()
+        costs = json.loads(cp.read_text(encoding="utf-8")) if cp.exists() else {}
+    entries = costs.get("entries") if isinstance(costs, dict) else None
+    return any(isinstance(x, dict) and x.get("receipt_sha256") == sha for x in (entries or []))
+
+
+def add_cost_actual(entry, write=False, config=None, path=None, today=None):
+    """Validate and (with write and finance_management on) append one spending entry to
+    pipeline/finance/cost-actuals.local.json under its lock, written atomically. The fields are the
+    template's (date, vendor, description, category, amount, is_capex, project_ref, deal_id,
+    receipt_ref, notes) plus receipt_sha256; an entry whose receipt_sha256 is already recorded is
+    refused as a duplicate, as is an amount that rounds to 0.00. category is one of COST_CATEGORIES or
+    null; it is the person's choice."""
+    p_ = []
+    e = dict(entry) if isinstance(entry, dict) else None
+    if e is None:
+        return {"boundary": BOUNDARY, "written": False, "problems": ["entry is not an object"],
+                "human_review_required": True}
+    try:
+        if _iso_date(e.get("date")) > (today or date.today()):
+            p_.append("date is after today; an entry is recorded once the money was spent")
+    except ValueError:
+        p_.append("date must be YYYY-MM-DD")
+    if not isinstance(e.get("vendor"), str) or not e["vendor"].strip():
+        p_.append("vendor is required (who was paid)")
+    try:
+        if _fin.money(_num(e.get("amount"), "amount")) <= 0:  # the cents stored decide the sign
+            p_.append("amount must be positive")
+    except ValueError as exc:
+        p_.append(str(exc))
+    if e.get("category") not in (None, "") + COST_CATEGORIES:
+        p_.append(f"category must be one of {COST_CATEGORIES} or empty")
+    if not isinstance(e.get("is_capex", False), bool):
+        p_.append("is_capex must be true or false")
+    if p_:
+        return {"boundary": BOUNDARY, "written": False, "problems": p_, "human_review_required": True}
+    e["vendor"] = " ".join(e["vendor"].split())
+    e["amount"] = str(_fin.money(_num(e["amount"], "amount")))
+    e["category"] = e.get("category") or None
+    e.setdefault("is_capex", False)
+    for k in ("description", "notes"):
+        e[k] = str(e.get(k) or "")
+    for k in ("project_ref", "deal_id", "receipt_ref", "receipt_sha256"):
+        e.setdefault(k, None)
+    out = {"boundary": BOUNDARY, "entry": e, "written": False, "human_review_required": True,
+           "computed_by": f"{TOOL} add_cost_actual"}
+    if not write:
+        out["reason"] = "dry run; pass write=True to persist"
+        return out
+    ok, why = _write_allowed(config)
+    if not ok:
+        out["reason"] = why.replace("entry was validated", "spending entry was validated")
+        return out
+    p = Path(path) if path else cost_actuals_path()
+    with _locked(p):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        except ValueError:
+            out["reason"] = f"{p.name} does not parse as JSON; it was left as it is"
+            return out
+        if not isinstance(data, dict) or not isinstance(data.get("entries", []), list):
+            out["reason"] = f"{p.name} is not an object with an entries list; it was left as it is"
+            return out
+        data.setdefault("currency", "USD")
+        data.setdefault("entries", [])
+        data.setdefault("human_review_required", True)
+        try:
+            seen = _document_recorded(e["receipt_sha256"], costs=data)
+        except ValueError:
+            out["reason"] = "the income ledger does not parse, so a duplicate cannot be ruled out; nothing was written"
+            return out
+        if seen:
+            out["reason"] = "duplicate: this receipt is already recorded (in cost actuals or the income ledger)"
+            return out
+        data["entries"].append(e)
+        _save(data, p)
+    out["written"] = True
+    return out
 
 
 def propose_from_invoices(invoices=None, ledger=None, skipped=None):
@@ -949,6 +1063,80 @@ def selftest():
                 _c("set-aside names a cost-actuals amount it cannot read", False, f)
             except ValueError as exc:
                 _c("set-aside names a cost-actuals amount it cannot read", "2026-01-01" in str(exc), f)
+            # cost actuals (spending proposed from a receipt)
+            spend = {"date": "2026-05-02", "vendor": "  Northstar   Tools ", "amount": "239.61",
+                     "category": None, "receipt_ref": "Inbox/Processed/2026-05-03/order.txt",
+                     "receipt_sha256": "ab" * 32}
+            ca = cost_actuals_path()
+            ca.unlink()
+            gated = add_cost_actual(spend, write=True, config=off)
+            _c("cost actual: refused to write with finance_management off, nothing created",
+               gated["written"] is False and "finance_management" in gated["reason"] and not ca.exists(), f)
+            w1 = add_cost_actual(spend, write=True, config=on)
+            w2 = add_cost_actual(spend, write=True, config=on)
+            stored = json.loads(ca.read_text(encoding="utf-8"))["entries"]
+            _c("cost actual: written once, normalized; the same receipt again is a duplicate",
+               w1["written"] and not w2["written"] and "duplicate" in w2["reason"] and len(stored) == 1
+               and stored[0]["vendor"] == "Northstar Tools" and stored[0]["amount"] == "239.61", f)
+            bads = [add_cost_actual(dict(spend, **chg), write=True, config=on)["problems"][0]
+                    for chg in ({"date": "2099-01-01"}, {"vendor": " "}, {"amount": "-5"},
+                                {"category": "snacks"}, {"is_capex": "yes"}, {"date": "05/02/2026"})]
+            _c("cost actual: a future or malformed date, no vendor, a negative amount, an unknown "
+               "category and a non-bool is_capex are refused",
+               [b.split()[0] for b in bads] == ["date", "vendor", "amount", "category", "is_capex", "date"], f)
+            odd = add_cost_actual(dict(spend, amount="239.6", receipt_sha256="cd" * 32), write=False)
+            _c("cost actual: an amount is stored in cents", odd["entry"]["amount"] == "239.60", f)
+            twice_in = add_entry({"date": "2024-05-03", "payer": "Northstar Tools", "payer_type": "brand",
+                                  "kind": "cash", "amount": "239.61", "source": "receipt_extract",
+                                  "evidence_sha256": "ab" * 32}, write=True, config=on)
+            first_in = add_entry({"date": "2024-05-04", "payer": "Hearthline", "payer_type": "brand", "kind": "cash",
+                                  "amount": "900", "source": "receipt_extract", "evidence_sha256": "ef" * 32},
+                                 write=True, config=on)
+            again_in = add_entry({"date": "2024-05-05", "payer": "Hearthline", "payer_type": "brand", "kind": "cash",
+                                  "amount": "901", "source": "receipt_extract", "evidence_sha256": "ef" * 32},
+                                 write=True, config=on)
+            cost_after_in = add_cost_actual(dict(spend, receipt_sha256="ef" * 32), write=True, config=on)
+            _c("one document is one entry across both stores, whatever its date or amount",
+               not twice_in["written"] and "already recorded" in twice_in["reason"] and first_in["written"]
+               and not again_in["written"] and not cost_after_in["written"]
+               and "already recorded" in cost_after_in["reason"], f)
+            void_led = {"entries": [{"evidence_sha256": "ab" * 32, "status": "void"}]}
+            live_led = {"entries": [{"evidence_sha256": "ab" * 32, "status": "proposed"}]}
+            _c("a void income entry releases its document; a live one holds it",
+               _document_recorded("ab" * 32, ledger=void_led, costs={}) is False
+               and _document_recorded("ab" * 32, ledger=live_led, costs={}) is True, f)
+            zero = add_cost_actual(dict(spend, amount="0", receipt_sha256="56" * 32), write=False)
+            plain = add_cost_actual({k: v for k, v in dict(spend, category="", receipt_sha256="78" * 32).items()
+                                     if k != "is_capex"}, write=False)
+            _c("cost actual: a zero amount is refused; a missing is_capex reads False and an empty category None",
+               any(b.startswith("amount") for b in zero.get("problems", [])) and plain["entry"]["is_capex"] is False
+               and plain["entry"]["category"] is None, f)
+            inc = {"date": "2024-05-05", "payer": "Hearthline", "payer_type": "brand", "kind": "cash",
+                   "amount": "0.004", "source": "receipt_extract", "evidence_sha256": "9c" * 32}
+            sub = add_cost_actual(dict(spend, amount="0.004", receipt_sha256="9a" * 32), write=False)
+            half = add_cost_actual(dict(spend, amount="0.005", receipt_sha256="9b" * 32), write=False)
+            _c("an amount that rounds to 0.00 is refused in both stores, 0.005 rounds up to a cent, a refund that "
+               "rounds to 0.00 is refused, and confidence is one of the template's tiers when given, the source's "
+               "default when not",
+               any(b.startswith("amount") for b in sub.get("problems", [])) and half["entry"]["amount"] == "0.01"
+               and any(b.startswith("amount") for b in validate_entry(inc))
+               and any(b.startswith("a refund") for b in validate_entry(dict(inc, kind="refund", amount="-0.004")))
+               and any(b.startswith("confidence") for b in validate_entry(dict(inc, amount="5", confidence="banana")))
+               and validate_entry(dict(inc, amount="5", confidence="edited")) == []
+               and add_entry(dict(inc, amount="5", confidence=None))["entry"]["confidence"] == "probable"
+               and add_entry(dict(inc, amount="5", confidence=""))["entry"]["confidence"] == "probable"
+               and (add_entry(dict(inc, amount="0.005")).get("entry") or {}).get("amount") == "0.01", f)
+            dated_today = add_cost_actual(dict(spend, date=date.today().isoformat(), receipt_sha256="12" * 32))
+            _c("cost actual: a receipt dated today is accepted", "problems" not in dated_today, f)
+            ca.write_text("[]", encoding="utf-8")
+            listed = add_cost_actual(dict(spend, receipt_sha256="34" * 32), write=True, config=on)
+            _c("cost actual: a file that is not an object is left as it is",
+               not listed["written"] and ca.read_text(encoding="utf-8") == "[]", f)
+            ca.write_text("{oops", encoding="utf-8")
+            kept = add_cost_actual(dict(spend, receipt_sha256="cd" * 32), write=True, config=on)
+            _c("cost actual: a file that does not parse is left as it is",
+               not kept["written"] and ca.read_text(encoding="utf-8") == "{oops", f)
+            ca.unlink()
             # export
             not_written = []
             for bad_out in (root / "pipeline" / "finance" / "books-2026.csv",
@@ -1097,6 +1285,7 @@ def main(argv=None):
     ap.add_argument("--export", action="store_true")
     ap.add_argument("--propose-from-invoices", action="store_true")
     ap.add_argument("--add", metavar="ENTRY_JSON")
+    ap.add_argument("--add-cost", metavar="ENTRY_JSON")
     ap.add_argument("--confirm", metavar="ENTRY_ID")
     ap.add_argument("--void", metavar="ENTRY_ID")
     ap.add_argument("--year", type=int, default=date.today().year)
@@ -1128,6 +1317,8 @@ def main(argv=None):
                 out["written"] = [add_entry(p, write=True) for p in props]
         elif a.add:
             out = add_entry(json.loads(Path(a.add).read_text(encoding="utf-8")), write=a.write)
+        elif a.add_cost:
+            out = add_cost_actual(json.loads(Path(a.add_cost).read_text(encoding="utf-8")), write=a.write)
         elif a.confirm:
             out = set_status(a.confirm, "confirmed")
         elif a.void:

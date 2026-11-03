@@ -13,6 +13,86 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (receipt capture): on the wizard's Inbox screen a document waiting for a Claude session (PDF,
+  Word, HTML, text, Markdown or `.eml`) can be ticked as a receipt or payment notice;
+  `inbox.person_labelled` runs the offline pattern tier on the text `parse_text` extracts and
+  approves it with the batch, or leaves a flagged file in the Inbox (ADR 0083). The work order shows
+  the entry `tools/receipt_extract.py` reads (direction, date, name, amount, confidence, gaps), with
+  editable fields and a tick that is off by default; a tick records money received with
+  `books.add_entry` and money paid with the new `books.add_cost_actual` (`--add-cost` on the CLI),
+  both gated on `finance_management`. `parse_text` reads `.eml` through the email module, the
+  `invoice_receipt` rule names the new `receipt-extract` atom. A receipt that was filed but not
+  recorded (recording off, a field missing, a stale tab, a wizard restart) waits on `/inbox-receipts`,
+  rebuilt from the inbox ledger and the books. One document is one entry across the income ledger and
+  cost actuals (`books._document_recorded`). The screen reads the text parts
+  `parse_text.screen_text` exposes (an email's From, Subject and Date and each text part, attachments
+  included, an HTML part's comments and attribute text; a Word file's body, headers, footers, notes,
+  comments, SmartArt data and alternative-format chunks) together with the parsed text, and the label
+  refuses a file with a part that cannot be read whole; a REVIEW verdict is shown on the receipt row.
+  Direction is asked for when a document reads both ways, and a document headed as an invoice (a
+  "Tax invoice" too), or carrying a "Bill to" or "Billed to" line, decides neither; a "Payment
+  amount" or "You were paid" line is the total, not a line item; the extractor drops Unicode format
+  characters (direction marks and overrides, the zero-width space, the byte-order mark, tag
+  characters, and the invisible characters outside those categories the screen folds) from the
+  text before its patterns run, keeps the zero-width joiner and non-joiner after a virama or between
+  two characters outside ASCII letters and digits (emoji sequences, Persian and Urdu words, a Malayalam
+  chillu before a space), judging a run of joiners by its last kept neighbour and the character after
+  the run and keeping one joiner in a row, keeps one variation selector after its base (a symbol's
+  other than a currency sign's, a keycap's, the selector of one of the five emoji whose base is
+  punctuation or a letter, an ideographic variation selector after a CJK ideograph, a Mongolian letter's)
+  and none after a joiner or
+  another selector, since a run can carry hidden bytes, and reads the invoice rule once more with the
+  control characters other than a
+  tab, a line end or a page break dropped, so a zero-width space, a joiner, a combining grapheme
+  joiner, a tag code point or a control character inside "Bill to", "Invoice" or a name does not hide
+  it from the patterns; a field turns a control character into a space. The offline pattern tier
+  (`injection_scan.scan_text`) reads a text with its format characters, the invisible characters
+  `injection_scan.INVISIBLE` lists (a combining grapheme joiner, the Hangul fillers, the variation
+  selectors, the unassigned default-ignorable ranges, the braille blank) and its control characters
+  other than a tab, a line end or a page break dropped and, when it holds any of them, once more with
+  each as a space, where a match counts when no spaced character touches it, when one lies inside it,
+  or when a run of them holding one other than a soft hyphen touches it (a soft hyphen alone at a
+  hyphenation point does not complete a phrase at the word's edge), keeping the higher score; a space
+  in its patterns reads a run of whitespace other than a line feed, a carriage return, a page break or
+  a line or paragraph separator. An injection laced with one such character, or whose words one such
+  character other than a soft hyphen, a doubled space or a no-break space separates, is flagged as the
+  plain one is. A word laced with one such character and separated from the next by the same or
+  another reads as split or run-together words and can be missed, as ADR 0080 notes for NUL bytes; a
+  soft hyphen alone in place of the space before or after a phrase is read as a hyphenation point, and
+  the phrase can be missed; a phrase whose words those line breaks separate can be missed outside the
+  gaps the OVERRIDE and REDIRECT patterns allow and the TEMPLATE delimiters, which read line breaks,
+  so a name above a field label (Dan above Mode of payment) reads as two lines, and a vertical tab, a
+  next line or a C0 separator between lines is read as a space; a soft hyphen inside a word in a phrase's middle, or one
+  next to another such character at a word's edge, can complete a phrase and raise the verdict (a
+  QUARANTINE withholds the record); `scan_file`
+  reads a file behind a wide byte-order mark in each byte order and as UTF-8, leaves the NUL folding
+  to `scan_text`, and names at a tie the reading with the fewest folded characters. The
+  extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters;
+  `parse_text` walks a PDF's streams once, scans each in one pass (a string literal, and an escape
+  pair outside one, are read without a second look) and ends a text line at the PDF's line
+  operators, strips tags and trailing spaces in one pass (a block tag or a `<br>` ends a line, so a
+  one-line HTML receipt keeps its lines), reads a workbook's shared strings in one pass and within
+  the budget (under a `.docx` suffix too, screened through its parse), cuts an email's From, Subject
+  or Date header longer than 8 KB undecoded (a raw 8-bit header is read with the name decoded), does
+  not read an email whose Content-Type, Content-Disposition, Content-Transfer-Encoding or Content-ID
+  header, in the message or a part, is longer than 8 KB or holds more than 64 parameter separators,
+  whose such headers run past a 64 KB total, or that has more than 5,000 part lines, and parses a
+  header within those caps once per read (the email module parses a header anew whenever it is read)
+  (a line ends at CR, LF or CR LF, as it does for the email module), and inflates at most 16 MB per file
+  across its zip members or PDF streams; the selftests time crafted files of these kinds. An `.eml`
+  is not held as oversize: approve keeps a session's or the label's record for it. The work order
+  for receipts filed earlier keeps its own state, so a visit to `/inbox-receipts` does not replace a
+  work order an approval left open; a stale or replayed submit is refused (409) and leaves the open
+  work orders in place; a receipt row carries the inbox ledger's sha256 as `ledger_sha256`, so a
+  filed receipt whose file changed since is listed with its tick off and a gap that says to move it
+  back to the Inbox and scan it again, and is not recorded, a row whose file could not be read keeps
+  that sha256, and a row with none is not recorded; a row with no confidence is stored as
+  uncertain. `tools/books.py` judges an amount's sign on the cents it stores (0.004 is refused as
+  zero in both stores) and accepts a confidence from the template's tiers (exact, probable,
+  uncertain, edited), refusing another and filling the source's default when none is given.
+- P103 (injection patterns): the OVERRIDE and REDIRECT patterns in `tools/injection_scan.py` bound
+  the gap between a trigger word and its terminal word at 80 characters, so a text of repeated
+  trigger words with no terminal word is scanned in linear time (timed in the selftest).
 - P103 (income ledger): `tools/books.py` keeps `pipeline/finance/income-ledger.local.json`, the
   record of what the content business received (brand fees, platform payouts, affiliate deposits,
   revenue share, gifted or loaned product), as entries proposed by the tool or a session and
@@ -629,6 +709,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   and its self-proof passes as before. The self-proof also reads a module in a `tools/`
   subfolder that does not parse, and UTF-16 static files with upper-case `.JS` and `.css`
   suffixes, each reported as unread.
+- P103 (file_hash child limit): `file_hash --selftest` gives a child process 1500 s, up from
+  600 s (`file_hash._CHILD_TIMEOUT`). The wizard's selftest takes about 10 s on a Linux computer
+  and several times that on a hosted Windows runner, where a child of 12 wizard rows plus its
+  baseline went past 600 s in one CI run and its rows were reported as worker failures. The limit
+  bounds one child; the selftest sweep's cap for the tool (1800 s with four workers, more with fewer)
+  bounds the whole run as before.
 - P102 (file_hash cap and worker count): the selftest sweep's cap for `tools/file_hash.py` grows
   in proportion when its mutation run uses fewer than four child processes at a time
   (`selftest_sweep._tool_timeout`, which reads `file_hash.mutant_jobs()`): 3600 s with two, 7200 s

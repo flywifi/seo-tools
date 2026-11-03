@@ -48,7 +48,7 @@
     "implementation/claude/project/knowledge/06-document-spoke.md": {
       "sources": {
         "shared/docintel-engine.md": "842f0f87635d43c0bdbaa1403da98ecd4b2df09eaa02a53dc5113329ee5e7d47",
-        "shared/injection-guard-engine.md": "6ab811da8f147f6bbef0c37eb46421db35797096f0956bafb5dfe6210efe0834",
+        "shared/injection-guard-engine.md": "f22d82163945abd197f18279a1a5d98b80698b3f00db0a052c6728d648e9c003",
         "shared/transcription-engine.md": "ed32b71241f28ea19fefa3de466724d3d79e30bdcf8c9e266590a74e0422b4a2",
         "shared/integrations-engine.md": "941a727741d4fa14619dd99f9515676077a80355e2fb288a8ca4d14d67164fe9",
         "protocols/formatting-metadata.md": "5d892aad68a5a66868b03ad188a03c79ff06f08091abf1c9c6c218978c35bca3",
@@ -84,7 +84,7 @@
     "implementation/claude/project/knowledge/09-setup-and-surfaces.md": {
       "sources": {
         "docs/DEPLOYMENT.md": "4eb078984695b6f4c19cce747781e31a7cbcda2bb5f55592d2dd76d6fd4bfbae",
-        "docs/WIZARD.md": "fc0e228dd1299f1681be6f4b0bd58aee932f62e0ca52013e099ed29a81dd584f",
+        "docs/WIZARD.md": "4b1c07eb0c6edea200dae313afc9dff7b87ce3dcbbff545501d77ad3ca8827e2",
         "docs/SETUP_MAC.md": "7ad10e0aed36723c4b189ac5bb0420ba47d60c37997bba19af76408c6774e9e4",
         "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
@@ -149,7 +149,7 @@
         "docs/DEPLOYMENT.md": "4eb078984695b6f4c19cce747781e31a7cbcda2bb5f55592d2dd76d6fd4bfbae",
         "docs/SETUP_MAC.md": "7ad10e0aed36723c4b189ac5bb0420ba47d60c37997bba19af76408c6774e9e4",
         "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
-        "docs/WIZARD.md": "fc0e228dd1299f1681be6f4b0bd58aee932f62e0ca52013e099ed29a81dd584f",
+        "docs/WIZARD.md": "4b1c07eb0c6edea200dae313afc9dff7b87ce3dcbbff545501d77ad3ca8827e2",
         "implementation/claude/project/README.md": "acd665f386c4d0017f7722ea4ecb053cb03a3da3967b75f07f599efd5b7627cf",
         "implementation/gpt/project/README.md": "b46c580a66ccb777de244844fdd12d531b92709372fb5442b7138a50423ed46d",
         "protocols/formatting-metadata.md": "5d892aad68a5a66868b03ad188a03c79ff06f08091abf1c9c6c218978c35bca3",
@@ -160,7 +160,7 @@
         "shared/audience-engine.md": "3fa1de5e5e1bef99f35b0169ac1b8ab605e78c5894a451703c035083a460cb76",
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
         "shared/docintel-engine.md": "842f0f87635d43c0bdbaa1403da98ecd4b2df09eaa02a53dc5113329ee5e7d47",
-        "shared/injection-guard-engine.md": "6ab811da8f147f6bbef0c37eb46421db35797096f0956bafb5dfe6210efe0834",
+        "shared/injection-guard-engine.md": "f22d82163945abd197f18279a1a5d98b80698b3f00db0a052c6728d648e9c003",
         "shared/integrations-engine.md": "941a727741d4fa14619dd99f9515676077a80355e2fb288a8ca4d14d67164fe9",
         "shared/method.md": "184403054c06eaafc9e2a17812e53e793fc7e0b4337b1fc91c14edab1a6cb539",
         "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",

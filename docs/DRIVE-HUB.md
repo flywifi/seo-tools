@@ -163,7 +163,17 @@ exact follow-up work (transcribe a dropped video via `transcribe_media`, normali
 transcript via `transcript_normalize`, preview an export via `import_parse_preview`) with a
 per-item checkbox and an "Anything to change?" note, and a second click queues only the checked
 jobs. The note travels with the work as the ticket `consent_note` for human review; it is never
-parsed or executed. Jobs are proposal-only by default; a job writes to the library directly only
+parsed or executed. A document waiting for a Claude session that is a receipt or a payment notice
+(a PDF, Word, web page, text or saved `.eml` file) can be labelled so on the Inbox screen instead
+(P103, ADR 0083): the wizard reads its text on this computer (the text parts `parse_text.screen_text`
+exposes: an email's headers and text parts, a document's headers, footers and notes, with the parsed
+text), runs the offline pattern tier on it, and approves it with the batch unless the tier flags it
+QUARANTINE or BLOCK, or a part of the file cannot be read whole (that file stays in the Inbox, never
+routed; a REVIEW verdict is shown on the receipt row). The work order then shows the entry `tools/receipt_extract.py` reads from it
+(money in or out, date, name, amount, confidence and gaps), with each field editable and its own
+tick, off until you turn it on; a tick records money received in the income ledger and money paid
+in `pipeline/finance/cost-actuals.local.json` through `tools/books.py`, when `finance_management`
+is on. A receipt filed but not recorded waits on the wizard's `/inbox-receipts` page <!-- verify: tools/handoff/inbox.py::person_labelled -->; one whose file changed since it was filed is listed there with its tick off, to be moved back to the Inbox and scanned again, and a stale tab's submit leaves the open work orders in place. Jobs are proposal-only by default; a job writes to the library directly only
 when the local `job_store_writes_enabled` capability is on (an acknowledged toggle on `/compute`)
 AND its ticket asks. Unknown files are flagged and left in place, never guessed. The wizard's hub
 screen offers a Drive for desktop folder named as `drive_hub.folder_name` in your config says

@@ -235,9 +235,21 @@ the full guard.
 What it catches and what it does not: it matches the known phrasings enumerated in the Detection
 targets above, so a reworded attack can still pass it; a QUARANTINE or BLOCK verdict from it is
 enough to seal a file or refuse a ticket, but a CLEAN verdict is not a guarantee, and content that
-reaches a session is still scanned by the full guard. The tool's selftest asserts its category set
-equals this document's `### <NAME>` headings, so the two cannot drift apart silently; changing a
-category here means updating the tool in the same change.
+reaches a session is still scanned by the full guard. It reads a text with its Unicode format
+characters, the invisible characters `injection_scan.INVISIBLE` lists (a combining grapheme joiner,
+the Hangul fillers, the variation selectors, the unassigned default-ignorable ranges, the braille
+blank) and its control characters other than a tab, a line end or a page break dropped and, when the
+text holds any of them, once more with each as a space, crediting a match in that reading when no
+spaced character touches it, when one lies inside it, or when a run of them holding one other than a
+soft hyphen touches it, and keeps the higher score; a space in its patterns reads a run of whitespace
+other than a line feed, a carriage return, a page break or a line or paragraph separator. One such
+character between a word's letters, or one other than a soft hyphen in place of its spaces, does not
+hide a phrase from the patterns; a word laced with one such character and separated from the next by
+the same or another reads as split or run-together words and can be missed, and a soft hyphen alone
+in place of the space before or after a phrase (read as a hyphenation point) or a line break between a
+phrase's words outside an OVERRIDE or REDIRECT gap or a TEMPLATE delimiter can hide it (P103). The
+tool's selftest asserts its category set equals this document's `### <NAME>` headings, so the two
+cannot drift apart silently; changing a category here means updating the tool in the same change.
 
 <!-- verify: tools/injection_scan.py::scan_text -->
 <!-- verify: tools/injection_scan.py::scan_file -->

@@ -87,7 +87,13 @@ hashed or classified, and no ledger entry is made; it shows on each scan until i
 <!-- verify: shared/docintel/classify.py::_count_headers -->. Content-gated categories (contracts, pitches, invoices) are listed as
 `needs_review` with `classified_as: null` — this tool never pretends to have read a document; the
 FULL injection guard runs in a Claude session (the atom), while the offline PATTERN tier
-(`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). There are TWO sanctioned
+(`tools/injection_scan.py`) runs during scan as a buffer (P61, SEC-ALL). The one exception is a
+label the person assigns on the wizard's Inbox screen (P103, ADR 0083): `person_labelled` turns <!-- verify: tools/handoff/inbox.py::person_labelled -->
+the `needs_review` entries the person ticked as `invoice_receipt` (formats in `PERSON_LABELS`) into
+proposals with `category_source: "person"`, after the offline tier reads the text `parse_text`
+extracts; a flagged text, a changed file, a file over 2 MB, a format the label does not cover or a
+missing screener refuses the file, and `pass2_pending` stays true. `plan_followups` gives an
+approved receipt a `review: "receipt"` follow-up with no job. There are TWO sanctioned
 writers, and both move by REALPATH containment (never a raw `hub / rel`: `approve` resolves the
 file a proposal names, so a symlink is judged by its target, and the sweep resolves the folder of
 the entry it moves and moves the entry, so a flagged symlink is sealed as a link; `..` and
@@ -117,9 +123,10 @@ Fail-closed for text (P61): a transcript the offline tier could not read as text
 sniff, oversize, or the tool unavailable) is diverted to `needs_review`, never routed unscreened.
 A file with a UTF-16 or UTF-32 byte-order mark is decoded before the sniff (P102, ADR 0080), so a
 subtitle saved that way is screened; the selftest's UTF-16 cases cover scan and approve. Behind such
-a mark `injection_scan.scan_file` also screens the other readings of the bytes after it (UTF-8,
-with NULs dropped and as spaces, and each fixed UTF-16 byte order, plus the UTF-32 ones behind a
-UTF-32 mark; `injection_scan._screen_readings`) and keeps the highest score, naming that reading under
+a mark `injection_scan.scan_file` also screens the other readings of the bytes after it (each fixed
+UTF-16 byte order, plus the UTF-32 ones behind a UTF-32 mark, then UTF-8;
+`injection_scan._screen_readings`; `scan_text` reads a NUL dropped and as a space itself) and keeps the
+highest score, at a tie the reading with the fewest folded characters, naming that reading under
 `verdict_reading` <!-- verify: tools/injection_scan.py::_screen_readings -->.
 `approve` refuses a text file the tier read only in part (`inbox._fully_screened`), and `scan` holds
 one with `inbox._OVERSIZE_NOTE`, so a transcript or a JSON or CSV export over 2 MB stays in the

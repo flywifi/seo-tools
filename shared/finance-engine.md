@@ -52,7 +52,8 @@ consequential-action gate. Invoice documents are drafted, never sent; the human 
   category, capex flag, source (`quote | cost_library | cost_research | assumption`), citation,
   and confidence label, plus time phases and totals.
 - `cost-actuals.template.json` — what was actually spent, entry by entry, with vendor, category,
-  capex flag, and receipt reference. Carries the boundary line.
+  capex flag, and receipt reference. Carries the boundary line. `tools/books.py --add-cost` writes
+  one entry (P103), gated on `finance_management`; a receipt's sha256 is recorded once.
 - `income-ledger.template.json` (P103) — what the content business RECEIVED, one entry per
   payment or product: payer and payer type, kind (cash, product, affiliate, ad_revenue,
   revenue_share, refund), amount for a cash kind, and for a product the item, quantity and a
