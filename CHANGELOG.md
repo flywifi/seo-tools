@@ -37,8 +37,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   text before its patterns run, keeps the zero-width joiner and non-joiner after a virama or between
   two characters outside ASCII letters and digits (emoji sequences, Persian and Urdu words, a Malayalam
   chillu before a space), judging a run of joiners by its last kept neighbour and the character after
-  the run, keeps one variation selector after its base (an emoji's, a keycap's, a CJK ideograph's, a
-  Mongolian letter's), and reads the invoice rule once more with the control characters other than a
+  the run and keeping one joiner in a row, keeps one variation selector after its base (a symbol's or
+  a keycap's presentation selector, a CJK ideograph's, a Mongolian letter's) and none after a joiner or
+  another selector, since a run can carry hidden bytes, and reads the invoice rule once more with the
+  control characters other than a
   tab, a line end or a page break dropped, so a zero-width space, a joiner, a combining grapheme
   joiner, a tag code point or a control character inside "Bill to", "Invoice" or a name does not hide
   it from the patterns; a field turns a control character into a space. The offline pattern tier
@@ -46,8 +48,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `injection_scan.INVISIBLE` lists (a combining grapheme joiner, the Hangul fillers, the variation
   selectors, the unassigned default-ignorable ranges, the braille blank) and its control characters
   other than a tab, a line end or a page break dropped and, when it holds any of them, once more with
-  each as a space, keeping the higher score, so an injection laced with those characters, or whose
-  words they separate, is flagged as the plain one is; `scan_file`
+  each as a space, where a match counts when a spaced character lies inside it (a soft hyphen at a
+  hyphenation point does not complete a phrase at the word's edge), keeping the higher score; a space
+  in its patterns reads a run of horizontal whitespace. An injection laced with one such character, or
+  whose words one such character, a doubled space or a no-break space separates, is flagged as the
+  plain one is; a word both laced and separated by the same character reads as split or run-together
+  words and is missed, as ADR 0080 notes for NUL bytes, and a soft hyphen inside a word in a phrase's
+  middle can still complete it, which withholds the record; `scan_file`
   reads a file behind a wide byte-order mark in each byte order and as UTF-8, leaves the NUL folding
   to `scan_text`, and names at a tie the reading with the fewest folded characters. The
   extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters;

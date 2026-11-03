@@ -64,13 +64,18 @@ knows what it is.
 - The text drops Unicode format characters (direction marks and overrides, the zero-width space, the
   byte-order mark, tag characters) and the invisible characters the screen folds before the patterns
   run, keeps the zero-width joiner and non-joiner after a virama or between two characters outside
-  ASCII letters and digits, judging a run of joiners by the character after it, and one variation
-  selector after its base (a tag-sequence flag loses its tags, which can carry hidden text, and a run
-  of selectors keeps none past the first for the same reason), and the invoice rule reads the text
+  ASCII letters and digits, one in a row, judging a run of joiners by the character after it, and one
+  variation selector after a symbol, a keycap base, a CJK ideograph or a Mongolian letter, none after a
+  joiner or another selector (a tag-sequence flag loses its tags and a run of selectors keeps none past
+  the first, since both can carry hidden text), and the invoice rule reads the text
   once more with its control characters other than a tab, a line end or a page break dropped, so a
   keyword such as Bill to or Invoice, and a name in ASCII letters, read the same with or without them;
   the offline pattern tier reads a text with those characters dropped and, when it holds any of them,
-  once more with each as a space, and keeps the higher score. An amount that
+  once more with each as a space, crediting a match there when a spaced character lies inside it, and
+  keeps the higher score; a space in its patterns reads a run of horizontal whitespace. A word both
+  laced and separated by the same character is missed, as ADR 0080 notes for NUL bytes, and a soft
+  hyphen inside a word in a phrase's middle can complete the phrase and withhold the record; the
+  session guard stays authoritative. An amount that
   rounds to 0.00 is refused in both stores; a confidence is one of the template's tiers.
 - A stale or replayed work-order submit is refused and leaves the open work orders; a row carries the
   inbox ledger's sha256, and a filed receipt whose file changed since is listed with its tick off
