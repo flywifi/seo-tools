@@ -65,16 +65,19 @@ knows what it is.
   byte-order mark, tag characters) and the invisible characters the screen folds before the patterns
   run, keeps the zero-width joiner and non-joiner after a virama or between two characters outside
   ASCII letters and digits, one in a row, judging a run of joiners by the character after it, and one
-  variation selector after a symbol, a keycap base, a CJK ideograph or a Mongolian letter, none after a
+  variation selector after a symbol, one of the five emoji whose base is punctuation or a letter, a
+  keycap base, a CJK ideograph or a Mongolian letter, none after a
   joiner or another selector (a tag-sequence flag loses its tags and a run of selectors keeps none past
   the first, since both can carry hidden text), and the invoice rule reads the text
   once more with its control characters other than a tab, a line end or a page break dropped, so a
   keyword such as Bill to or Invoice, and a name in ASCII letters, read the same with or without them;
   the offline pattern tier reads a text with those characters dropped and, when it holds any of them,
-  once more with each as a space, crediting a match there when a spaced character lies inside it, and
-  keeps the higher score; a space in its patterns reads a run of horizontal whitespace. A word both
-  laced and separated by the same character is missed, as ADR 0080 notes for NUL bytes, and a soft
-  hyphen inside a word in a phrase's middle can complete the phrase and withhold the record; the
+  once more with each as a space, crediting a match there when a spaced character lies inside it or,
+  a soft hyphen aside, at its edge, and keeps the higher score; a space in its patterns reads a run of
+  whitespace, a line break included. A word both laced and separated by the same character is missed,
+  as ADR 0080 notes for NUL bytes, a soft hyphen in place of the space before or after a phrase is
+  read as a hyphenation point and missed, and a soft hyphen inside a word in a phrase's middle can
+  complete the phrase and raise the verdict (a QUARANTINE withholds the record); the
   session guard stays authoritative. An amount that
   rounds to 0.00 is refused in both stores; a confidence is one of the template's tiers.
 - A stale or replayed work-order submit is refused and leaves the open work orders; a row carries the
