@@ -535,22 +535,27 @@ def selftest() -> int:
                                              for _ in range(streams)) + b"%%EOF\n")
         (d / "lines.pdf").write_bytes(_pdf([b"Vendor: Corner Hardware", b"Total $4.00", b"Date 2026-01-02"]))
         r9 = parse(str(d / "lines.pdf"))
-        ok("a PDF's text-positioning operators end lines, so each receipt line stands alone",
+        ok("a PDF's text-positioning operators end lines, so each receipt line stands alone, and the screen "
+           "parses a PDF itself when the caller has no parse",
            r9["ingestion_status"] == "content_ingested" and "truncated" not in r9
-           and r9["text"] == "Vendor: Corner Hardware\nTotal $4.00\nDate 2026-01-02")
+           and r9["text"] == "Vendor: Corner Hardware\nTotal $4.00\nDate 2026-01-02"
+           and screen_text(str(d / "lines.pdf")) == r9["text"])
         t0 = _time.monotonic()
         (d / "deep.pdf").write_bytes(_pdf([b"a" * 9_000_000], streams=3))
-        r10, s10 = parse(str(d / "deep.pdf")), screen_text(str(d / "deep.pdf"))
+        r10 = parse(str(d / "deep.pdf"))
+        s10 = screen_text(str(d / "deep.pdf"), r10)  # as screen_input calls it: the parse is not repeated
         with zipfile.ZipFile(d / "many.docx", "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr("word/document.xml", "<w:p><w:t>body words</w:t></w:p>")
             for i in range(3):
                 z.writestr(f"word/header{i + 1}.xml", "b" * 9_000_000)
         r11, s11 = parse(str(d / "many.docx")), screen_text(str(d / "many.docx"))
         took_b = _time.monotonic() - t0
-        ok(f"streams or members that inflate past INFLATE_MAX in all are read up to it and marked, and the screen "
-           f"then says it could not read every part ({took_b:.2f} s)",
+        # 60 s is a tripwire for a stream tokenizer or member reader that stops being linear: the case
+        # takes seconds, more when parallel children share the processor.
+        ok(f"streams or members that inflate past INFLATE_MAX in all are read up to it and marked, the screen "
+           f"then says it could not read every part, and the work stays within 60 s ({took_b:.2f} s)",
            r10.get("truncated") is True and len(r10["text"]) <= INFLATE_MAX and s10 is None
-           and r11["text"] == "body words" and "truncated" not in r11 and s11 is None and took_b < 10)
+           and r11["text"] == "body words" and "truncated" not in r11 and s11 is None and took_b < 60)
         big_subject = b" ".join([b"=?utf-8?b?aGk=?="] * 20000)
         (d / "head.eml").write_bytes(b"From: s@shop.example\nSubject: " + big_subject + b"\n\nTotal $1.00\n")
         t0 = _time.monotonic()

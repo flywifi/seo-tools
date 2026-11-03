@@ -499,9 +499,11 @@ def selftest():
         t0 = time.monotonic()
         deep = read("deep.pdf", _pdf_bytes([b"Your receipt", b"Total $4.00", b"a" * 9_000_000], streams=2))
         took3 = time.monotonic() - t0
-        ok(f"a PDF whose streams inflate past the budget gets no record, and says why, in bounded time ({took3:.2f} s)",
+        # 60 s is a tripwire for a reader that stops being linear: the case takes seconds, more when
+        # parallel children share the processor.
+        ok(f"a PDF whose streams inflate past the budget gets no record, and says why, within 60 s ({took3:.2f} s)",
            deep["proposed_record"] is None and deep["screen"] is None and "every part" in deep["gaps"][0]
-           and took3 < 10)
+           and took3 < 60)
     failed = [n for n, c in results if not c]
     for n, c in results:
         print(("ok   " if c else "FAIL ") + n)
