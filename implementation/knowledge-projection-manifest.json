@@ -48,7 +48,7 @@
     "implementation/claude/project/knowledge/06-document-spoke.md": {
       "sources": {
         "shared/docintel-engine.md": "842f0f87635d43c0bdbaa1403da98ecd4b2df09eaa02a53dc5113329ee5e7d47",
-        "shared/injection-guard-engine.md": "0f51bc49c573bb3420b099c9e9d4f775e3a017cce02cac500aae825bc15d9259",
+        "shared/injection-guard-engine.md": "94ddde9de138ee6d19b82a152ea57a7f01978a9d3ebb3ef32ba0b682306a8336",
         "shared/transcription-engine.md": "ed32b71241f28ea19fefa3de466724d3d79e30bdcf8c9e266590a74e0422b4a2",
         "shared/integrations-engine.md": "941a727741d4fa14619dd99f9515676077a80355e2fb288a8ca4d14d67164fe9",
         "protocols/formatting-metadata.md": "5d892aad68a5a66868b03ad188a03c79ff06f08091abf1c9c6c218978c35bca3",
@@ -160,7 +160,7 @@
         "shared/audience-engine.md": "3fa1de5e5e1bef99f35b0169ac1b8ab605e78c5894a451703c035083a460cb76",
         "shared/brand-engine.md": "bc1fb860812fa1bf332f7dfa520908cbec3165dfc7067cd550bb87307b1659f2",
         "shared/docintel-engine.md": "842f0f87635d43c0bdbaa1403da98ecd4b2df09eaa02a53dc5113329ee5e7d47",
-        "shared/injection-guard-engine.md": "0f51bc49c573bb3420b099c9e9d4f775e3a017cce02cac500aae825bc15d9259",
+        "shared/injection-guard-engine.md": "94ddde9de138ee6d19b82a152ea57a7f01978a9d3ebb3ef32ba0b682306a8336",
         "shared/integrations-engine.md": "941a727741d4fa14619dd99f9515676077a80355e2fb288a8ca4d14d67164fe9",
         "shared/method.md": "184403054c06eaafc9e2a17812e53e793fc7e0b4337b1fc91c14edab1a6cb539",
         "shared/pipeline-engine.md": "982dd39968ea870c24e37627ffdbc2d3219644542aa75ddaea84a5e1db66aeb0",

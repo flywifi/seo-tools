@@ -948,6 +948,15 @@ def selftest() -> int:
            and "Total $4.00" in r31["text"] and s30 is not None and s31 is not None
            and "Total $4.00" in s30 and "Total $4.00" in s31
            and all(len(f) >= 2 and len(f) == len(set(f)) for f in (f30, f31, f32, f33)) and took_o < 5)
+        (d / "cd_params65.eml").write_bytes(b"From: s@shop.example\nContent-Disposition: inline" + b"; p=v" * 65
+                                            + b"\n\nTotal $4.00\n")
+        (d / "nobound.eml").write_bytes(b"From: s@shop.example\nMIME-Version: 1.0\nContent-Type: multipart/mixed; "
+                                        b"boundary=zz\n\nTotal $4.00\n")
+        r32, r33 = parse(str(d / "cd_params65.eml")), parse(str(d / "nobound.eml"))
+        ok("a Content-Disposition of 65 separators is refused too, and a multipart whose boundary never appears "
+           "is read with the module's defect tolerance (policy.default's settings)",
+           r32["ingestion_status"] == "metadata_only" and "parameter separators" in r32["notes"]
+           and r33["ingestion_status"] == "content_ingested")
 
         bad = d / "c.docx"
         bad.write_bytes(b"not a zip at all")

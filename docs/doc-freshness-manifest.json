@@ -86,7 +86,7 @@
     },
     "shared/injection-guard-engine.md": {
       "sources": {
-        "tools/injection_scan.py": "589ac467b173d4a0406188d4c82e12895c4ef030885e9c44e4766d60b4c33ac5"
+        "tools/injection_scan.py": "3cdb343c9e524cf697be2f75abf1b51cc796927e64700e81a446079e9443e658"
       }
     },
     "skills/finance-desk/MAINTAINER_README.md": {
