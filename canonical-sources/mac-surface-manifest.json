@@ -26,7 +26,7 @@
     "docs/DEPENDENCIES.md": "2e86c2a4e00d1ed537e038b9648e0f2928a8d665396958a8f4d207e726fc3dc0",
     "docs/DEPLOYMENT.md": "4eb078984695b6f4c19cce747781e31a7cbcda2bb5f55592d2dd76d6fd4bfbae",
     "docs/DOC-MAINTENANCE.md": "d24ae8064e12c3a0883133c2e26540137dd601833f139881f3fda3061573aa60",
-    "docs/DRIVE-HUB.md": "923458a73ce71b6167175e07b11115162e9e5f3c1b7e040742d5ed140ab615f3",
+    "docs/DRIVE-HUB.md": "e576e9df9ab4f3ef5a85a1ad3041a9bd2527898e7163c0bcdc11673d218f6879",
     "docs/FRESHNESS.md": "cb3baa4af60adc0fa23e92b6ea90813afb4c910ff021d7369b85de38392db16b",
     "docs/INSTALL-SCOPE.md": "612374fff79c3f1001c89d0c3a89091b9cc2ad7f8d078c0976fe42fc1be76236",
     "docs/MAC-VALIDATION.md": "f31107b34b665afacd43cbcfba0986f8b2ceb19b24f987aeb331368392655478",
@@ -92,7 +92,7 @@
     "skills/content-library/SKILL.md": "cb99ba8a13c7b4420da2eca1fd97a6b63d9193c24a9ad7fec5111f2ab63a6da5",
     "tools/acquire.py": "3b7684b5cdb7534d909f39dd0f1d69d5365671010341fd3646bccbda1447cfaa",
     "tools/battery.py": "e390b33409d1328913eef275a5e4461eedc8b41cb116ba9861ed513a4755b2d8",
-    "tools/books.py": "68fc3dcd70018cdc89a1b5c697af7a4f9d0adec83beb70af46d7f2e28549ff96",
+    "tools/books.py": "4a4d4e5a913990eb24920b0d74ad5a1178f7e1286a44ed53fd3b4197ad8a2c35",
     "tools/claim-proof-manifest.json": "7e64dc2b4ad515bf693a53be1cc92473a25e6fec54d1fdec9fb9c76b13289a63",
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
     "tools/env_paths.py": "83aef4d3cc149e91ede9d3483c85070201f53a68d118860dcd099ccec528a44a",
@@ -116,7 +116,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "60666e70ed54fe9c23aecb579a15e6198c8b17254534020eece045b1e0ba726c"
+    "tools/wizard.py": "eb596dd1ab47dbb7bc38bb40f31a210f37796091971349b646e4eb94d82540cb"
   },
   "excluded": {}
 }

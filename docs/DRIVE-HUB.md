@@ -173,7 +173,7 @@ routed; a REVIEW verdict is shown on the receipt row). The work order then shows
 (money in or out, date, name, amount, confidence and gaps), with each field editable and its own
 tick, off until you turn it on; a tick records money received in the income ledger and money paid
 in `pipeline/finance/cost-actuals.local.json` through `tools/books.py`, when `finance_management`
-is on. A receipt filed but not recorded waits on the wizard's `/inbox-receipts` page <!-- verify: tools/handoff/inbox.py::person_labelled -->; one whose file changed since it was filed is refused there, and a stale tab's submit leaves the open work orders in place. Jobs are proposal-only by default; a job writes to the library directly only
+is on. A receipt filed but not recorded waits on the wizard's `/inbox-receipts` page <!-- verify: tools/handoff/inbox.py::person_labelled -->; one whose file changed since it was filed is listed there with its tick off, to be moved back to the Inbox and scanned again, and a stale tab's submit leaves the open work orders in place. Jobs are proposal-only by default; a job writes to the library directly only
 when the local `job_store_writes_enabled` capability is on (an acknowledged toggle on `/compute`)
 AND its ticket asks. Unknown files are flagged and left in place, never guessed. The wizard's hub
 screen offers a Drive for desktop folder named as `drive_hub.folder_name` in your config says

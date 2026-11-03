@@ -3165,7 +3165,7 @@ def _receipt_rows(receipts) -> str:
 <fieldset style="margin:10px 0;padding:10px">
 <legend><code>{name}</code> (read as {esc(r.get("confidence"))})</legend>
 {warn}
-<label><input type="checkbox" name="rc_{i}"> Record this entry in my books</label>
+<label><input type="checkbox" name="rc_{i}"{" disabled" if r.get("changed") else ""}> Record this entry in my books</label>
 <p>{radio}</p>
 <label>Date (YYYY-MM-DD) <input name="rdate_{i}" value="{esc(r.get("date"))}"></label>
 <label>Who paid, or who you paid <input name="rparty_{i}" value="{esc(r.get("counterparty"))}"></label>
@@ -5242,7 +5242,8 @@ def _receipt_proposals(hub, followups) -> list:
     file approve just filed under Inbox/Processed/ (read here, after the approval, never at scan
     time). A file that cannot be read still gets a row, with the reason as a gap and the inbox
     ledger's sha256 (carried on the follow-up), so the person can type the entry. Every row carries the
-    ledger's sha256 as ledger_sha256, so a file that changed since it was filed is not recorded."""
+    ledger's sha256 as ledger_sha256; a file that changed since it was filed gets a gap that says so, a
+    tick that is off, and is not recorded."""
     import receipt_extract as _rx
     out = []
     for f in followups:
@@ -5255,12 +5256,17 @@ def _receipt_proposals(hub, followups) -> list:
             pr = {"file": ref, "sha256": f.get("sha256"), "confidence": "uncertain",
                   "gaps": [f"the file could not be read ({type(exc).__name__}); type the entry in"]}
         rec = (pr.get("proposed_record") or {}).get("entry") or {}
+        changed = bool(pr.get("sha256") and f.get("sha256") and pr.get("sha256") != f.get("sha256"))
+        gaps = list(pr.get("gaps") or [])
+        if changed:
+            gaps.append("the file changed since it was filed (its fingerprint differs from the inbox ledger's); "
+                        "move it back to the Inbox and scan it again")
         out.append({"ref": ref, "sha256": pr.get("sha256"), "ledger_sha256": f.get("sha256"), "format": pr.get("format"),
                     "confidence": pr.get("confidence"), "direction": pr.get("direction"),
                     "counterparty": pr.get("counterparty"), "date": pr.get("date"), "total": pr.get("total"),
                     "description": rec.get("description") or "; ".join(
                         x.get("description", "") for x in (pr.get("line_items") or [])[:5])[:120],
-                    "gaps": pr.get("gaps") or [], "screen": pr.get("screen")})
+                    "gaps": gaps, "screen": pr.get("screen"), "changed": changed})
     return out
 
 
@@ -5316,9 +5322,10 @@ def _record_receipt(r, form, i) -> dict:
     if not r.get("sha256"):
         return {"written": False, "problems": ["the file's fingerprint is unknown (it could not be read when it "
                                                "was filed); scan and approve it again"]}
-    if r.get("ledger_sha256") and r.get("sha256") != r["ledger_sha256"]:
+    if r.get("sha256") != r.get("ledger_sha256"):
         return {"written": False, "problems": ["the file changed since it was filed (its fingerprint differs from "
-                                               "the inbox ledger's); scan and approve it again"]}
+                                               "the inbox ledger's), or the ledger's fingerprint is unknown; move "
+                                               "the file back to the Inbox and scan it again"]}
     edited = any(val(k) != str(r.get(f) or "") for k, f in (("rdate", "date"), ("rparty", "counterparty"),
                                                              ("ramount", "total")))
     if direction == "received":
@@ -6989,9 +6996,15 @@ def _selftest_p101() -> int:
         _dir_rows = _receipt_proposals(_rc_hub, [dict(_fu2, sha256="ab" * 32)])
         _chg.rmdir()
         _chg.write_bytes(_orig)
+        _nokey = _record_receipt({k: v for k, v in _chg_rows[0].items() if k != "ledger_sha256"},
+                                 {"rd_0": "paid", "rdate_0": "2026-05-04", "rparty_0": "Second Shop", "ramount_0": "6.00",
+                                  "rdesc_0": "x"}, 0)
         if not (_row2.get("ledger_sha256") == _row2["sha256"] and _chg_rows[0]["sha256"] != _row2["sha256"]
                 and _chg_rows[0]["ledger_sha256"] == _row2["sha256"] and _chg_res.get("written") is False
                 and "changed" in " ".join(_chg_res.get("problems") or [])
+                and _chg_rows[0].get("changed") is True and any("move it back" in g for g in _chg_rows[0]["gaps"])
+                and 'name="rc_0" disabled' in _receipt_rows(_chg_rows) and 'name="rc_0" disabled' not in _receipt_rows(_dir_rows)
+                and _nokey.get("written") is False and "fingerprint" in " ".join(_nokey.get("problems") or [])
                 and _dir_rows[0]["sha256"] == "ab" * 32 and "could not be read" in " ".join(_dir_rows[0]["gaps"])):
             _rc_fail.append(f"a changed file was recorded, or an unreadable file's row lost the ledger's sha "
                             f"({_chg_rows}, {_chg_res}, {_dir_rows})")

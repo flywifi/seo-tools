@@ -31,8 +31,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   refuses a file with a part that cannot be read whole; a REVIEW verdict is shown on the receipt row.
   Direction is asked for when a document reads both ways, and a document headed as an invoice (a
   "Tax invoice" too), or carrying a "Bill to" or "Billed to" line, decides neither; a "Payment
-  amount" or "You were paid" line is the total, not a line item; a name drops Unicode format
-  characters (a direction override, a zero-width character) as well as control characters. The
+  amount" or "You were paid" line is the total, not a line item; a name drops the bidi controls, the
+  zero-width space, the byte-order mark and the soft hyphen (a zero-width joiner or non-joiner stays)
+  as well as control characters. The
   extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters;
   `parse_text` walks a PDF's streams once, scans each in one pass (a string literal, and an escape
   pair outside one, are read without a second look) and ends a text line at the PDF's line
@@ -41,13 +42,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the budget (under a `.docx` suffix too, screened through its parse), cuts an email's From, Subject
   or Date header longer than 8 KB undecoded (a raw 8-bit header is read with the name decoded), does
   not read an email whose Content-Type or Content-Disposition header, in the message or a part, is
-  longer than 8 KB or that has more than 5,000 part lines, and inflates at most 16 MB per file
+  longer than 8 KB, whose such headers run past a 64 KB total, or that has more than 5,000 part lines
+  (a line ends at CR, LF or CR LF, as it does for the email module), and inflates at most 16 MB per file
   across its zip members or PDF streams; the selftests time crafted files of these kinds. An `.eml`
   is not held as oversize: approve keeps a session's or the label's record for it. The work order
   for receipts filed earlier keeps its own state, so a visit to `/inbox-receipts` does not replace a
   work order an approval left open; a stale or replayed submit is refused (409) and leaves the open
   work orders in place; a receipt row carries the inbox ledger's sha256 as `ledger_sha256`, so a
-  filed receipt whose file changed since is not recorded, a row whose file could not be read keeps
+  filed receipt whose file changed since is listed with its tick off and a gap that says to move it
+  back to the Inbox and scan it again, and is not recorded, a row whose file could not be read keeps
   that sha256, and a row with none is not recorded; a row with no confidence is stored as
   uncertain. `tools/books.py` judges an amount's sign on the cents it stores (0.004 is refused as
   zero in both stores) and accepts a confidence from the template's tiers (exact, probable,

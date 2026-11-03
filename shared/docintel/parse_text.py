@@ -51,15 +51,21 @@ _DOCX_SCREEN = re.compile(r"word/(?:document|header\d*|footer\d*|footnotes|endno
 # parentheses is read in linear time), and the operators that start a new text line (P103).
 _PDF_TOKEN = re.compile(rb"\([^()\\]*(?:\\.[^()\\]*)*\)|\\.|(?<![A-Za-z])(?:T\*|Td|TD|ET)(?![A-Za-z])|'|\"",
                         re.S)
-# A workbook cell's text holds no "<" (XML escapes it), so a sheet with an unclosed cell is scanned in
-# one pass (P103).
-_CELL_TEXT = re.compile(r"<t[^>]*>([^<]*)</t>")
+# A workbook cell's text holds no "<" and a cell tag's attributes hold no "<" or ">" (XML escapes
+# them), so a sheet with an unclosed cell or an unclosed cell tag is scanned in one pass (P103).
+_CELL_TEXT = re.compile(r"<t(?:\s[^<>]*)?>([^<]*)</t>")
 # An email is not read at all when a Content-Type or Content-Disposition header, in the message or in
-# a part, is longer than EML_HEADER_MAX bytes with its folded lines, or when more than EML_PARTS_MAX
-# lines start a MIME part: the email module reads the structure of every part through these two
-# headers, and its cost on a header's parameters grows faster than the header (P103).
+# a part, is longer than EML_HEADER_MAX bytes with its folded lines, when those headers run past
+# EML_STRUCT_MAX bytes in total, or when more than EML_PARTS_MAX lines start a MIME part: the email
+# module reads the structure of every part through these two headers, and its cost on a header's
+# parameters grows faster than the header. The guard ends a line at CR, LF or CR LF, as the module
+# does (P103).
 _EML_STRUCT = re.compile(rb"^content-(?:type|disposition)[ \t]*:", re.I | re.M)
 EML_PARTS_MAX = 5000
+EML_STRUCT_MAX = 65536
+# A PDF literal's escapes, read in one pass from the left: a backslash before a line end continues
+# the line (both are dropped); before a parenthesis or a backslash it is dropped and the byte kept.
+_PDF_ESCAPE = re.compile(rb"\\(\r\n|\r|\n|[()\\])")
 
 
 def result(path, ftype, status, text="", tables=None, confidence="high", notes="", needs=None):
@@ -248,8 +254,8 @@ def parse_pdf(path):
         for m in _PDF_TOKEN.finditer(dec):
             tok = m.group(0)
             if tok.startswith(b"("):
-                inner = re.sub(rb"\\(?:\r\n|\r|\n)", b"", tok[1:-1])  # a backslash before a line end continues it
-                inner = re.sub(rb"\\([()\\])", rb"\1", inner)
+                inner = _PDF_ESCAPE.sub(lambda m: b"" if m.group(1) in (b"\r\n", b"\r", b"\n") else m.group(1),
+                                        tok[1:-1])
                 try:
                     cur.append(inner.decode("latin-1"))
                 except Exception:
@@ -297,25 +303,33 @@ def _eml_headers(raw, msg):
 
 def _eml_guard(raw):
     """Why an email file is not read at all, else None: a Content-Type or Content-Disposition header
-    (in the message or in a part) longer than EML_HEADER_MAX bytes counted with its folded lines, or
-    more than EML_PARTS_MAX lines that start a MIME part. Read from the raw bytes before the email
-    module parses anything, since the module reads these headers to find the parts (P103)."""
-    for m in _EML_STRUCT.finditer(raw):
+    (in the message or in a part) longer than EML_HEADER_MAX bytes counted with its folded lines,
+    those headers longer than EML_STRUCT_MAX bytes in total, or more than EML_PARTS_MAX lines that
+    start a MIME part. Read from the raw bytes before the email module parses anything, since the
+    module reads these headers to find the parts; a line ends at CR, LF or CR LF, as it does for the
+    module (P103)."""
+    scan = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    if scan.count(b"\n--") > EML_PARTS_MAX:
+        return f"more than {EML_PARTS_MAX} lines that start a MIME part"
+    total = 0
+    for m in _EML_STRUCT.finditer(scan):
         end = m.end()
         while True:
-            nl = raw.find(b"\n", end)
+            nl = scan.find(b"\n", end)
             if nl < 0:
-                end = len(raw)
+                end = len(scan)
                 break
-            if raw[nl + 1:nl + 2] in (b" ", b"\t"):  # a folded line continues the header
+            if scan[nl + 1:nl + 2] in (b" ", b"\t"):  # a folded line continues the header
                 end = nl + 1
                 continue
             end = nl
             break
-        if end - m.start() > EML_HEADER_MAX:
+        size = end - m.start()
+        if size > EML_HEADER_MAX:
             return f"a Content-Type or Content-Disposition header longer than {EML_HEADER_MAX} bytes"
-    if raw.count(b"\n--") > EML_PARTS_MAX:
-        return f"more than {EML_PARTS_MAX} lines that start a MIME part"
+        total += size
+        if total > EML_STRUCT_MAX:
+            return f"Content-Type and Content-Disposition headers longer than {EML_STRUCT_MAX} bytes in total"
     return None
 
 
@@ -665,15 +679,17 @@ def selftest() -> int:
         def _stream_pdf(body):
             return (b"%PDF-1.4\n1 0 obj\nstream\n" + _zlib.compress(body) + b"\nendstream\nendobj\n%%EOF\n")
         (d / "esc.pdf").write_bytes(_stream_pdf(b"BT\n(Total $4.00) Tj T*\n(" + b"\\(" * 40_000 + b"\nET"))
-        (d / "tok.pdf").write_bytes(_stream_pdf(b"BT\n(a) Tj \\( (b) Tj T*\n(c\\)d\\\\e) Tj T*\n(f\\\ng) Tj T*\nET"))
+        (d / "tok.pdf").write_bytes(_stream_pdf(b"BT\n(a) Tj \\( (b) Tj T*\n(c\\)d\\\\e) Tj T*\n(f\\\ng) Tj T*\n"
+                                                b"(h\\\rk) Tj T*\n(m\\\r\nn) Tj T*\n(p\\\\\nq) Tj T*\nET"))
         (d / "lit.pdf").write_bytes(_pdf([b"a" * 12_000_000]))
         t0 = _time.monotonic()
         r15, r16, r17 = parse(str(d / "esc.pdf")), parse(str(d / "tok.pdf")), parse(str(d / "lit.pdf"))
         took_p = _time.monotonic() - t0
         ok(f"a PDF stream of 40,000 escaped parentheses, one with an escape pair outside a literal and one with a "
            f"12 MB literal are read in one pass ({took_p:.2f} s): the escape pair ends no line, an escaped "
-           f"parenthesis and backslash are unescaped, and a backslash before a line end continues the line",
-           took_p < 3 and r15["text"] == "Total $4.00" and r16["text"] == "a b\nc)d\\e\nfg"
+           f"parenthesis and backslash are unescaped, a backslash before a line end of either kind continues the "
+           f"line, and an escaped backslash before a line end does not",
+           took_p < 3 and r15["text"] == "Total $4.00" and r16["text"] == "a b\nc)d\\e\nfg\nhk\nmn\np\\\nq"
            and len(r17["text"]) == 12_000_000)
         ct_head = b"Content-Type: text/plain; charset=utf-8" + b"".join(b"; p%d=v" % i for i in range(1200))
         (d / "ct.eml").write_bytes(b"From: s@shop.example\n" + ct_head + b"\n\nTotal $4.00\n")
@@ -739,6 +755,37 @@ def selftest() -> int:
            and screen_input(str(d / "grid.docx"))[1] is True and r22.get("truncated") is True
            and len(r22["text"]) <= INFLATE_MAX and screen_input(str(d / "gridbomb.docx")) == (None, False)
            and r23["text"] == "" and took_x < 5)
+        # P103 (third review): line ends of either kind, the aggregate header cap, a tab fold, the cap's
+        # edge, a duplicate header, and an unclosed cell tag with an attribute
+        cr = lambda b: b.replace(b"\n", b"\r")  # noqa: E731
+        (d / "ct_cr.eml").write_bytes(cr(b"From: s@shop.example\n" + ct_head + b"\n\nTotal $4.00\n"))
+        (d / "ct_onecr.eml").write_bytes(b"Subject: r\r" + ct_head + b"\n\nTotal $4.00\n")
+        (d / "parts_cr.eml").write_bytes(cr((d / "parts.eml").read_bytes()))
+        (d / "ct_tab.eml").write_bytes(b"From: s@shop.example\n" + folded.replace(b"\n ", b"\n\t") + b"\n\nTotal $4.00\n")
+        (d / "ct_over.eml").write_bytes(b"From: s@shop.example\n" + exact + b"v\n\nTotal $4.00\n")
+        many_hdr = b"".join(b"--b9\nContent-Type: text/plain; p%d=v; " % i + b"x" * 7900 + b"\n\nTotal $4.00\n"
+                            for i in range(20))
+        (d / "ct_many.eml").write_bytes(b"From: s@shop.example\nMIME-Version: 1.0\nContent-Type: multipart/mixed; "
+                                        b"boundary=b9\n\n" + many_hdr + b"--b9--\n")
+        (d / "dup.eml").write_bytes(b"From: Small Shop <s@shop.example>\nFrom: " + b"x" * 9000
+                                    + b" <t@shop.example>\nSubject: Receipt\n\nTotal $1.00\n")
+        refused = {n: parse(str(d / n))
+                   for n in ("ct_cr.eml", "ct_onecr.eml", "parts_cr.eml", "ct_tab.eml", "ct_over.eml", "ct_many.eml")}
+        r24 = parse(str(d / "dup.eml"))
+        ok("the guard ends a line at CR, LF or CR LF (a CR-only email, one CR before the header, CR boundary lines), "
+           "counts a tab-folded line, refuses a header one byte over the cap and twenty headers under it that run "
+           "past EML_STRUCT_MAX in total, and the first of two From headers is the one read",
+           all(r["ingestion_status"] == "metadata_only" and "not read" in r["notes"] for r in refused.values())
+           and all(screen_text(str(d / n)) is None for n in refused)
+           and "in total" in refused["ct_many.eml"]["notes"] and "MIME part" in refused["parts_cr.eml"]["notes"]
+           and r24["ingestion_status"] == "content_ingested" and r24["text"].startswith("From: Small Shop"))
+        with zipfile.ZipFile(d / "cells2.docx", "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("xl/sharedStrings.xml", "<t a='" * 100_000)
+        t0 = _time.monotonic()
+        r25 = parse(str(d / "cells2.docx"))
+        took_c = _time.monotonic() - t0
+        ok(f"a sheet of 100,000 unclosed cell tags with an attribute is scanned in one pass ({took_c:.2f} s)",
+           r25["text"] == "" and took_c < 5)
 
         bad = d / "c.docx"
         bad.write_bytes(b"not a zip at all")

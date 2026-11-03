@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "60666e70ed54fe9c23aecb579a15e6198c8b17254534020eece045b1e0ba726c",
+        "tools/wizard.py": "eb596dd1ab47dbb7bc38bb40f31a210f37796091971349b646e4eb94d82540cb",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -86,7 +86,7 @@
     },
     "shared/injection-guard-engine.md": {
       "sources": {
-        "tools/injection_scan.py": "b0b6cae71e18c03af1f11b78be49ac1cdfd55b2f2077065c69b185f6a2e71ede"
+        "tools/injection_scan.py": "c1c746ec198a95b26070769f7768deaac70a5acedda8f45820477b5e030fcf23"
       }
     },
     "skills/finance-desk/MAINTAINER_README.md": {

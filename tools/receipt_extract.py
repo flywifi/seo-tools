@@ -113,12 +113,20 @@ def money_value(raw):
     return str(-val if neg else val)
 
 
+# Invisible characters dropped from a field: the bidi controls (U+202A to U+202E, U+2066 to U+2069,
+# U+061C), the zero-width space, the word joiner and its neighbours (U+2060 to U+2064), the
+# byte-order mark, the soft hyphen and the Mongolian vowel separator. The zero-width joiner and
+# non-joiner (U+200D, U+200C) stay: emoji sequences and Persian, Urdu, Malayalam and Sinhala words
+# are written with them (P103).
+_INVISIBLE = frozenset(chr(c) for c in (*range(0x202A, 0x202F), *range(0x2066, 0x206A), 0x061C, 0x200B,
+                                         *range(0x2060, 0x2065), 0xFEFF, 0x00AD, 0x180E))
+
+
 def _clean(text):
-    """A field from the document: a control character (Unicode Cc) becomes a space, a format character
-    (Cf: a direction override, a zero-width space or joiner) is dropped so it can neither reshape nor
-    hide a name, spaces are collapsed and the result is cut at FIELD_MAX."""
-    cats = {ch: unicodedata.category(ch) for ch in set(text)}
-    text = "".join(" " if cats[ch] == "Cc" else "" if cats[ch] == "Cf" else ch for ch in text)
+    """A field from the document: a control character (Unicode Cc) becomes a space, an invisible
+    character in _INVISIBLE (a direction override, a zero-width space, a byte-order mark) is dropped so
+    it can neither reshape nor hide a name, spaces are collapsed and the result is cut at FIELD_MAX."""
+    text = "".join(" " if unicodedata.category(ch) == "Cc" else "" if ch in _INVISIBLE else ch for ch in text)
     return " ".join(text.split())[:FIELD_MAX]
 
 
@@ -489,6 +497,16 @@ def selftest():
            "a zero-width character inside a name is dropped",
            payamt["line_items"] == [] and payamt["total"] == "5.00" and werepaid["line_items"] == []
            and werepaid["total"] == "5.00" and rtl["counterparty"] == "Shopevil" and zw["counterparty"] == "Shop")
+        family = "\U0001F468\u200D\U0001F469\u200D\U0001F467"
+        persian = "\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645"
+        zwj = read("zwj.txt", f"Vendor: Caf\u00e9 {family} Shop\nYour receipt\nTotal $2.00\n")
+        zwnj = read("zwnj.txt", f"Vendor: {persian} Shop\nYour receipt\nTotal $2.00\n")
+        bom = read("bom.txt", "Vendor: \ufeffSh\u00adop\u00a0Co\nYour receipt\nTotal $2.00\n")
+        midbill = read("midbill.txt", "Your receipt\nWe will bill to your card on file\nTotal $5.00\nDate 2026-01-02\n")
+        ok("a zero-width joiner or non-joiner inside a name stays, a byte-order mark and a soft hyphen are dropped, "
+           "a no-break space collapses, and a bill to inside a line does not withhold the direction",
+           zwj["counterparty"] == f"Caf\u00e9 {family} Shop" and zwnj["counterparty"] == f"{persian} Shop"
+           and bom["counterparty"] == "Shop Co" and midbill["direction"] == "paid")
         ok("a Subtotal line is not the total whichever comes first, and the first Vendor line names the vendor",
            sub_first["total"] == "239.61" and total_first["total"] == "239.61" and two["counterparty"] == "First Co")
         far = read("far.txt", "Your receipt\n" + "x" * TEXT_MAX + "\nTotal $4.00\n")

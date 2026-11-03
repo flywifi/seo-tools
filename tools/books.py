@@ -1123,7 +1123,9 @@ def selftest():
                and any(b.startswith("a refund") for b in validate_entry(dict(inc, kind="refund", amount="-0.004")))
                and any(b.startswith("confidence") for b in validate_entry(dict(inc, amount="5", confidence="banana")))
                and validate_entry(dict(inc, amount="5", confidence="edited")) == []
-               and add_entry(dict(inc, amount="5", confidence=None))["entry"]["confidence"] == "probable", f)
+               and add_entry(dict(inc, amount="5", confidence=None))["entry"]["confidence"] == "probable"
+               and add_entry(dict(inc, amount="5", confidence=""))["entry"]["confidence"] == "probable"
+               and (add_entry(dict(inc, amount="0.005")).get("entry") or {}).get("amount") == "0.01", f)
             dated_today = add_cost_actual(dict(spend, date=date.today().isoformat(), receipt_sha256="12" * 32))
             _c("cost actual: a receipt dated today is accepted", "problems" not in dated_today, f)
             ca.write_text("[]", encoding="utf-8")
