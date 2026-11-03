@@ -51,16 +51,17 @@ _DOCX_SCREEN = re.compile(r"word/(?:document|header\d*|footer\d*|footnotes|endno
 # parentheses is read in linear time), and the operators that start a new text line (P103).
 _PDF_TOKEN = re.compile(rb"\([^()\\]*(?:\\.[^()\\]*)*\)|\\.|(?<![A-Za-z])(?:T\*|Td|TD|ET)(?![A-Za-z])|'|\"",
                         re.S)
-# A workbook cell's text holds no "<" and a cell tag's attributes hold no "<" or ">" (XML escapes
-# them), so a sheet with an unclosed cell or an unclosed cell tag is scanned in one pass (P103).
+# A workbook cell's text holds no "<" (XML escapes it) and a cell tag's attributes hold no "<" (XML
+# escapes it) and no ">" (Excel writes none there), so a sheet with an unclosed cell or an unclosed
+# cell tag is scanned in one pass (P103).
 _CELL_TEXT = re.compile(r"<t(?:\s[^<>]*)?>([^<]*)</t>")
-# An email is not read at all when a Content-Type or Content-Disposition header, in the message or in
-# a part, is longer than EML_HEADER_MAX bytes with its folded lines, when those headers run past
-# EML_STRUCT_MAX bytes in total, or when more than EML_PARTS_MAX lines start a MIME part: the email
-# module reads the structure of every part through these two headers, and its cost on a header's
-# parameters grows faster than the header. The guard ends a line at CR, LF or CR LF, as the module
-# does (P103).
-_EML_STRUCT = re.compile(rb"^content-(?:type|disposition)[ \t]*:", re.I | re.M)
+# An email is not read at all when a Content-Type, Content-Disposition or Content-Transfer-Encoding
+# header, in the message or in a part, is longer than EML_HEADER_MAX bytes with its folded lines, when
+# those headers run past EML_STRUCT_MAX bytes in total, or when more than EML_PARTS_MAX lines start a
+# MIME part: the email module reads the structure of every part through the first two headers and
+# decodes a part through the third, and its cost on a header's parameters grows faster than the
+# header. The guard ends a line at CR, LF or CR LF, as the module does (P103).
+_EML_STRUCT = re.compile(rb"^content-(?:type|disposition|transfer-encoding)[ \t]*:", re.I | re.M)
 EML_PARTS_MAX = 5000
 EML_STRUCT_MAX = 65536
 # A PDF literal's escapes, read in one pass from the left: a backslash before a line end continues
@@ -302,12 +303,12 @@ def _eml_headers(raw, msg):
 
 
 def _eml_guard(raw):
-    """Why an email file is not read at all, else None: a Content-Type or Content-Disposition header
-    (in the message or in a part) longer than EML_HEADER_MAX bytes counted with its folded lines,
-    those headers longer than EML_STRUCT_MAX bytes in total, or more than EML_PARTS_MAX lines that
-    start a MIME part. Read from the raw bytes before the email module parses anything, since the
-    module reads these headers to find the parts; a line ends at CR, LF or CR LF, as it does for the
-    module (P103)."""
+    """Why an email file is not read at all, else None: a Content-Type, Content-Disposition or
+    Content-Transfer-Encoding header (in the message or in a part) longer than EML_HEADER_MAX bytes
+    counted with its folded lines, those headers longer than EML_STRUCT_MAX bytes in total, or more
+    than EML_PARTS_MAX lines that start a MIME part. Read from the raw bytes before the email module
+    parses anything, since the module reads these headers to find and decode the parts; a line ends
+    at CR, LF or CR LF, as it does for the module (P103)."""
     scan = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     if scan.count(b"\n--") > EML_PARTS_MAX:
         return f"more than {EML_PARTS_MAX} lines that start a MIME part"
@@ -326,10 +327,12 @@ def _eml_guard(raw):
             break
         size = end - m.start()
         if size > EML_HEADER_MAX:
-            return f"a Content-Type or Content-Disposition header longer than {EML_HEADER_MAX} bytes"
+            return (f"a Content-Type, Content-Disposition or Content-Transfer-Encoding header longer than "
+                    f"{EML_HEADER_MAX} bytes")
         total += size
         if total > EML_STRUCT_MAX:
-            return f"Content-Type and Content-Disposition headers longer than {EML_STRUCT_MAX} bytes in total"
+            return (f"Content-Type, Content-Disposition and Content-Transfer-Encoding headers longer than "
+                    f"{EML_STRUCT_MAX} bytes in total")
     return None
 
 
@@ -337,8 +340,9 @@ def parse_eml(path):
     """An email file (.eml) through Python's email module: its From, Subject and Date lines, then
     the text part, else the HTML part with the tags stripped. Attachments are not read (the notes
     say how many there were). A message the module cannot decode degrades to metadata_only, and one
-    _eml_guard refuses (a structural header over EML_HEADER_MAX bytes, over EML_PARTS_MAX part lines)
-    is not read at all, with the reason in the notes (P103)."""
+    _eml_guard refuses (a structural header over EML_HEADER_MAX bytes, those headers over EML_STRUCT_MAX
+    bytes in total, over EML_PARTS_MAX part lines) is not read at all, with the reason in the notes
+    (P103)."""
     import email
     import email.policy
     try:
@@ -786,6 +790,36 @@ def selftest() -> int:
         took_c = _time.monotonic() - t0
         ok(f"a sheet of 100,000 unclosed cell tags with an attribute is scanned in one pass ({took_c:.2f} s)",
            r25["text"] == "" and took_c < 5)
+        # P103 (fourth review): CR LF folds and edges, the total cap's edge, and the transfer encoding
+        crlf = lambda b: b.replace(b"\n", b"\r\n")  # noqa: E731
+        (d / "ct_crlf_fold.eml").write_bytes(crlf(b"From: s@shop.example\n" + folded + b"\n\nTotal $4.00\n"))
+        (d / "ct_crlf_over.eml").write_bytes(crlf(b"From: s@shop.example\n" + exact + b"v\n\nTotal $4.00\n"))
+        (d / "ct_crlf_exact.eml").write_bytes(crlf(b"From: s@shop.example\n" + exact + b"\n\nTotal $4.00\n"))
+        top = b"Content-Type: multipart/mixed; boundary=bq"
+
+        def _total(last):
+            lead = b"Content-Type: text/plain; x="
+            body = b"".join(b"--bq\n" + lead + b"v" * (n - len(lead)) + b"\n\nTotal $4.00\n"
+                            for n in [8192] * 7 + [last])
+            return b"From: s@shop.example\nMIME-Version: 1.0\n" + top + b"\n\n" + body + b"--bq--\n"
+        fit = EML_STRUCT_MAX - len(top) - 7 * 8192
+        (d / "ct_total_eq.eml").write_bytes(_total(fit))
+        (d / "ct_total_over.eml").write_bytes(_total(fit + 1))
+        (d / "cte.eml").write_bytes(b"From: s@shop.example\nContent-Transfer-Encoding: 7bit" + b" a" * 4500
+                                    + b"\n\nTotal $4.00\n")
+        t0 = _time.monotonic()
+        got = {n: parse(str(d / n)) for n in ("ct_crlf_fold.eml", "ct_crlf_over.eml", "ct_crlf_exact.eml",
+                                                "ct_total_eq.eml", "ct_total_over.eml", "cte.eml")}
+        took_e = _time.monotonic() - t0
+        ok(f"a CR LF-folded header and one a byte over the cap are refused and one of exactly the cap is read; "
+           f"structural headers of exactly EML_STRUCT_MAX in total are read and one byte more refused; a "
+           f"Content-Transfer-Encoding over the cap is refused ({took_e:.2f} s)",
+           all(got[n]["ingestion_status"] == "metadata_only" and "not read" in got[n]["notes"]
+               for n in ("ct_crlf_fold.eml", "ct_crlf_over.eml", "ct_total_over.eml", "cte.eml"))
+           and "in total" in got["ct_total_over.eml"]["notes"] and "header longer" in got["cte.eml"]["notes"]
+           and all(got[n]["ingestion_status"] == "content_ingested" and "Total $4.00" in got[n]["text"]
+                   for n in ("ct_crlf_exact.eml", "ct_total_eq.eml"))
+           and screen_text(str(d / "cte.eml")) is None and took_e < 2)
 
         bad = d / "c.docx"
         bad.write_bytes(b"not a zip at all")

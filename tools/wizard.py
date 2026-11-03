@@ -7005,6 +7005,12 @@ def _selftest_p101() -> int:
                 and _chg_rows[0].get("changed") is True and any("move it back" in g for g in _chg_rows[0]["gaps"])
                 and 'name="rc_0" disabled' in _receipt_rows(_chg_rows) and 'name="rc_0" disabled' not in _receipt_rows(_dir_rows)
                 and _nokey.get("written") is False and "fingerprint" in " ".join(_nokey.get("problems") or [])
+                and not any("move it back" in g for g in _dir_rows[0]["gaps"])
+                and not any("move it back" in g for g in _row2.get("gaps") or [])
+                and "fingerprint" in " ".join(_record_receipt(dict(_chg_rows[0], changed=False, ledger_sha256=None),
+                                                              {"rd_0": "paid", "rdate_0": "2026-05-04",
+                                                               "rparty_0": "Second Shop", "ramount_0": "6.00",
+                                                               "rdesc_0": "x"}, 0).get("problems") or [])
                 and _dir_rows[0]["sha256"] == "ab" * 32 and "could not be read" in " ".join(_dir_rows[0]["gaps"])):
             _rc_fail.append(f"a changed file was recorded, or an unreadable file's row lost the ledger's sha "
                             f"({_chg_rows}, {_chg_res}, {_dir_rows})")

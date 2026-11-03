@@ -31,9 +31,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   refuses a file with a part that cannot be read whole; a REVIEW verdict is shown on the receipt row.
   Direction is asked for when a document reads both ways, and a document headed as an invoice (a
   "Tax invoice" too), or carrying a "Bill to" or "Billed to" line, decides neither; a "Payment
-  amount" or "You were paid" line is the total, not a line item; a name drops the bidi controls, the
-  zero-width space, the byte-order mark and the soft hyphen (a zero-width joiner or non-joiner stays)
-  as well as control characters. The
+  amount" or "You were paid" line is the total, not a line item; a name drops Unicode format
+  characters (direction marks and overrides, the zero-width space, the byte-order mark, tag
+  characters), keeps the zero-width joiner and non-joiner, and turns a control character into a
+  space. The
   extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters;
   `parse_text` walks a PDF's streams once, scans each in one pass (a string literal, and an escape
   pair outside one, are read without a second look) and ends a text line at the PDF's line
@@ -41,8 +42,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   one-line HTML receipt keeps its lines), reads a workbook's shared strings in one pass and within
   the budget (under a `.docx` suffix too, screened through its parse), cuts an email's From, Subject
   or Date header longer than 8 KB undecoded (a raw 8-bit header is read with the name decoded), does
-  not read an email whose Content-Type or Content-Disposition header, in the message or a part, is
-  longer than 8 KB, whose such headers run past a 64 KB total, or that has more than 5,000 part lines
+  not read an email whose Content-Type, Content-Disposition or Content-Transfer-Encoding header, in
+  the message or a part, is longer than 8 KB, whose such headers run past a 64 KB total, or that has
+  more than 5,000 part lines
   (a line ends at CR, LF or CR LF, as it does for the email module), and inflates at most 16 MB per file
   across its zip members or PDF streams; the selftests time crafted files of these kinds. An `.eml`
   is not held as oversize: approve keeps a session's or the label's record for it. The work order

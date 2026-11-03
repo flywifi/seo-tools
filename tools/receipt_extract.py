@@ -113,21 +113,22 @@ def money_value(raw):
     return str(-val if neg else val)
 
 
-# Invisible characters dropped from a field: the bidi controls (U+202A to U+202E, U+2066 to U+2069,
-# U+061C), the zero-width space, the word joiner and its neighbours (U+2060 to U+2064), the
-# byte-order mark, the soft hyphen and the Mongolian vowel separator. The zero-width joiner and
-# non-joiner (U+200D, U+200C) stay: emoji sequences and Persian, Urdu, Malayalam and Sinhala words
-# are written with them (P103).
-_INVISIBLE = frozenset(chr(c) for c in (*range(0x202A, 0x202F), *range(0x2066, 0x206A), 0x061C, 0x200B,
-                                         *range(0x2060, 0x2065), 0xFEFF, 0x00AD, 0x180E))
+# The format characters (Unicode Cf) a field keeps: the zero-width non-joiner and joiner, which emoji
+# sequences and Persian, Urdu, Malayalam and Sinhala words are written with. Every other Cf character
+# (a direction mark or override, an isolate, the zero-width space, a word joiner, the byte-order mark,
+# the soft hyphen, a tag character, an interlinear annotation) is dropped (P103).
+_KEEP = frozenset("\u200c\u200d")
 
 
 def _clean(text):
-    """A field from the document: a control character (Unicode Cc) becomes a space, an invisible
-    character in _INVISIBLE (a direction override, a zero-width space, a byte-order mark) is dropped so
-    it can neither reshape nor hide a name, spaces are collapsed and the result is cut at FIELD_MAX."""
-    text = "".join(" " if unicodedata.category(ch) == "Cc" else "" if ch in _INVISIBLE else ch for ch in text)
-    return " ".join(text.split())[:FIELD_MAX]
+    """A field from the document: a control character (Unicode Cc) becomes a space, a format character
+    (Cf) outside _KEEP is dropped so it can neither reshape nor hide a name, spaces are collapsed and
+    the result is cut at FIELD_MAX."""
+    out = []
+    for ch in text:
+        cat = unicodedata.category(ch)
+        out.append(" " if cat == "Cc" else "" if cat == "Cf" and ch not in _KEEP else ch)
+    return " ".join("".join(out).split())[:FIELD_MAX]
 
 
 def _first_date(text):
@@ -182,9 +183,12 @@ def extract(path, ref=None):
     # part that could not be read whole withholds the record.
     seen, whole = _pt.screen_input(str(p), parsed)
     if not whole:
+        why = str(parsed.get("notes") or "")
+        reason = (why if why.startswith("the email is not read") else
+                  "the screen could not read every part of this file (a damaged part, an email header past "
+                  f"the reader's cap, or text inflating past {_pt.INFLATE_MAX} bytes)")
         return dict(out, format=kind, confidence="uncertain", proposed_record=None, screen=None,
-                    gaps=["the screen could not read every part of this file (a damaged part, an email header past "
-                          f"the reader's cap, or text inflating past {_pt.INFLATE_MAX} bytes); nothing is proposed"])
+                    gaps=[f"{reason}; nothing is proposed"])
     scr = _inj.scan_text(seen, artifact_id=p.name) if seen.strip() else {}
     screen = ({"risk_level": scr.get("risk_level"), "total_score": scr.get("total_score"),
                "categories": sorted({d.get("category") for d in scr.get("patterns_detected", []) if d.get("category")})}
@@ -507,6 +511,15 @@ def selftest():
            "a no-break space collapses, and a bill to inside a line does not withhold the direction",
            zwj["counterparty"] == f"Caf\u00e9 {family} Shop" and zwnj["counterparty"] == f"{persian} Shop"
            and bom["counterparty"] == "Shop Co" and midbill["direction"] == "paid")
+        marks = read("marks.txt", "Vendor: Sh\u200eop\u200f \u061cCo\u2066 \u2060Ltd\U000e0041\ufff9\nYour receipt\n"
+                     "Total $2.00\n")
+        guarded = read("guard.eml", b"From: s@shop.example\nContent-Type: text/plain; charset=utf-8"
+                       + b"".join(b"; p%d=v" % i for i in range(1200)) + b"\n\nTotal $4.00\n")
+        ok("a direction mark, an isolate, a word joiner, a tag character and an interlinear annotation inside a name "
+           "are dropped, and an email the reader refuses whole names the reason in its gap",
+           marks["counterparty"] == "Shop Co Ltd" and guarded["proposed_record"] is None and guarded["screen"] is None
+           and guarded["gaps"][0].startswith("the email is not read: a Content-Type")
+           and guarded["gaps"][0].endswith("nothing is proposed"))
         ok("a Subtotal line is not the total whichever comes first, and the first Vendor line names the vendor",
            sub_first["total"] == "239.61" and total_first["total"] == "239.61" and two["counterparty"] == "First Co")
         far = read("far.txt", "Your receipt\n" + "x" * TEXT_MAX + "\nTotal $4.00\n")

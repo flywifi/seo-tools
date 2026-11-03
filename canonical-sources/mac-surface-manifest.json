@@ -116,7 +116,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "eb596dd1ab47dbb7bc38bb40f31a210f37796091971349b646e4eb94d82540cb"
+    "tools/wizard.py": "5aa5059e02cda6af77ff839640d12eb0f6f28f4e6524368ccc92240f57ea2f21"
   },
   "excluded": {}
 }
