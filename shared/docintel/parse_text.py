@@ -57,14 +57,17 @@ _PDF_TOKEN = re.compile(rb"\([^()\\]*(?:\\.[^()\\]*)*\)|\\.|(?<![A-Za-z])(?:T\*|
 _CELL_TEXT = re.compile(r"<t(?:\s[^<>]*)?>([^<]*)</t>")
 # An email is not read at all when a Content-Type, Content-Disposition, Content-Transfer-Encoding or
 # Content-ID header, in the message or in a part, is longer than EML_HEADER_MAX bytes with its folded
-# lines, when those headers run past EML_STRUCT_MAX bytes in total, or when more than EML_PARTS_MAX
-# lines start a MIME part: the email module reads the structure of every part through the first two
-# headers, decodes a part through the third and finds a related message's root part through the
-# fourth, and its cost on a header grows faster than the header. The guard ends a line at CR, LF or
-# CR LF, as the module does (P103).
+# lines or holds more than EML_PARAMS_MAX parameter separators, when those headers run past
+# EML_STRUCT_MAX bytes in total, or when more than EML_PARTS_MAX lines start a MIME part: the email
+# module reads the structure of every part through the first two headers, decodes a part through the
+# third and finds a related message's root part through the fourth, and its cost on a header grows
+# faster than the header and faster than its separator count (8,000 separators in an 8 KB header cost
+# 0.18 s a read). The guard ends a line at CR, LF or CR LF, as the module does. A header within the
+# caps is parsed once per read (_once_policy) (P103).
 _EML_STRUCT = re.compile(rb"^content-(?:type|disposition|transfer-encoding|id)[ \t]*:", re.I | re.M)
 EML_PARTS_MAX = 5000
 EML_STRUCT_MAX = 65536
+EML_PARAMS_MAX = 64
 # A PDF literal's escapes, read in one pass from the left: a backslash before a line end continues
 # the line (both are dropped); before a parenthesis or a backslash it is dropped and the byte kept.
 _PDF_ESCAPE = re.compile(rb"\\(\r\n|\r|\n|[()\\])")
@@ -307,10 +310,11 @@ def _eml_headers(raw, msg):
 def _eml_guard(raw):
     """Why an email file is not read at all, else None: a Content-Type, Content-Disposition,
     Content-Transfer-Encoding or Content-ID header (in the message or in a part) longer than
-    EML_HEADER_MAX bytes counted with its folded lines, those headers longer than EML_STRUCT_MAX bytes
-    in total, or more than EML_PARTS_MAX lines that start a MIME part. Read from the raw bytes before
-    the email module parses anything, since the module reads these headers to find and decode the
-    parts; a line ends at CR, LF or CR LF, as it does for the module (P103)."""
+    EML_HEADER_MAX bytes counted with its folded lines or holding more than EML_PARAMS_MAX parameter
+    separators, those headers longer than EML_STRUCT_MAX bytes in total, or more than EML_PARTS_MAX
+    lines that start a MIME part. Read from the raw bytes before the email module parses anything,
+    since the module reads these headers to find and decode the parts; a line ends at CR, LF or CR LF,
+    as it does for the module (P103)."""
     scan = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     if scan.count(b"\n--") > EML_PARTS_MAX:
         return f"more than {EML_PARTS_MAX} lines that start a MIME part"
@@ -331,6 +335,9 @@ def _eml_guard(raw):
         if size > EML_HEADER_MAX:
             return (f"a Content-Type, Content-Disposition, Content-Transfer-Encoding or Content-ID header longer "
                     f"than {EML_HEADER_MAX} bytes")
+        if scan.count(b";", m.start(), end) > EML_PARAMS_MAX:
+            return (f"a Content-Type, Content-Disposition, Content-Transfer-Encoding or Content-ID header with more "
+                    f"than {EML_PARAMS_MAX} parameter separators")
         total += size
         if total > EML_STRUCT_MAX:
             return (f"Content-Type, Content-Disposition, Content-Transfer-Encoding and Content-ID headers longer "
@@ -338,21 +345,51 @@ def _eml_guard(raw):
     return None
 
 
+_ONCE_POLICY = []  # the policy class, built on first use (the email package is imported when needed)
+
+
+def _once_policy():
+    """A fresh email policy with policy.default's settings that parses a header once per message. The
+    email module parses a header anew whenever it is read, and parse_eml and screen_text read a
+    part's Content-Type dozens of times between them, so a header within _eml_guard's caps that costs
+    milliseconds to parse cost seconds. The cache holds the parsed headers of one message: a new
+    policy per file (P103)."""
+    if not _ONCE_POLICY:
+        import email.policy
+
+        class _OnceParsed(email.policy.EmailPolicy):
+            def __init__(self, **kw):
+                super().__init__(**kw)
+                object.__setattr__(self, "_parsed", {})
+
+            def header_fetch_parse(self, name, value):
+                key = (name.lower(), value)
+                try:
+                    return self._parsed[key]
+                except KeyError:
+                    parsed = super().header_fetch_parse(name, value)
+                    if len(self._parsed) < 4096:
+                        self._parsed[key] = parsed
+                    return parsed
+
+        _ONCE_POLICY.append(_OnceParsed)
+    return _ONCE_POLICY[0]()
+
+
 def parse_eml(path):
     """An email file (.eml) through Python's email module: its From, Subject and Date lines, then
     the text part, else the HTML part with the tags stripped. Attachments are not read (the notes
     say how many there were). A message the module cannot decode degrades to metadata_only, and one
-    _eml_guard refuses (a structural header over EML_HEADER_MAX bytes, those headers over EML_STRUCT_MAX
-    bytes in total, over EML_PARTS_MAX part lines) is not read at all, with the reason in the notes
-    (P103)."""
+    _eml_guard refuses (a structural header over EML_HEADER_MAX bytes or EML_PARAMS_MAX separators,
+    those headers over EML_STRUCT_MAX bytes in total, over EML_PARTS_MAX part lines) is not read at
+    all, with the reason in the notes; a header within the caps is parsed once (_once_policy) (P103)."""
     import email
-    import email.policy
     try:
         raw = Path(path).read_bytes()
         why = _eml_guard(raw)
         if why:
             return result(path, "eml", "metadata_only", confidence="low", notes=f"the email is not read: {why}")
-        msg = email.message_from_bytes(raw, policy=email.policy.default)
+        msg = email.message_from_bytes(raw, policy=_once_policy())
         frm, subj, when = _eml_headers(raw, msg)
         head = [f"From: {frm}", f"Subject: {subj}", f"Date: {when}"]
         body = msg.get_body(preferencelist=("plain", "html"))
@@ -383,11 +420,10 @@ def screen_text(path, parsed=None):
     try:
         if ext == "eml":
             import email
-            import email.policy
             raw = p.read_bytes()
             if _eml_guard(raw):
                 return None
-            msg = email.message_from_bytes(raw, policy=email.policy.default)
+            msg = email.message_from_bytes(raw, policy=_once_policy())
             texts = list(_eml_headers(raw, msg))
             for part in msg.walk():
                 if part.get_content_maintype() == "text":
@@ -842,6 +878,76 @@ def selftest() -> int:
            and "header longer" in got2["cid.eml"]["notes"] and "header longer" in got2["cte_fold.eml"]["notes"]
            and "in total" in got2["cte_total.eml"]["notes"]
            and all(screen_text(str(d / n)) is None for n in got2) and took_i < 2)
+        # P103 (sixth review): a Content-ID's folds, total, cap edge and top level; the separator cap;
+        # headers within the caps parsed once per read
+        rel = (b"From: s@shop.example\nMIME-Version: 1.0\nContent-Type: multipart/related; boundary=bc; "
+               b"start=\"<root>\"\n\n")
+        plain = b"--bc\nContent-Type: text/plain\n"
+        cid_folded = b"Content-ID: <root>\n" + b"".join(b" x%d\n" % i for i in range(2000)) + b" y"
+        (d / "cid_fold.eml").write_bytes(rel + plain + cid_folded + b"\n\nTotal $4.00\n--bc--\n")
+        (d / "cid_tab.eml").write_bytes(rel + plain + cid_folded.replace(b"\n ", b"\n\t") + b"\n\nTotal $4.00\n--bc--\n")
+        cid_exact = b"Content-ID: <" + b"a" * (EML_HEADER_MAX - 14) + b">"
+        (d / "cid_exact.eml").write_bytes(rel + plain + cid_exact + b"\n\nTotal $4.00\n--bc--\n")
+        (d / "cid_over.eml").write_bytes(rel + plain + cid_exact.replace(b">", b"a>") + b"\n\nTotal $4.00\n--bc--\n")
+        (d / "cid_total.eml").write_bytes(rel + b"".join(plain + b"Content-ID: <" + b"a" * 7386 + b">\n\nTotal $4.00\n"
+                                                         for _ in range(9)) + b"--bc--\n")
+        (d / "cid_top.eml").write_bytes(b"From: s@shop.example\nContent-ID: <" + b"a" * 9000 + b">\n\nTotal $4.00\n")
+        room = EML_HEADER_MAX - len(b"Content-Type: ")
+
+        def _seven(hv):
+            return rel + b"".join(b"--bc\nContent-Type: " + hv + b"\n\nTotal $4.00\n" for _ in range(7)) + b"--bc--\n"
+        (d / "seps.eml").write_bytes(_seven(b"text/plain" + b";" * (room - 10)))
+        (d / "seps_fold.eml").write_bytes(b"From: s@shop.example\nContent-Type: text/plain;\n"
+                                          + b"".join(b" p%d=v;\n" % i for i in range(70)) + b" q=v\n\nTotal $4.00\n")
+        (d / "params64.eml").write_bytes(_seven((b"text/plain" + b"; p=v" * 63 + b"; q=").ljust(room, b"v")))
+        (d / "params65.eml").write_bytes(_seven((b"text/plain" + b"; p=v" * 64 + b"; q=").ljust(room, b"v")))
+        (d / "tokens.eml").write_bytes(_seven((b"text/plain " + b"a " * room)[:room]))
+        (d / "encwords.eml").write_bytes(_seven((b"text/plain; name=\"" + b"=?utf-8?q?a?= " * room)[:room - 1] + b"\""))
+        t0 = _time.monotonic()
+        got3 = {n: parse(str(d / n)) for n in ("cid_fold.eml", "cid_tab.eml", "cid_exact.eml", "cid_over.eml",
+                                                "cid_total.eml", "cid_top.eml", "seps.eml", "seps_fold.eml",
+                                                "params64.eml", "params65.eml")}
+        took_s = _time.monotonic() - t0
+        refused3 = ("cid_fold.eml", "cid_tab.eml", "cid_over.eml", "cid_total.eml", "cid_top.eml", "seps.eml",
+                    "seps_fold.eml", "params65.eml")
+        ok(f"a Content-ID folded with spaces or tabs over the cap, one a byte over it, nine under it past the total "
+           f"and one at the top level are refused and one of exactly the cap is read; a header of more than "
+           f"EML_PARAMS_MAX separators, on one line or across folds, is refused and one of exactly that many is "
+           f"read ({took_s:.2f} s)",
+           all(got3[n]["ingestion_status"] == "metadata_only" and "not read" in got3[n]["notes"] for n in refused3)
+           and all(screen_text(str(d / n)) is None for n in refused3)
+           and all("header longer" in got3[n]["notes"] for n in ("cid_fold.eml", "cid_tab.eml", "cid_over.eml", "cid_top.eml"))
+           and "in total" in got3["cid_total.eml"]["notes"]
+           and all("parameter separators" in got3[n]["notes"] for n in ("seps.eml", "seps_fold.eml", "params65.eml"))
+           and all(got3[n]["ingestion_status"] == "content_ingested" and "Total $4.00" in got3[n]["text"]
+                   for n in ("cid_exact.eml", "params64.eml"))
+           and took_s < 2)
+        import email.policy as _policy
+        fetched = []
+        _fetch = _policy.EmailPolicy.header_fetch_parse
+
+        def _fetches(fn):  # what the email module parsed (the misses of _once_policy's cache) during fn()
+            fetched.clear()
+            _policy.EmailPolicy.header_fetch_parse = lambda self, name, value: (
+                fetched.append((name.lower(), value)) or _fetch(self, name, value))
+            try:
+                out = fn()
+            finally:
+                _policy.EmailPolicy.header_fetch_parse = _fetch
+            return out, list(fetched)
+        t0 = _time.monotonic()
+        r30, f30 = _fetches(lambda: parse(str(d / "tokens.eml")))
+        r31, f31 = _fetches(lambda: parse(str(d / "encwords.eml")))
+        s30, f32 = _fetches(lambda: screen_text(str(d / "tokens.eml")))
+        s31, f33 = _fetches(lambda: screen_text(str(d / "encwords.eml")))
+        took_o = _time.monotonic() - t0
+        ok(f"seven headers within the caps of space-separated tokens or of encoded words are read through parse and "
+           f"screen_text (the token shape leaves parse no plain subtype to pick a body by), each distinct header "
+           f"parsed once per read ({took_o:.2f} s)",
+           r30["ingestion_status"] == "content_ingested" and r31["ingestion_status"] == "content_ingested"
+           and "Total $4.00" in r31["text"] and s30 is not None and s31 is not None
+           and "Total $4.00" in s30 and "Total $4.00" in s31
+           and all(len(f) >= 2 and len(f) == len(set(f)) for f in (f30, f31, f32, f33)) and took_o < 5)
 
         bad = d / "c.docx"
         bad.write_bytes(b"not a zip at all")

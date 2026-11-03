@@ -33,9 +33,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   "Tax invoice" too), or carrying a "Bill to" or "Billed to" line, decides neither; a "Payment
   amount" or "You were paid" line is the total, not a line item; the extractor drops Unicode format
   characters (direction marks and overrides, the zero-width space, the byte-order mark, tag
-  characters) from the text before its patterns run and keeps the zero-width joiner and non-joiner,
-  so a zero-width space inside "Bill to" or a name does not hide it from the patterns, and a field
-  turns a control character into a space. The
+  characters) from the text before its patterns run, keeps the zero-width joiner and non-joiner only
+  between two characters outside ASCII letters, digits and the space (emoji sequences, Persian and
+  Urdu words), and reads the invoice rule once more with the control characters dropped, so a
+  zero-width space, a joiner or a control character inside "Bill to", "Invoice" or a name does not
+  hide it from the patterns; a field turns a control character into a space. The offline pattern
+  tier (`injection_scan.scan_text`) reads a text with its format characters and non-whitespace
+  control characters dropped and, when it holds such a control character, once more with each as a
+  space, keeping the higher score, so a laced injection is flagged as the plain one is; `scan_file`
+  reads a file behind a wide byte-order mark in each byte order and as UTF-8, leaves the NUL folding
+  to `scan_text`, and names at a tie the reading with the fewest folded characters. The
   extractor's patterns stay on one line with bounded gaps and read at most 200,000 characters;
   `parse_text` walks a PDF's streams once, scans each in one pass (a string literal, and an escape
   pair outside one, are read without a second look) and ends a text line at the PDF's line
@@ -44,8 +51,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the budget (under a `.docx` suffix too, screened through its parse), cuts an email's From, Subject
   or Date header longer than 8 KB undecoded (a raw 8-bit header is read with the name decoded), does
   not read an email whose Content-Type, Content-Disposition, Content-Transfer-Encoding or Content-ID
-  header, in the message or a part, is longer than 8 KB, whose such headers run past a 64 KB total, or
-  that has more than 5,000 part lines
+  header, in the message or a part, is longer than 8 KB or holds more than 64 parameter separators,
+  whose such headers run past a 64 KB total, or that has more than 5,000 part lines, and parses a
+  header within those caps once per read (the email module parses a header anew whenever it is read)
   (a line ends at CR, LF or CR LF, as it does for the email module), and inflates at most 16 MB per file
   across its zip members or PDF streams; the selftests time crafted files of these kinds. An `.eml`
   is not held as oversize: approve keeps a session's or the label's record for it. The work order
@@ -677,6 +685,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   and its self-proof passes as before. The self-proof also reads a module in a `tools/`
   subfolder that does not parse, and UTF-16 static files with upper-case `.JS` and `.css`
   suffixes, each reported as unread.
+- P103 (file_hash child limit): `file_hash --selftest` gives a child process 1500 s, up from
+  600 s (`file_hash._CHILD_TIMEOUT`). The wizard's selftest takes about 10 s on a Linux computer
+  and several times that on a hosted Windows runner, where a child of 12 wizard rows plus its
+  baseline went past 600 s in one CI run and its rows were reported as worker failures. The limit
+  bounds one child; the selftest sweep's 1800 s cap for the tool bounds the whole run as before.
 - P102 (file_hash cap and worker count): the selftest sweep's cap for `tools/file_hash.py` grows
   in proportion when its mutation run uses fewer than four child processes at a time
   (`selftest_sweep._tool_timeout`, which reads `file_hash.mutant_jobs()`): 3600 s with two, 7200 s

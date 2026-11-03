@@ -87,8 +87,8 @@ can type into any bookkeeping tool.
 - A remittance or payout statement that lists the invoices it settles at line starts ("Invoice
   INV-001  $900.00"): direction null, asked for; the invoice rule errs toward asking.
 - An email whose Content-Type, Content-Disposition, Content-Transfer-Encoding or Content-ID header
-  is longer than 8 KB, whose such headers run past a 64 KB total, or that has more than 5,000 part
-  lines: not read, no proposed record, the reason in the gap.
+  is longer than 8 KB or holds more than 64 parameter separators, whose such headers run past a 64 KB
+  total, or that has more than 5,000 part lines: not read, no proposed record, the reason in the gap.
 - A filed receipt whose file changed since (its hash differs from the inbox ledger's): listed on the
   wizard's work order with its tick off and a gap that says so; move the file back to the Inbox and
   scan it again.

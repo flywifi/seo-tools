@@ -52,17 +52,22 @@ knows what it is.
   spaces in one pass, reads a workbook's shared strings in one pass and within the budget, cuts an
   email's From, Subject or Date header longer than 8 KB undecoded, does not read an email whose
   Content-Type, Content-Disposition, Content-Transfer-Encoding or Content-ID header (in the message
-  or a part) is longer than 8 KB, whose such headers run past a 64 KB total, or that has more than
-  5,000 part lines
-  (a line ends at CR, LF
-  or CR LF, as it does for the email module), and inflates at most 16 MB per file across its zip
-  members or PDF streams, stopping there. The selftests time crafted files of these kinds.
+  or a part) is longer than 8 KB or holds more than 64 parameter separators, whose such headers run
+  past a 64 KB total, or that has more than 5,000 part lines (a line ends at CR, LF or CR LF, as it
+  does for the email module), parses a header within those caps once per read (the email module
+  parses a header anew whenever it is read, and these paths read a part's Content-Type dozens of
+  times), and inflates at most 16 MB per file across its zip members or PDF streams, stopping there.
+  The selftests time crafted files of these kinds, headers within the caps included.
 - A document headed as an invoice (a Tax invoice too), or carrying a Bill to or Billed to line, gets
   no direction even when it thanks for an order or says a payment was sent; the person chooses. A
   remittance that lists the invoices it settles at line starts asks too: the rule errs toward asking.
 - The text drops Unicode format characters (direction marks and overrides, the zero-width space, the
-  byte-order mark, tag characters) before the patterns run, so a name and a keyword such as Bill to
-  read the same with or without them, and keeps the zero-width joiner and non-joiner; an amount that
+  byte-order mark, tag characters) before the patterns run, keeps the zero-width joiner and non-joiner
+  only between two characters outside ASCII letters, digits and the space, and the invoice rule reads
+  the text once more with its control characters dropped, so a keyword such as Bill to or Invoice,
+  and a name in ASCII letters, read the same with or without them; the offline pattern tier reads a
+  text with its format and non-whitespace control characters dropped and, when it holds such a
+  control character, once more with each as a space, and keeps the higher score. An amount that
   rounds to 0.00 is refused in both stores; a confidence is one of the template's tiers.
 - A stale or replayed work-order submit is refused and leaves the open work orders; a row carries the
   inbox ledger's sha256, and a filed receipt whose file changed since is listed with its tick off

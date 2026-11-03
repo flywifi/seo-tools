@@ -97,7 +97,7 @@
     "tools/count_truth.py": "1bdc50e1739907ae3a579c1bec26c2b58acbed2a583d4da69203465854375842",
     "tools/env_paths.py": "83aef4d3cc149e91ede9d3483c85070201f53a68d118860dcd099ccec528a44a",
     "tools/freshness-scheduler.example": "2b4fd4b90ac2829a014305330f3440ab721a3b697862ecda9658112a856bfa7f",
-    "tools/handoff/MAINTAINER_README.md": "bb63c02552c0d54f3ca3ae486be8570adc42802cd42aa50d5975eef141c2187a",
+    "tools/handoff/MAINTAINER_README.md": "f3a9288702548e3ff0824c6da74e09c4520ae38e4ecd4aec69527c050c94ba9a",
     "tools/handoff/inbox.py": "71e30d53ac18dbde25b77d16a537f345da1dab81a6e3d851d1ee53b5531a9991",
     "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
     "tools/handoff/watcher.py": "5430e3462ba9b39418064c289de5d1fc7533b3c6de657f4f33209447a92bc87f",

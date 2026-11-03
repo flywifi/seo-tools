@@ -54,7 +54,10 @@ the WebVTT format allows beside `hh:mm:ss.ttt`. The files Creator OS writes keep
   or UTF-32 BOM the screen therefore also reads the bytes after the mark as UTF-8, that reading with
   its NUL bytes dropped and with them as spaces, and UTF-16 LE and BE (behind a UTF-32 mark, UTF-32
   LE and BE too), and keeps the reading with the highest score. UTF-32 text behind a UTF-16 mark
-  decodes to NUL characters, which the binary rule already skips.
+  decodes to NUL characters, which the binary rule already skips. (Since P103 the pattern tier folds
+  a NUL, a format character and a control character inside `scan_text` itself, so the readings are
+  the byte orders and UTF-8, and a tie between readings names the one with the fewest folded
+  characters.)
 - A limit of that rule: ASCII behind a mark whose NUL bytes stand both for its spaces and inside its
   words reads, with each NUL dropped or as a space, as run-together or split words, which the
   pattern tier misses as it misses those words written that way with no mark. Before this decision

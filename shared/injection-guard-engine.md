@@ -235,9 +235,12 @@ the full guard.
 What it catches and what it does not: it matches the known phrasings enumerated in the Detection
 targets above, so a reworded attack can still pass it; a QUARANTINE or BLOCK verdict from it is
 enough to seal a file or refuse a ticket, but a CLEAN verdict is not a guarantee, and content that
-reaches a session is still scanned by the full guard. The tool's selftest asserts its category set
-equals this document's `### <NAME>` headings, so the two cannot drift apart silently; changing a
-category here means updating the tool in the same change.
+reaches a session is still scanned by the full guard. It reads a text with its Unicode format
+characters and its control characters other than whitespace dropped and, when the text holds such a
+control character, once more with each as a space, and keeps the higher score, so a zero-width space
+or a control character between a word's letters does not hide a phrase from the patterns (P103). The
+tool's selftest asserts its category set equals this document's `### <NAME>` headings, so the two
+cannot drift apart silently; changing a category here means updating the tool in the same change.
 
 <!-- verify: tools/injection_scan.py::scan_text -->
 <!-- verify: tools/injection_scan.py::scan_file -->
