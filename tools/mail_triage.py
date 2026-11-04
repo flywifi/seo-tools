@@ -105,9 +105,10 @@ def _masked_email(v):
 def _masked_account(account, tokens):
     """The account part of a row for a result that leaves this computer, built field by field from
     a fixed list: brand and contact names to initials, contact emails to a stub, any other value
-    under those keys to MASKED, each account id to a per-call token (one token per non-empty
-    string id within a call; any other id gets a token of its own), the contact's role and kind
-    kept when they are strings. Other keys are left out."""
+    under those keys to MASKED, the contact's role (free text, which can name the brand or a
+    colleague) to MASKED, each account id to a per-call token (one token per non-empty string id
+    within a call; any other id gets a token of its own), the contact's kind and a candidate's
+    match_basis kept when they are strings. Other keys are left out."""
     def token(aid):
         key = aid if isinstance(aid, str) and aid else object()
         return tokens.setdefault(key, f"account-{len(tokens) + 1}")
@@ -122,7 +123,8 @@ def _masked_account(account, tokens):
                            "brand_name": _masked_name(r.get("brand_name")),
                            "contact": {"name": _masked_name(c.get("name")),
                                        "email": _masked_email(c.get("email")),
-                                       "role": text(c.get("role")), "kind": text(c.get("kind"))}}
+                                       "role": MASKED if c.get("role") else None,
+                                       "kind": text(c.get("kind"))}}
     out["candidates"] = [{"account_id": token(c.get("account_id")),
                           "brand_name": _masked_name(c.get("brand_name")),
                           "match_basis": text(c.get("match_basis"))} for c in account["candidates"]]
@@ -192,9 +194,10 @@ def triage(messages, accounts=None, masked=False):
     """Sort a batch of inbound messages into piles (see the module docstring). accounts is an
     in-memory roster (default: the local store, pipeline/accounts/*.local.json). masked=True builds
     the CRM side of each match field by field (_masked_account: brand and contact names to
-    initials, contact emails to a stub, other values there to MASKED, each account id to a token
-    such as account-1), for a result that leaves this computer; the sender fields came from the
-    caller and stay as sent."""
+    initials, contact emails to a stub, other values there and the contact's role to MASKED, each
+    account id to a token such as account-1), for a result that leaves this computer. The sender
+    fields are not masked: the address as read (lowercased, its domain as an A-label) and the
+    display name as decoded, none when the message is held."""
     out = {"boundary": BOUNDARY, "human_review_required": True, "computed_by": f"{TOOL} triage",
            "messages": [], "counts": {p: 0 for p in PILES}, "gaps": []}
     if not isinstance(messages, list):
@@ -376,6 +379,20 @@ def selftest() -> int:
     _unread = [one(**{"from": h, "subject": "Payment received", "body": "Your payout is ready."})
                for h in ("Billing <=?utf-8?q?billing=40phish.example?=>", "Billing <billing phish.example>",
                          "x" * 2100 + " <billing@phish.example>")]
+    _two_acc = [dict(roster[0]), {"account_id": "acct-two-001", "brand_name": "Second Brand", "aliases": [],
+                                  "primary_contact": {"name": "M", "email": "marcus.webb@hearthlinehome.example"}}]
+    r_amb_pay = triage([{"message_id": "<ap@mail.example>", "from": "marcus.webb@hearthlinehome.example",
+                         "subject": "Payment sent", "body": "Your payout is ready."}], accounts=_two_acc)["messages"][0]
+    r_un_known = one(**{"from": "=?utf-8?b?S?= <marcus.webb@hearthlinehome.example>", "subject": "Hi"})
+    r_both = one(**{"from": "=?utf-8?b?S?= <billing phish.example>", "subject": "Payment received",
+                    "body": "Your payout is ready."})
+    r_link = one(**{"from": "a@shop.example", "subject": "Hello", "body": "Hi.",
+                    "link": "https://mail.example/?q=" + _inj1})
+    ok("an ambiguous payment notice keeps the record step, an undecodable name on a known brand keeps its "
+       "step, an unreadable address comes before an undecodable name, and a link is screened whole",
+       r_amb_pay["pile"] == "payment_notice" and r_amb_pay["next_step"] == NEXT_STEP["payment_notice"]
+       and r_un_known["pile"] == "known_brand" and r_un_known["next_step"] == NEXT_STEP["known_brand"]
+       and r_both["next_step"] == UNREAD_NOTE + " " + SPOOF_PAYMENT and r_link["pile"] == "held")
     r_sp = one(**{"from": "Hearthline Home <=?utf-8?q?billing=40phish.example?=>", "subject": "Payment received",
                   "body": "Your payout is ready."})
     r_np = one(**{"from": "Billing <billing phish.example>", "subject": "Hello", "body": "Quick question."})
@@ -440,6 +457,20 @@ def selftest() -> int:
              {"brand_name": "Gamma Goods", "aliases": [], "primary_contact": {"name": "G", "email": "g@gamma.example"}}]
     _ni = triage([{"message_id": f"<i{n}@mail.example>", "from": f"{n}@{d}.example", "subject": "Hi"}
                   for n, d in (("a", "alpha"), ("b", "beta"), ("g", "gamma"))], accounts=_noid, masked=True)
+    _role = [dict(roster[0], primary_contact=dict(roster[0]["primary_contact"],
+                                                  role="Partnerships at Hearthline Home, with Dana Ellis"))]
+    _exact = triage([{"message_id": "<x1@mail.example>", "from": "marcus.webb@hearthlinehome.example"},
+                     {"message_id": "<x2@mail.example>", "from": "jo@hearthlinehome.example"}],
+                    accounts=_role, masked=True)["messages"]
+    ok("the masked account part holds exactly the masked fields: initials, a stub, the masked role, the kind "
+       "and the match basis",
+       _exact[0]["account"]["resolved"] == {"account_id": "account-1", "brand_name": "H.H.",
+                                            "contact": {"name": "M.W.", "email": "m***@h***.example",
+                                                        "role": MASKED, "kind": "primary"}}
+       and _exact[1]["account"]["candidates"] == [{"account_id": "account-1", "brand_name": "H.H.",
+                                                   "match_basis": "domain"}]
+       and "Dana" not in json.dumps(_exact) and "Hearthline Home" not in json.dumps([m["account"] for m in _exact])
+       and _masked_name("   ") == MASKED and _masked_name("") is None)
     _odd_rec = [{"account_id": "acct-list-001", "brand_name": ["Listed Brand"], "aliases": [],
                  "primary_contact": {"name": ["Pat", "Lee"], "email": "pat@listed.example", "role": ["x"],
                                      "extra": "Pat Lee"}},
@@ -455,7 +486,7 @@ def selftest() -> int:
        "out, and two empty ids get two tokens",
        _od["messages"][0]["account"]["resolved"]["brand_name"] == MASKED
        and _od["messages"][0]["account"]["resolved"]["contact"]["name"] == MASKED
-       and _od["messages"][0]["account"]["resolved"]["contact"]["role"] is None
+       and _od["messages"][0]["account"]["resolved"]["contact"]["role"] == MASKED
        and "Listed" not in _od_dump and "Pat" not in _od_dump and "extra" not in _od_dump
        and [m["account"]["resolved"]["account_id"] for m in _od["messages"]][1:] == ["account-2", "account-3"])
     ok("a record with no account id, or one that is not a string, gets a token of its own",

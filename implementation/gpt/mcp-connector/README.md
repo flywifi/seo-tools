@@ -19,8 +19,10 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
   <token>`, constant-time compared, 401 otherwise) in addition to whatever the proxy enforces.
 - On a network transport (any start other than stdio) the `mail_triage` tool (P103) masks the CRM
   side of each sender match whatever the caller asks: brand and contact names to initials, contact
-  emails to a stub, and each account id to a token such as `account-1`. The sender fields stay as
-  the caller sent them, and the flags still show whether a display name names a brand on record.
+  emails to a stub, the contact's role to `(masked)`, and each account id to a token such as
+  `account-1`. The sender fields are not masked: the address as read (lowercased, its domain as an
+  A-label) and the display name as decoded, none when the message is held. The flags still show
+  when a display name names one brand on record that the address is not on.
   Other tools keep their own `redacted` option, which leaves account ids clear.
 - A loopback bind (`--host 127.0.0.1`, the documented pattern) needs no token: the proxy in front
   is the auth boundary.

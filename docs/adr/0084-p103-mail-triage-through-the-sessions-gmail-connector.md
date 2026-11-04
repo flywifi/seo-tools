@@ -32,13 +32,20 @@ Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail
    as the punycode A-label of its
    NFC form with nothing mapped (the stdlib IDNA2003 codec maps ß to "ss"). A "/", "?", "#", ":"
    or space in it, or a non-ASCII letter that lowercases to an ASCII one (the Kelvin sign), makes
-   the address unreadable (`no_address`) rather than cut short. The header is split into name and
+   the address unreadable (`no_address`) rather than cut short. Four IDNA2008 PVALID symbols
+   outside those categories (U+06FD, U+06FE, U+0F0B, U+3007) are admitted; the contextual code
+   points IDNA2008 allows in context (the joiners, the Catalan middle dot, the Greek keraia, the
+   Hebrew geresh and gershayim, the katakana middle dot) are not, so a contact on such a domain is
+   not matched. The local part is lowercased with `str.lower` (a capital sigma at the end of a word
+   becomes the final sigma) after the same ASCII refusals. The header is split into name and
    address before any decoding; only the name is decoded. An address written as an encoded word
-   is flagged (`encoded_address`) and not matched; a name in a charset that cannot be decoded is
-   dropped (`name_undecodable`); a header of the form `Last, First <address>` is read for its one
-   address (`display_name_unquoted`). A display name read from the header that names an account
-   the address does not belong to, or names one when no address could be read, is flagged
-   (`display_name_names_another_account`). The display name is not used to match.
+   is flagged (`encoded_address`) and not matched; the encoded words of a display name that cannot
+   be decoded are dropped and its other words kept (`name_undecodable`); a header of the form
+   `Last, First <address>` is read for its one address (`display_name_unquoted`). A display name
+   read from the header that names one account (as `accounts.resolve` reads it) that the address
+   does not belong to, or names one when no address could be read, is flagged
+   (`display_name_names_another_account`); a name that names two accounts, or a contact rather
+   than a brand, is not. The display name is not used to match.
 2. `tools/mail_triage.py` sorts the messages a session read through its connector (at most 50 per
    call, 65,536 characters of body each): the offline pattern tier screens the sender's name and
    From header, the subject, the body, the Message-ID, the date and the link (pass 1), and a

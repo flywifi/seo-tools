@@ -62,8 +62,8 @@ For each message the tool:
 - matches the sender to a CRM account by address (`tools/accounts.py::resolve_sender`): a contact's <!-- verify: tools/accounts.py::resolve_sender -->
   address resolves; an address on the brand's website host (when the account's website is a
   homepage address) is a candidate to confirm; a domain on `FREE_MAIL_DOMAINS` is not matched by
-  domain; a display name naming a brand the address does not belong to is flagged as a possible
-  spoof;
+  domain; a display name that names one brand on record the address does not belong to is flagged
+  as a possible spoof (a name that names a contact, or two brands, is not);
 - gives one pile: `payment_notice`, `known_brand`, `new_pitch` or `other`, with the next step.
 
 Unless the server was started on stdio (the way Claude Desktop starts it), the tool masks the CRM

@@ -345,7 +345,7 @@ def _mail_triage_masked(requested) -> bool:
     """mail_triage masks the CRM side of its matches when asked, and always unless the server was
     started on stdio: brand and contact names, contact emails and account ids from the local store
     are masked in the replies a network client reads (mail_triage.triage, masked=True)."""
-    return bool(requested) or not _STDIO_BOUND
+    return bool(requested) or _STDIO_BOUND is not True
 
 
 def _mail_triage_reply(messages, masked, accounts=None) -> dict:
@@ -1267,12 +1267,17 @@ def _selftest_static() -> tuple:
     # Read by AST from the file (see above), so a comment cannot stand in for code. The tool returns
     # the reply helper's result and calls nothing else that triages. Outside this selftest the flag
     # is bound twice, by its default False and by `_STDIO_BOUND = True` as the statement before
-    # the stdio branch's mcp.run(); any other binding form (a tuple, walrus, for, with, except or
-    # import target, a deletion), an attribute named for it, a string, keyword or global statement
-    # naming it is refused, and so are the ways to bind a name built at run time: vars, setattr,
-    # locals, exec, eval and __import__ calls, .modules and .__dict__ attributes, and globals()
-    # other than subscripted by a literal that is not the flag (the full tier's CONFIG_LOCAL_PATH
-    # swap). A reset to False masks more, so it cannot unmask.
+    # the stdio branch's mcp.run(). The check refuses the forms it reads: a Name bound to the flag
+    # in any other way (assignment, tuple, walrus, for, with, comprehension, deletion), a def or
+    # class named for it, a match capture, star or mapping-rest pattern named for it, an attribute,
+    # import alias, except name, string, keyword or global statement naming it; calls to vars,
+    # setattr, locals, exec, eval, __import__ or import_module, bare or as an attribute; the
+    # .modules, .__dict__, .__globals__, .f_globals, .f_locals, .__setattr__ and .__builtins__
+    # attributes; globals() other than subscripted by a literal that is not the flag (the full
+    # tier's CONFIG_LOCAL_PATH swap); and, outside the module's own top level, a def of
+    # _mail_triage_masked, _mail_triage_reply or mail_triage, or an assignment to mcp.run. Code that
+    # reaches the flag another way is not read here. _mail_triage_masked unmasks for the value True
+    # alone, so a reset, or a binding to anything else, masks.
     _A = _ast_p102
     _outside = [top for top in _A.parse(src).body
                 if not (isinstance(top, _A.FunctionDef) and top.name == "_selftest_static")]
@@ -1288,15 +1293,30 @@ def _selftest_static() -> tuple:
                         or (isinstance(n, _A.Global) and _flag in n.names)
                         or (isinstance(n, _A.Attribute) and n.attr == _flag)
                         or (isinstance(n, _A.alias) and _flag in (n.name, n.asname))
-                        or (isinstance(n, _A.ExceptHandler) and n.name == _flag)]
+                        or (isinstance(n, _A.ExceptHandler) and n.name == _flag)
+                        or (isinstance(n, (_A.FunctionDef, _A.AsyncFunctionDef, _A.ClassDef))
+                            and n.name == _flag)
+                        or (isinstance(n, (_A.MatchAs, _A.MatchStar)) and n.name == _flag)
+                        or (isinstance(n, _A.MatchMapping) and n.rest == _flag)]
     _glob_ok = {id(n.value) for n in _out_nodes if isinstance(n, _A.Subscript)
                 and _A.unparse(n.value) == "globals()" and isinstance(n.slice, _A.Constant)
                 and isinstance(n.slice.value, str) and _flag not in n.slice.value}
+    _binders = ("vars", "setattr", "locals", "exec", "eval", "__import__", "import_module")
     _dynamic = [_A.unparse(n) for n in _out_nodes
                 if (isinstance(n, _A.Call) and isinstance(n.func, _A.Name)
-                    and (n.func.id in ("vars", "setattr", "locals", "exec", "eval", "__import__")
-                         or (n.func.id == "globals" and id(n) not in _glob_ok)))
-                or (isinstance(n, _A.Attribute) and n.attr in ("modules", "__dict__"))]
+                    and (n.func.id in _binders or (n.func.id == "globals" and id(n) not in _glob_ok)))
+                or (isinstance(n, _A.Call) and isinstance(n.func, _A.Attribute)
+                    and n.func.attr in _binders + ("globals",))
+                or (isinstance(n, _A.Attribute) and n.attr in ("modules", "__dict__", "__globals__",
+                                                                "f_globals", "f_locals", "__setattr__",
+                                                                "__builtins__"))]
+    _top_defs = {id(top) for top in _outside if isinstance(top, (_A.FunctionDef, _A.AsyncFunctionDef))}
+    _redefined = [n.name for n in _out_nodes if isinstance(n, (_A.FunctionDef, _A.AsyncFunctionDef))
+                  and n.name in ("_mail_triage_masked", "_mail_triage_reply", "mail_triage")
+                  and id(n) not in _top_defs]
+    _redefined += [_A.unparse(t) for n in _out_nodes if isinstance(n, (_A.Assign, _A.AugAssign, _A.AnnAssign))
+                   for t in (n.targets if isinstance(n, _A.Assign) else [n.target])
+                   if _A.unparse(t) in ("mcp.run", "_mail_triage_masked", "_mail_triage_reply", "mail_triage")]
     _main = next((top for top in _outside if isinstance(top, _A.If)
                   and _A.unparse(top.test) == "__name__ == '__main__'"), None)
     _branch = next((st for st in (_main.body if _main else []) if isinstance(st, _A.If)
@@ -1306,10 +1326,12 @@ def _selftest_static() -> tuple:
                  None)
     _tool_calls = sorted({_A.unparse(n.func) for n in _A.walk(_tool) if isinstance(n, _A.Call)}) if _tool else []
     _tool_returns = [_A.unparse(n) for n in _A.walk(_tool) if isinstance(n, _A.Return)] if _tool else []
-    ok("the stdio flag is bound by its default and by the statement before the stdio mcp.run() alone, "
-       "nothing else names it, and the mail_triage tool returns the reply helper's result",
+    ok("the stdio flag is bound by its default and by the statement before the stdio mcp.run(), none of "
+       "the other forms this check reads binds or names it, and the mail_triage tool returns the reply "
+       "helper's result",
        _bindings == ["Store", "Store"] and _assigns == sorted([_flag + " = False", _flag + " = True"])
        and _stdio_tail == [_flag + " = True", "mcp.run()"] and not _named_elsewhere and not _dynamic
+       and not _redefined
        and _tool_calls == sorted(["json.dumps", "mcp.tool", "str", "_mail_triage" + "_reply"])
        and ("return json.dumps(_mail_triage" + "_reply(messages, masked), indent=2, ensure_ascii=False)")
        in _tool_returns)

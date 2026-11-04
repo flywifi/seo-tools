@@ -6006,7 +6006,9 @@ def _selftest_p101() -> int:
                    _ours_google_entry(_cfg2("uv", ["workspace-mcp"])) is None,
                    _ours_google_entry(_cfg2("uvx-legacy", _ro2)) is None,
                    _ours_google_entry(_cfg2("uvx", list(reversed(_ro2)))) is None,
-                   _ours_google_entry([]) is None and _ours_google_entry({"mcpServers": []}) is None]
+                   _ours_google_entry([]) is None and _ours_google_entry({"mcpServers": []}) is None,
+                   _ours_google_entry([{"x": 1}]) is None
+                   and _ours_google_entry({"mcpServers": ["google-workspace"]}) is None]
     _saved2 = {k: _g_gw[k] for k in _keys_gw + ("_write_claude_config",)}
     _flags2, _sent2 = [], []
     with tempfile.TemporaryDirectory() as _td2:
@@ -6067,13 +6069,15 @@ def _selftest_p101() -> int:
             _post2({})
             _first_fail_args = _args2(_a2)
             _g_gw["_write_claude_config"] = _real_write
-            _b2.write_text("[]", encoding="utf-8")
+            _b2.write_text(json.dumps({"mcpServers": ["google-workspace"]}), encoding="utf-8")
+            _c2.write_text(json.dumps([{"x": 1}]), encoding="utf-8")
+            _g_gw["_claude_config_targets"] = lambda: [(_a2, "a"), (_b2, "b"), (_c2, "c")]
             _post2({"gmail_write": "on"})
             _list_levels = _gmail_entry_levels()
         finally:
             _g_gw.update(_saved2)
     _texts2 = [b for b in _sent2 if isinstance(b, str)]
-    check(_ours_cases == [True] * 11
+    check(_ours_cases == [True] * 12
           and _levels_mixed == ["readonly", "send"] and " checked" in _form_mixed
           and _both_off == [_ro2, _ro2] and " checked" not in _form_both_off and _both_on == [_rw2, _rw2]
           and _own_kept and "was not set up by this wizard" in _texts2[2]

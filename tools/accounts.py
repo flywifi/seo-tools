@@ -265,7 +265,8 @@ def _domain_name(value):
         if ch.isascii():
             if not (ch.isalnum() or ch == "-"):
                 return ""
-        elif not (unicodedata.category(ch)[0] == "L" or unicodedata.category(ch) in ("Nd", "Mn", "Mc")):
+        elif not (unicodedata.category(ch)[0] == "L" or unicodedata.category(ch) in ("Nd", "Mn", "Mc")
+                  or ch in _IDNA_PVALID_OTHER):
             return ""
     return _a_labels(d)
 
@@ -278,7 +279,9 @@ def _address(value):
     if not at or not local or not domain or any(c.isspace() for c in s):
         return ""
     import unicodedata
-    low = _lower(local)
+    # the local part is lowercased the way a person reads it (str.lower, so a capital sigma at the
+    # end of a word becomes the final sigma), after _lower's ASCII refusals
+    low = local.lower() if _lower(local) else None
     local, host = (unicodedata.normalize("NFC", low) if low else ""), _domain_name(domain)
     return f"{local}@{host}" if local and host else ""
 
@@ -318,6 +321,11 @@ def _sender_domains(acct, free=FREE_MAIL_DOMAINS):
 
 
 _ONE_ANGLE_ADDRESS = re.compile(r"([^<>@]*)<([^<>@\s]+@[^<>@\s]+)>\s*")
+# Four code points outside the categories _domain_name admits that IDNA2008 allows in a label
+# (PVALID): U+06FD, U+06FE, U+0F0B and U+3007. The contextual ones (CONTEXTJ and CONTEXTO: the
+# joiners, the middle dot of Catalan "l·l", the Greek keraia, the Hebrew geresh and gershayim, the
+# katakana middle dot) are not admitted, so a contact on such a domain is not matched.
+_IDNA_PVALID_OTHER = frozenset("\u06fd\u06fe\u0f0b\u3007")
 _URL_SCHEME = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//")
 _ENCODED_WORD = re.compile(r"=\?[^?\s]*\?[bBqQ]\?[^?\s]*\?=")
 
@@ -330,12 +338,13 @@ def resolve_sender(from_header, accounts=None, free_mail=None):
     anyone at a company can write, and a domain says nothing about which person. A domain on
     FREE_MAIL_DOMAINS is not matched by domain. The header is split into name and address before
     any decoding, and only the display name is decoded: an address holding an encoded word (RFC
-    2047 keeps them out of an address) is flagged `encoded_address` and not matched, and a name in
-    a charset that cannot be decoded is dropped and flagged `name_undecodable`. A header of the
+    2047 keeps them out of an address) is flagged `encoded_address` and not matched, and a name with
+    an encoded word that cannot be decoded keeps its other words and is flagged `name_undecodable`. A header of the
     form `Last, First <address>` (an unquoted comma, which strict parsing reads as no address) is
     read for its one address and flagged `display_name_unquoted`. The display name is not used to
-    match; when a name read from the header names an account the address does not match (or no
-    address could be read), the result carries the flag `display_name_names_another_account`
+    match; when a name read from the header names one account (as resolve() reads it) that the
+    address does not match (or no address could be read), the result carries the flag
+    `display_name_names_another_account`
     (what a spoofed brand email looks like). free_mail stands in for FREE_MAIL_DOMAINS (the
     selftest passes .example names, so no address at a real provider is written into the repo)."""
     from email.errors import HeaderParseError
@@ -357,22 +366,30 @@ def resolve_sender(from_header, accounts=None, free_mail=None):
         if one:
             name, raw_addr = one.group(1).strip().strip('"').strip(), one.group(2)
             result["flags"].append("display_name_unquoted")
-    raw_name = name
     try:
         name = str(make_header(decode_header(name)))
     except (ValueError, LookupError, UnicodeError, HeaderParseError):
-        name = ""
+        # decode word by word: the words that decode are kept, the ones that do not are dropped, so
+        # a broken word beside a brand name, plain or encoded, does not hide the brand name
+        kept = []
+        for piece in re.split("(" + _ENCODED_WORD.pattern + ")", name):
+            if _ENCODED_WORD.fullmatch(piece):
+                try:
+                    kept.append(str(make_header(decode_header(piece))))
+                except (ValueError, LookupError, UnicodeError, HeaderParseError):
+                    continue
+            else:
+                kept.append(piece)
+        name = " ".join(" ".join(kept).split())
         result["flags"].append("name_undecodable")
-        result["gaps"].append("the display name is in a charset that could not be decoded; not shown")
+        result["gaps"].append("part of the display name is in a charset that could not be decoded; "
+                              "that part is not shown")
     name = name.strip()[:SENDER_NAME_MAX]
-    # the spoof check reads an undecodable name with its encoded words taken out, so a broken one
-    # beside a brand name does not hide the brand name
-    check_name = name or _ENCODED_WORD.sub(" ", raw_name).strip()[:SENDER_NAME_MAX]
 
     def _finish():
         # the spoof check: a name read from the header that names an account the address is not on
-        if check_name and accts:
-            named = (resolve(check_name, accts).get("resolved") or {}).get("account_id")
+        if name and accts:
+            named = (resolve(name, accts).get("resolved") or {}).get("account_id")
             matched = {result["resolved"]["account_id"]} if result["resolved"] else set()
             matched |= {c["account_id"] for c in result["candidates"]}
             if named and named not in matched:
@@ -785,9 +802,35 @@ def selftest():
     ok("an NFD local part is the same address as its NFC record",
        _snd("jose\u0301@josegoods.example", _nfd)["resolution"] == "contact_email")
     s = _snd("Hearthline Home =?utf-8?b?S?= <billing@phish.example>")
-    ok("a display name that cannot be decoded is not shown, and its brand name beside it is still checked",
-       s["sender"]["name"] is None and "name_undecodable" in s["flags"]
-       and "display_name_names_another_account" in s["flags"])
+    s2 = _snd("=?utf-8?q?Hearthline_Home?= =?utf-8?q?=FF?= <billing@phish.example>")
+    ok("a display name with a word that cannot be decoded keeps its other words, plain or encoded, and "
+       "they are checked",
+       s["sender"]["name"] == "Hearthline Home" and "name_undecodable" in s["flags"]
+       and "display_name_names_another_account" in s["flags"]
+       and s2["sender"]["name"] == "Hearthline Home" and "display_name_names_another_account" in s2["flags"])
+    ok("a display name made of words that cannot be decoded is empty and names nobody",
+       [_snd(h)["flags"] for h in ("=?x-bogus?q?Lumen_Co?= <x@nowhere.example>",
+                                   "=?utf-8?q?Hearthline_Home=FF?= <x@phish.example>",
+                                   "=?hearthline?q??= <x@phish.example>")]
+       == [["name_undecodable"]] * 3)
+    _gl = [{"account_id": "acct-gl-001", "brand_name": "Nikos Goods", "aliases": [],
+            "primary_contact": {"name": "Nikos", "email": "\u03bd\u03af\u03ba\u03bf\u03c2@odos.example"}},
+           {"account_id": "acct-gl-002", "brand_name": "Caps Goods", "aliases": [],
+            "primary_contact": {"name": "Nikos", "email": "\u039d\u038a\u039a\u039f\u03a3@odoscaps.example"}}]
+    ok("a Greek local part in capitals matches its record written with a final sigma, and the reverse",
+       _snd("\u039d\u038a\u039a\u039f\u03a3@odos.example", _gl)["resolution"] == "contact_email"
+       and _snd("\u03bd\u03af\u03ba\u03bf\u03c2@odoscaps.example", _gl)["resolution"] == "contact_email")
+    _pv = [{"account_id": "acct-pv-001", "brand_name": "Zero Goods", "aliases": [],
+            "primary_contact": {"name": "A", "email": "a@\u3007\u3007.example"}}]
+    ok("a domain with an IDNA2008 PVALID symbol outside the letter categories is read, and a contextual "
+       "middle dot is not",
+       _snd("a@\u3007\u3007.example", _pv)["resolution"] == "contact_email"
+       and _domain_name("\u06fd\u06fe\u0f0b.example").startswith("xn--")
+       and "no_address" in _snd("info@col\u00b7legi.example")["flags"])
+    _nm = _snd("jose\u0301@josegoods.example", _nfd)
+    ok("the sender address is given back in NFC, and a fullwidth letter in it is not its ASCII letter",
+       _nm["sender"]["email"] == "jos\u00e9@josegoods.example"
+       and _snd("\uff4darcus.webb@hearthlinehome.example")["resolution"] != "contact_email")
     s = _snd("x" * 2100 + " <marcus.webb@hearthlinehome.example>")
     ok("an over-long header is not matched even when it carries a contact's address",
        s["resolution"] == "none" and s["resolved"] is None and "header_too_long" in s["flags"])
@@ -830,6 +873,10 @@ def selftest():
        [_snd("noreply@social.example", _site(u))["resolution"]
         for u in ("https://social.example//", "https://social.example:/", "https://social.example:/x")]
        == ["none"] * 3 and _homepage_host("https://com/") == "")
+    ok("a scheme needs its //, a bare host with a port is a homepage, and www. on a one-label host is no host",
+       _homepage_host("https:hearthlinehome.example") == ""
+       and _homepage_host("hearthlinehome.example:8080") == "hearthlinehome.example"
+       and _homepage_host("https://www.example/") == "")
     ok("a website with a query or a fragment on /, or a port that is not a number, is not a domain basis",
        [_snd("noreply@social.example", _site(u))["resolution"]
         for u in ("https://social.example/#!/oaklinetools", "https://social.example/?u=oaklinetools",

@@ -21,10 +21,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `FREE_MAIL_DOMAINS` is not matched by domain; a mail domain is read whole (a "/", "?", "#", ":" or
   space makes the address unreadable) and a non-ASCII label is compared as its punycode A-label,
   with no IDNA2003 mapping; an address written as an encoded word is flagged (`encoded_address`)
-  and not matched; a name in a charset that cannot be decoded is dropped (`name_undecodable`); a
-  `Last, First <address>` header is read for its address (`display_name_unquoted`); a display name
-  read from the header that names an account the address does not belong to, or names one when no
-  address could be read, is flagged (`display_name_names_another_account`). The new `tools/mail_triage.py` sorts the
+  and not matched; the words of a display name that cannot be decoded are dropped and the rest
+  kept (`name_undecodable`); a `Last, First <address>` header is read for its address
+  (`display_name_unquoted`); a display name read from the header that names one account (as
+  `accounts.resolve` reads it) that the address does not belong to, or names one when no address
+  could be read, is flagged (`display_name_names_another_account`); the local part is lowercased
+  with `str.lower`. The new `tools/mail_triage.py` sorts the
   inbound messages a session read through its own Gmail connector, at most 50 per call and 65,536
   characters of body each: the offline pattern tier screens each sender name and From header,
   subject, body, Message-ID, date and link, a QUARANTINE or BLOCK verdict puts the message in
