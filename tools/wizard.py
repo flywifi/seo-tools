@@ -89,6 +89,28 @@ def _mcp_command(name: str, venv_tool=None, which=None) -> str:
     found = (venv_tool or env_paths.venv_tool)(name) or (which or env_paths.which)(name)
     return found or name
 
+# Claude Desktop's local Google tool server (P103 WP2b). Gmail starts read-only at the Google
+# sign-in (--permissions gmail:readonly asks Google for read scopes alone, so no tool can send with
+# that token); every other service keeps the full access it had. The person turns Gmail sending on
+# or off on the Google screen (the gmail_write_tools flag); configure_tool refuses that flag. The
+# --permissions levels were checked on workspace-mcp 2.3.0, the floor uvx is given.
+_WORKSPACE_MCP_SPEC = "workspace-mcp>=2.3.0"
+_WORKSPACE_OTHER_SERVICES = ("calendar", "drive", "docs", "sheets", "slides", "forms", "tasks",
+                             "contacts", "chat", "search", "appscript")
+
+
+def _workspace_mcp_args(gmail_write: bool) -> list:
+    """The uvx arguments for the google-workspace entry: Gmail at send level when gmail_write is
+    True, else read-only; the other services at full."""
+    return ["--from", _WORKSPACE_MCP_SPEC, "workspace-mcp", "--permissions",
+            "gmail:send" if gmail_write else "gmail:readonly",
+            *(f"{s}:full" for s in _WORKSPACE_OTHER_SERVICES)]
+
+
+def _gmail_write_on() -> bool:
+    """Whether the person turned Gmail sending on (the gmail_write_tools flag; off by default)."""
+    return _flag_enabled(_load_creator_config(), "gmail_write_tools")
+
 def _os_label() -> str:
     return {"mac": "macOS", "windows": "Windows", "linux": "Linux"}[_os()]
 
@@ -976,7 +998,8 @@ cover Microsoft/Outlook (use the Microsoft 365 step for that).</div>
 Google locally on this computer (Google Cloud Console)</summary>
 <p>Only needed if you specifically want the Google MCP server running on this machine (for example,
 to script Google from local tools). It requires a one-time Google Cloud Console project. Most people
-should use the built-in connector above instead.</p>
+should use the built-in connector above instead. This local server opens Gmail read-only; you can
+turn Gmail sending on afterwards on the next screen.</p>
 <h2>Step 1: Get your Google credentials (one time only)</h2>
 <ol class="steps">
   <li>Open <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>
@@ -1010,7 +1033,29 @@ Creator OS servers or committed to git.</div>
 <a class="btn btn-outline" href="/desktop">Back</a>
 """, dots=["done", "done", "active", "dot"])
 
-def _screen_google_done() -> str:
+def _gmail_write_form(saved: str = "") -> str:
+    """The Gmail sending tick box (P103 WP2b): off by default; the person turns it on here."""
+    on = _gmail_write_on()
+    state = ("<strong>on</strong>: Claude Desktop's local Google server can send, draft and label "
+             "Gmail. Claude still asks before each send." if on else
+             "<strong>off</strong>: Claude Desktop's local Google server can read your mail but "
+             "cannot send, draft or label it.")
+    saved_html = f'<div class="success-box">{saved}</div>' if saved else ""
+    return f"""
+<h2>Gmail sending</h2>
+{saved_html}<p>Gmail sending is {state}</p>
+<form method="POST" action="/api/google-gmail-write">
+  <label><input type="checkbox" name="gmail_write"{" checked" if on else ""}>
+    Let Claude Desktop send, draft and label Gmail with this connection</label>
+  <div class="note">Turn this on only if you want Claude to send email for you. After you save,
+  restart Claude Desktop; Google may ask you to sign in again, since the access it grants changes.
+  This setting does not change the built-in Google connector in Claude, which asks you before each
+  send.</div>
+  <button class="btn btn-outline" type="submit">Save Gmail sending</button>
+</form>"""
+
+
+def _screen_google_done(saved: str = "") -> str:
     return _page("Google Connected", """
 <h1><span class="check">&#10003;</span> Google Workspace connected</h1>
 <div class="success-box">
@@ -1025,6 +1070,7 @@ with your Google account. Click <strong>Allow</strong> when prompted.</p>
   <li>Access planning docs, briefs, and contracts in Drive</li>
   <li>Pull analytics data from Google Sheets</li>
 </ul>
+""" + _gmail_write_form(saved) + """
 <a class="btn btn-primary" href="/microsoft">Also connect Microsoft 365</a>
 <a class="btn btn-secondary" href="/publishing-setup">Set up social media publishing</a>
 <a class="btn btn-success" href="/done">I&#8217;m done, show me what to try</a>
@@ -4756,6 +4802,42 @@ anything, and closing this window does not stop the work.</p>
                 self._send(_screen_storage_folder(error=f"Could not update the configuration: {exc}"))
             return
 
+        if path == "/api/google-gmail-write":
+            # P103 WP2b: the person turns Gmail sending on or off. The flag records the choice, and
+            # a google-workspace entry this wizard wrote gets the matching Gmail level; a config
+            # with no such entry is left alone (the built-in connector is not changed here).
+            want = self._read_form().get("gmail_write") == "on"
+            _update_capability_flag("gmail_write_tools", want)
+            def _ours(cfg):
+                entry = ((cfg or {}).get("mcpServers") or {}).get("google-workspace")
+                return entry if (isinstance(entry, dict) and "workspace-mcp" in
+                                 " ".join(map(str, entry.get("args") or []))) else None
+
+            has_entry = False
+            for p, _why in _claude_config_targets():
+                if p.exists() and _ours(_read_claude_config_at(p)):
+                    has_entry = True
+
+            def _set_gmail_level(cfg):
+                entry = _ours(cfg)
+                if entry is not None:
+                    entry["args"] = _workspace_mcp_args(want)
+
+            word = "on" if want else "off"
+            try:
+                if has_entry:
+                    _update_claude_config(_set_gmail_level)
+                    note = (f"Gmail sending is now {word}. Restart Claude Desktop to use it; Google may "
+                            f"ask you to sign in again.")
+                else:
+                    note = (f"Saved: Gmail sending {word}. Claude Desktop has no local Google server from "
+                            f"this wizard yet, so the setting applies when you add one.")
+                self._send(_screen_google_done(saved=note))
+            except Exception as exc:  # noqa: BLE001
+                self._send(_screen_google_done(saved=f"Could not update the Claude Desktop config: "
+                                                     f"{html.escape(str(exc))}"))
+            return
+
         if path == "/api/write-google":
             data = self._read_form()
             client_id = data.get("client_id", "").strip()
@@ -4780,7 +4862,7 @@ anything, and closing this window does not stop the work.</p>
             try:
                 google_entry = {
                     "command": _mcp_command("uvx"),
-                    "args": ["workspace-mcp"],
+                    "args": _workspace_mcp_args(_gmail_write_on()),
                     "env": {
                         "GOOGLE_OAUTH_CLIENT_ID": client_id,
                         "GOOGLE_OAUTH_CLIENT_SECRET": client_secret,
@@ -5753,6 +5835,62 @@ def _selftest_p101() -> int:
           f"a settings route drops the servers already there, the hub route skips the Drive folder rule "
           f"or its explanation, or /done shows another system's restart step ({_kept_rt}, {_hub_seen_rt}, "
           f"{'That is the whole Drive' in _hub_body_rt}, {'notification area' in _done_rt})")
+    # P103 WP2b: the local Google entry opens Gmail read-only, and the Gmail sending box switches its
+    # level, keeps the entry's other keys and the other servers, and writes no config that has none.
+    _g_gw = globals()
+    _keys_gw = ("_claude_config_targets", "_update_capability_flag", "_load_creator_config", "_has_uv",
+                "_set")
+    _saved_gw = {k: _g_gw[k] for k in _keys_gw}
+    _flags_gw, _sent_gw = [], []
+    with tempfile.TemporaryDirectory() as _gw_td:
+        _cfg_gw = pathlib.Path(_gw_td) / "claude_desktop_config.json"
+        _none_gw = pathlib.Path(_gw_td) / "empty" / "claude_desktop_config.json"
+
+        def _post_gw(route, form):
+            _h = _Handler.__new__(_Handler)
+            _h.path, _h.headers = route, {}
+            _h._read_form = lambda: dict(form)
+            _h._read_body = lambda: ""
+            _h._send = lambda body, status=200, content_type="text/html": _sent_gw.append(body)
+            _h._redirect = lambda location: _sent_gw.append(location)
+            with _cl_rt.redirect_stdout(_io_rt.StringIO()):
+                _h.do_POST()
+        try:
+            _g_gw.update(_claude_config_targets=lambda: [(_cfg_gw, "the test file")],
+                         _update_capability_flag=lambda key, value: _flags_gw.append((key, value)),
+                         _load_creator_config=lambda: {"capabilities": {}}, _has_uv=lambda: True,
+                         _set=lambda **kw: None)
+            _cfg_gw.write_text(json.dumps({"mcpServers": {"own": {"command": "o"}}}), encoding="utf-8")
+            _post_gw("/api/write-google", {"client_id": "cid", "client_secret": "sec"})
+            _new_gw = json.loads(_cfg_gw.read_text(encoding="utf-8"))["mcpServers"]["google-workspace"]
+            _flags_gw.clear()
+            _post_gw("/api/google-gmail-write", {"gmail_write": "on"})
+            _on_gw = json.loads(_cfg_gw.read_text(encoding="utf-8"))["mcpServers"]
+            _post_gw("/api/google-gmail-write", {})
+            _off_gw = json.loads(_cfg_gw.read_text(encoding="utf-8"))["mcpServers"]
+            _g_gw["_claude_config_targets"] = lambda: [(_none_gw, "absent")]
+            _post_gw("/api/google-gmail-write", {"gmail_write": "on"})
+            _g_gw["_load_creator_config"] = lambda: {"capabilities": {"gmail_write_tools": {"enabled": True}}}
+            _form_on_gw = _gmail_write_form()
+            _g_gw["_load_creator_config"] = lambda: {"capabilities": {}}
+            _form_off_gw = _gmail_write_form()
+        finally:
+            _g_gw.update(_saved_gw)
+    _ro_gw, _rw_gw = _workspace_mcp_args(False), _workspace_mcp_args(True)
+    check(_ro_gw[:5] == ["--from", "workspace-mcp>=2.3.0", "workspace-mcp", "--permissions", "gmail:readonly"]
+          and _rw_gw[4] == "gmail:send" and _ro_gw[5:] == _rw_gw[5:]
+          and _ro_gw[5:] == [f"{s}:full" for s in _WORKSPACE_OTHER_SERVICES] and "calendar:full" in _ro_gw
+          and _new_gw["args"] == _ro_gw and _new_gw["env"] == {"GOOGLE_OAUTH_CLIENT_ID": "cid",
+                                                              "GOOGLE_OAUTH_CLIENT_SECRET": "sec"}
+          and _on_gw["google-workspace"]["args"] == _rw_gw and _on_gw["google-workspace"]["env"] == _new_gw["env"]
+          and "own" in _on_gw and _off_gw["google-workspace"]["args"] == _ro_gw and not _none_gw.exists()
+          and _flags_gw == [("gmail_write_tools", True), ("gmail_write_tools", False), ("gmail_write_tools", True)]
+          and " checked" in _form_on_gw and " checked" not in _form_off_gw and "cannot send" in _form_off_gw
+          and any("Gmail sending is now on" in b for b in _sent_gw if isinstance(b, str))
+          and any("applies when you add one" in b for b in _sent_gw if isinstance(b, str)),
+          f"the local Google entry does not open Gmail read-only, or the Gmail sending box does not switch "
+          f"its level alone, or writes a config that has no entry ({_new_gw.get('args')}, {_flags_gw}, "
+          f"{_none_gw.exists()})")
     # P102: on Windows a network path is refused from its text, before anything resolves it (a slow
     # or offline server blocks realpath, and the wizard answers one request at a time).
     def _no_fs_n(_p):

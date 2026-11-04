@@ -5,11 +5,18 @@ The CRM read lane, shaped like tools/finance.py and tools/obligations.py (the of
 lane, docs/LOCAL_CONTEXT.md): stdlib only, CREATOR_OS_ROOT sandbox, computed_by on every result,
 a missing figure is null plus a gaps[] entry, never a guess (protocols/no-fabrication.md).
 
-This tool READS brand account and deal records and answers three questions:
+This tool READS brand account and deal records and answers four questions:
   - resolve(query): which account does a fuzzy phrase ("that lightbulb company", "hearthline")
     point at? Tiered matching (exact, alias, substring, difflib fuzzy, brand-category term map).
-    It NEVER auto-picks past the alias tier: a category or multi-candidate outcome returns
-    resolved: null plus the candidate list with the evidence for each, for the human to choose.
+    It sets `resolved` for a decisive exact or alias match, or for a single candidate at
+    FUZZY_HIGH or above (a lone substring match counts); a category or multi-candidate outcome
+    returns resolved: null plus the candidate list with the evidence for each, for the human to
+    choose.
+  - resolve_sender(from_header): which account does an email sender belong to? It matches the
+    ADDRESS, not the display name (P103): an address that is a contact email on one account
+    resolves; an address whose domain is a contact-email domain or the account's website host
+    (or a subdomain of one) is a candidate only; a free webmail domain is never matched by domain;
+    a display name that names an account the address does not match is flagged.
   - contacts(query, person): the contact(s) on the resolved account, optionally filtered to a
     person hint. A person hint that matches nobody returns a gap, never the wrong person.
   - deal_status(query|deal_id): the lifecycle stage of a deal, reported VERBATIM from the record
@@ -25,6 +32,7 @@ redacted=True) to mask names to initials and emails for anything quoted off this
 Usage:
   python3 tools/accounts.py --resolve "that lightbulb company" [--records FILE] [--redacted]
   python3 tools/accounts.py --contacts "hearthline" [--person "marcus"] [--records FILE] [--redacted]
+  python3 tools/accounts.py --sender "Name <someone@brand.example>" [--records FILE] [--redacted]
   python3 tools/accounts.py --deal-status "lumen" [--deals FILE] [--records FILE] [--today YYYY-MM-DD]
   python3 tools/accounts.py --deal-status --deal-id deal-lumen-001 [--deals FILE]
   python3 tools/accounts.py --selftest
@@ -137,9 +145,10 @@ def _score_account(query_norm, acct):
 
 
 def resolve(query, accounts=None):
-    """Resolve a fuzzy account phrase to at most one account. Never auto-picks past the alias
-    tier: only an exact/alias match, or a sole fuzzy_high candidate, sets `resolved`. Everything
-    else returns resolved: null plus the ranked candidates with each match_basis."""
+    """Resolve a fuzzy account phrase to at most one account. `resolved` is set for a decisive
+    exact or alias match, or for a single candidate at FUZZY_HIGH or above (a lone substring match
+    counts). Everything else returns resolved: null plus the ranked candidates with each
+    match_basis."""
     accts = load_accounts(accounts)
     qn = _norm(query)
     result = {"query": query, "resolved": None, "resolution": "none",
@@ -181,6 +190,150 @@ def resolve(query, accounts=None):
         result["gaps"].append(
             "no single confident match; candidates surfaced for the human to choose "
             "(a category or nickname phrase never auto-resolves)")
+    return result
+
+
+# ── sender (an email From header) ────────────────────────────────────────────
+
+# Free webmail domains: anyone can hold an address there, so a sender on one is matched by its full
+# address only, never by domain (P103). A brand contact who writes from one still matches exactly.
+FREE_MAIL_DOMAINS = frozenset({
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "hotmail.co.uk", "live.com",
+    "msn.com", "yahoo.com", "yahoo.co.uk", "ymail.com", "rocketmail.com", "icloud.com", "me.com",
+    "mac.com", "aol.com", "proton.me", "protonmail.com", "pm.me", "gmx.com", "gmx.net", "gmx.de",
+    "zoho.com", "zohomail.com", "yandex.com", "mail.com", "fastmail.com", "hey.com",
+    "tutanota.com", "tuta.io", "web.de", "qq.com", "163.com",
+})
+SENDER_HEADER_MAX = 2048   # characters of a From header read; a longer one is not matched
+SENDER_NAME_MAX = 200      # characters of a display name compared against account names
+
+
+def _host(value):
+    """The lowercase ASCII host of a domain or URL ("https://www.Brand.example/shop" ->
+    "brand.example"), IDNA-encoded so a Unicode and a punycode spelling compare equal, or ""."""
+    s = str(value or "").strip().lower()
+    if not s:
+        return ""
+    if "//" in s:
+        s = s.split("//", 1)[1]
+    s = s.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0].rsplit("@", 1)[-1].split(":", 1)[0]
+    s = s.rstrip(".")
+    if s.startswith("www."):
+        s = s[4:]
+    try:
+        s = s.encode("idna").decode("ascii")
+    except UnicodeError:
+        pass
+    return s
+
+
+def _address(value):
+    """A lowercase address with its domain IDNA-encoded, or "" when value is not one address."""
+    s = str(value or "").strip().lower()
+    local, at, domain = s.rpartition("@")
+    if not at or not local or not domain or any(c.isspace() for c in s):
+        return ""
+    return f"{local}@{_host(domain)}"
+
+
+def _sender_domains(acct, free=FREE_MAIL_DOMAINS):
+    """The domains a sender may share with this account: its contact-email domains and its website
+    host, leaving out free webmail domains (free)."""
+    out = set()
+    for c in _all_contacts(acct):
+        addr = _address(c.get("email"))
+        if addr:
+            out.add(addr.rsplit("@", 1)[1])
+    site = _host(acct.get("website"))
+    if site:
+        out.add(site)
+    return {d for d in out if d and d not in free}
+
+
+def resolve_sender(from_header, accounts=None, free_mail=None):
+    """Which account an email sender belongs to, by ADDRESS (P103). `resolved` is set only when the
+    address is a contact email on exactly one account. A sender whose domain equals, or is a
+    subdomain of, an account's contact-email domain or website host is a candidate for the human
+    to confirm (`domain_candidate`), never resolved: anyone at a company can write, and a domain
+    says nothing about which person. A free webmail domain is never matched by domain. The
+    display name is not used to match; when it names an account the address does not match, the
+    result carries the flag `display_name_names_another_account` (what a spoofed brand email looks
+    like). free_mail stands in for FREE_MAIL_DOMAINS (the selftest passes .example names, so no
+    address at a real provider is written into the repo)."""
+    from email.header import decode_header, make_header
+    from email.utils import parseaddr
+    accts = load_accounts(accounts)
+    free = FREE_MAIL_DOMAINS if free_mail is None else frozenset(free_mail)
+    result = {"sender": {"name": None, "email": None}, "domain": None, "resolution": "none",
+              "resolved": None, "candidates": [], "flags": [],
+              "computed_by": f"{TOOL}.resolve_sender", "gaps": []}
+    raw = str(from_header or "")
+    if len(raw) > SENDER_HEADER_MAX:
+        result["flags"].append("header_too_long")
+        result["gaps"].append(f"the From header is longer than {SENDER_HEADER_MAX} characters; not matched")
+        return result
+    try:
+        raw = str(make_header(decode_header(raw)))
+    except (ValueError, LookupError, UnicodeError):
+        pass
+    name, addr = parseaddr(raw)
+    addr = _address(addr)
+    name = name.strip()[:SENDER_NAME_MAX]
+    result["sender"] = {"name": name or None, "email": addr or None}
+    if not addr:
+        result["flags"].append("no_address")
+        result["gaps"].append("no single sender address could be read from the From header")
+        return result
+    if not accts:
+        result["gaps"].append("no account records available (fresh clone or empty store)")
+        return result
+    domain = addr.rsplit("@", 1)[1]
+    result["domain"] = domain
+
+    exact = []
+    for a in accts:
+        for c in _all_contacts(a):
+            if _address(c.get("email")) == addr:
+                exact.append((a, c))
+                break
+    if len(exact) == 1:
+        a, c = exact[0]
+        result["resolution"] = "contact_email"
+        result["resolved"] = {"account_id": a.get("account_id"), "brand_name": a.get("brand_name"),
+                              "contact": {"name": c.get("name"), "email": c.get("email"),
+                                          "role": c.get("role"), "kind": c.get("kind")}}
+    elif len(exact) > 1:
+        result["resolution"] = "contact_email_ambiguous"
+        result["candidates"] = [{"account_id": a.get("account_id"), "brand_name": a.get("brand_name"),
+                                 "match_basis": "contact_email"} for a, _ in exact]
+        result["flags"].append("address_on_several_accounts")
+        result["gaps"].append("this address is a contact on more than one account; ask the human which")
+    elif domain in free:
+        result["flags"].append("free_mail_domain")
+        result["gaps"].append("a free webmail address that no account lists; not matched by domain")
+    else:
+        for a in accts:
+            for d in sorted(_sender_domains(a, free)):
+                if domain == d or domain.endswith("." + d):
+                    result["candidates"].append({"account_id": a.get("account_id"),
+                                                 "brand_name": a.get("brand_name"),
+                                                 "match_basis": "domain" if domain == d else "subdomain"})
+                    break
+        if result["candidates"]:
+            result["resolution"] = "domain_candidate"
+            result["gaps"].append("the sender's domain matches an account but the address is not a "
+                                  "contact on record; the human confirms who this is")
+        else:
+            result["gaps"].append("no account lists this address or its domain")
+
+    if name:
+        named = (resolve(name, accts).get("resolved") or {}).get("account_id")
+        matched = {result["resolved"]["account_id"]} if result["resolved"] else set()
+        matched |= {c["account_id"] for c in result["candidates"]}
+        if named and named not in matched:
+            result["flags"].append("display_name_names_another_account")
+            result["gaps"].append("the display name names an account the address does not belong to "
+                                  "(a spoofed sender looks like this)")
     return result
 
 
@@ -397,6 +550,72 @@ def selftest():
     d = deal_status(deal_id="nope", deals=_DEALS)
     ok("missing deal id gaps", d["deals"] == [] and d["gaps"])
 
+    # P103: a sender is matched by address, never by display name
+    def _snd(header, roster=_ROSTER):
+        return resolve_sender(header, roster)
+
+    s = _snd("Marcus Webb <marcus.webb@hearthlinehome.example>")
+    ok("a contact's address resolves to its account",
+       s["resolution"] == "contact_email" and s["resolved"]["account_id"] == "acct-hearthline-001"
+       and s["resolved"]["contact"]["kind"] == "primary" and not s["flags"])
+    s = _snd("MARCUS.WEBB@HearthlineHome.example")
+    ok("address matching ignores letter case",
+       s["resolution"] == "contact_email" and s["resolved"]["account_id"] == "acct-hearthline-001")
+    s = _snd("Dana <dana.ellis@hearthlinehome.example>")
+    ok("a secondary contact's address resolves",
+       s["resolved"] and s["resolved"]["contact"]["kind"] == "secondary")
+    s = _snd("New Person <jo@hearthlinehome.example>")
+    ok("an unknown address on a contact's domain is a candidate, not resolved",
+       s["resolution"] == "domain_candidate" and s["resolved"] is None
+       and [c["account_id"] for c in s["candidates"]] == ["acct-hearthline-001"]
+       and s["candidates"][0]["match_basis"] == "domain")
+    s = _snd("Ops <billing@mail.hearthlinehome.example>")
+    ok("a subdomain of a contact's domain is a candidate",
+       s["resolution"] == "domain_candidate" and s["candidates"][0]["match_basis"] == "subdomain")
+    s = _snd("Hearthline Home <billing@phish.example>")
+    ok("a display name naming an account does not match it, and is flagged",
+       s["resolution"] == "none" and s["resolved"] is None and not s["candidates"]
+       and "display_name_names_another_account" in s["flags"])
+    ok("a look-alike domain that ends with a contact's domain plus more does not match",
+       _snd("Sam <marcus.webb@hearthlinehome.example.phish.example>")["resolution"] == "none")
+    ok("a domain that merely ends with the same letters does not match",
+       _snd("x <x@evil-hearthlinehome.example>")["resolution"] == "none")
+    _free = {"freemail.example"}
+    s = resolve_sender("Sam Ortega <sam.ortega@freemail.example>", _ROSTER, free_mail=_free)
+    ok("a free webmail domain is not matched by domain",
+       s["resolution"] == "none" and "free_mail_domain" in s["flags"])
+    _gm = [{"account_id": "acct-gm-001", "brand_name": "Kiln Studio", "aliases": [],
+            "primary_contact": {"name": "Ana", "email": "kiln.studio@freemail.example", "role": "Owner"}}]
+    ok("a contact on a free webmail domain still matches by full address, and no one else there does",
+       resolve_sender("Ana <kiln.studio@freemail.example>", _gm, free_mail=_free)["resolution"] == "contact_email"
+       and resolve_sender("Other <someone@freemail.example>", _gm, free_mail=_free)["resolution"] == "none"
+       and resolve_sender("Other <someone@freemail.example>", _gm, free_mail=())["resolution"]
+       == "domain_candidate")
+    ok("the free webmail list holds the large providers",
+       {"gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotmail.com"} <= FREE_MAIL_DOMAINS)
+    _site = [{"account_id": "acct-site-001", "brand_name": "Oakline Tools", "aliases": [],
+              "website": "https://www.oaklinetools.example/shop", "primary_contact": {}}]
+    s = _snd("Press <press@oaklinetools.example>", _site)
+    ok("the website host makes the domain a candidate",
+       s["resolution"] == "domain_candidate" and s["candidates"][0]["account_id"] == "acct-site-001")
+    _dup = [dict(_ROSTER[0]), {"account_id": "acct-dup-001", "brand_name": "Other Brand", "aliases": [],
+                               "primary_contact": {"name": "Marcus Webb",
+                                                   "email": "marcus.webb@hearthlinehome.example"}}]
+    s = _snd("marcus.webb@hearthlinehome.example", _dup)
+    ok("an address on two accounts is not resolved",
+       s["resolved"] is None and "address_on_several_accounts" in s["flags"] and len(s["candidates"]) == 2)
+    ok("no address, an over-long header and an empty store are reported, not matched",
+       "no_address" in _snd("not an address")["flags"]
+       and "header_too_long" in _snd("a" * (SENDER_HEADER_MAX + 1))["flags"]
+       and _snd("marcus.webb@hearthlinehome.example", [])["resolution"] == "none")
+    s = _snd("=?utf-8?q?Hearthline_Home?= <billing@phish.example>")
+    ok("an encoded display name is decoded before the spoof check",
+       "display_name_names_another_account" in s["flags"])
+    red_s = redact(_snd("Marcus Webb <marcus.webb@hearthlinehome.example>"))
+    ok("a redacted sender result masks the brand, the contact and the address",
+       red_s["resolved"]["brand_name"] == "H.H." and red_s["sender"]["email"].startswith("m***@")
+       and red_s["resolved"]["contact"]["name"] == "M.W.")
+
     # redaction
     red = redact({"name": "Marcus Webb", "email": "marcus.webb@hearthlinehome.example",
                   "account_id": "acct-hearthline-001"})
@@ -440,6 +659,7 @@ def main(argv):
     ap.add_argument("--resolve", metavar="QUERY", help="resolve a fuzzy brand phrase to an account")
     ap.add_argument("--contacts", metavar="QUERY", help="contacts on the account a phrase resolves to")
     ap.add_argument("--person", metavar="HINT", help="filter contacts by a name or role token")
+    ap.add_argument("--sender", metavar="FROM", help="the account an email From header belongs to")
     ap.add_argument("--deal-status", metavar="QUERY", nargs="?", const="", help="deal lifecycle status")
     ap.add_argument("--deal-id", metavar="ID", help="deal id for --deal-status")
     ap.add_argument("--records", metavar="FILE", help="account records JSON (default: local store)")
@@ -464,6 +684,8 @@ def main(argv):
         result = resolve(args.resolve, accts)
     elif args.contacts is not None:
         result = contacts(args.contacts, person=args.person, accounts=accts)
+    elif args.sender is not None:
+        result = resolve_sender(args.sender, accts)
     elif args.deal_status is not None or args.deal_id:
         q = args.deal_status if args.deal_status else None
         result = deal_status(query=q, deal_id=args.deal_id, deals=deals, accounts=accts,

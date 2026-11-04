@@ -283,6 +283,16 @@ which runs via `uvx workspace-mcp`. This is simpler than Google's official MCP s
 it only needs a standard OAuth Client ID and Secret -- no Google Cloud service account or
 complex API setup. The wizard installs `uv` automatically if it is not already present.
 
+**Gmail starts read-only (P103):** the wizard writes the `google-workspace` entry as
+`uvx --from "workspace-mcp>=2.3.0" workspace-mcp --permissions gmail:readonly ...` with every other
+service at `:full` (`tools/wizard.py::_workspace_mcp_args`), so the Google sign-in asks for read
+access to Gmail alone and Claude Desktop's local server can read mail but not send, draft or label
+it. The Google screen's **Gmail sending** tick box (`/api/google-gmail-write`) sets the
+`gmail_write_tools` flag and switches the entry to `gmail:send`, or back; Google may ask you to sign
+in again after a change. The flag is set there and not through the `configure_tool` MCP tool, which
+refuses it, so an instruction in an email cannot turn sending on. The built-in Google connector in
+Claude is not changed by this box; it asks before each send.
+
 **Microsoft device code flow:** The `ms-365-mcp-server` (by Softeria) uses Microsoft's device
 code OAuth variant. Instead of a browser redirect, Claude Desktop shows a short code and a URL.
 You visit the URL, enter the code, and Microsoft authorizes the connection. This works through

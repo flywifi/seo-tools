@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-10-11",
+  "last_registry_update": "2026-11-04",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -2113,7 +2113,7 @@
       "staleness_threshold_days": 30,
       "last_checked": null,
       "last_changed_detected": null,
-      "extraction_hint": "tool names, OAuth 2.1 scopes, and tool-tier flags used by the Google connectors and the wizard",
+      "extraction_hint": "tool names, OAuth scopes, tool-tier flags and the --permissions levels (gmail:readonly, gmail:send) used by the Google connectors and the wizard",
       "used_by": [
         "gmail",
         "google_calendar",
@@ -2127,8 +2127,8 @@
       "package": null,
       "upstream_api": "github_releases",
       "check_url": "https://api.github.com/repos/taylorwilsdon/google_workspace_mcp/releases/latest",
-      "pinned_constraint": "uvx workspace-mcp",
-      "validated_version": null,
+      "pinned_constraint": "uvx --from \"workspace-mcp>=2.3.0\" workspace-mcp",
+      "validated_version": "2.3.0",
       "_why": "the actual server backing every Google Workspace connector; a tool-name or auth change breaks Gmail/Calendar/Drive setup"
     },
     {
@@ -7589,7 +7589,41 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "openai-google-app-data-controls",
+      "name": "OpenAI Help - Google app data controls FAQ (Gmail scope)",
+      "url": "https://help.openai.com/en/articles/10408842-google-app-data-controls-faq",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "gmail-download-message",
+      "name": "Gmail Help - Download and send emails as attachments (Download message)",
+      "url": "https://support.google.com/mail/answer/9261412",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "d4cfd9732b19e3556863f63e600b060cc3479e2e73479080ff7b3fca24f44a3e"
+  "_content_digest": "3fc459ff5701e4363f6666b69dcd7cf3690c82e731d18ea9d2faa594b6f4943c"
 }

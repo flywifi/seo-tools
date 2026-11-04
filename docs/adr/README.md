@@ -92,3 +92,4 @@ added beyond what those records state. New decisions get the next number via
 | [0081](0081-p102-creator-facing-text-has-no-em-dash.md) | The drift guard keeps em dashes out of the local tools' creator-facing text | 2026-10-11 | Accepted |
 | [0082](0082-p103-income-ledger-and-retail-price-provenance.md) | The income ledger records what the content business received, and a retail price only with its source | 2026-10-25 | Accepted |
 | [0083](0083-p103-person-labelled-receipts-in-the-inbox.md) | The person may label an Inbox document a receipt, and its entry is recorded after review | 2026-10-26 | Accepted |
+| [0084](0084-p103-mail-triage-through-the-sessions-gmail-connector.md) | Inbound mail is sorted on this computer, senders are matched by address, and Gmail opens read-only | 2026-11-04 | Accepted |

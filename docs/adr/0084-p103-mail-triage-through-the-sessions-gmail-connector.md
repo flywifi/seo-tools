@@ -1,0 +1,68 @@
+# 0084. Inbound mail is sorted on this computer, senders are matched by address, and Gmail opens read-only
+
+- Date: 2026-11-04
+- Status: Accepted
+
+## Context
+
+The person asked for the assistant to use its own Gmail connector (Claude, ChatGPT or Gemini) to
+scan the connected inbox and say which inbound messages come from brands they work with. ADR 0083
+left reading mail from a connected Gmail account to a separate change.
+
+Three facts shape it. Each vendor's Gmail connector can send mail as well as read it (Claude's
+connector drafts and sends with approval; ChatGPT's Gmail app holds the `gmail.modify` scope), and
+Claude's reads attachment metadata, not content. The CRM lookup `tools/accounts.py::resolve`
+matches brand names, so a sender shown as "Brand Name <billing@phish.example>" resolved to that
+brand's account, while the brand contact's own address matched nothing. And Claude Desktop's local
+Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail_message` included.
+
+## Decision
+
+1. `tools/accounts.py::resolve_sender` matches an email sender to an account by **address**: a
+   contact email on exactly one account resolves; a domain equal to, or a subdomain (on a dot
+   boundary) of, a contact-email domain or the account's website host is a candidate the person
+   confirms; a free webmail domain (`FREE_MAIL_DOMAINS`) is never matched by domain; a display
+   name that names an account the address does not belong to is flagged
+   (`display_name_names_another_account`). The display name is not used to match.
+2. `tools/mail_triage.py` sorts the messages a session read through its connector (at most 50 per
+   call, 64 KB of body each): the offline pattern tier screens the sender's name, the subject and
+   the body (pass 1), and a QUARANTINE or BLOCK verdict puts the message in `held` with its subject
+   not echoed and no pass 2; the others get one pile, `payment_notice`, `known_brand`, `new_pitch`
+   or `other`, from fixed word lists and the sender match, with a next step. It has no write path
+   and no mail access; its selftest checks its imports and calls. The `mail_triage` MCP tool wraps it
+   and masks the CRM side of each match over a network transport. The `mail-triage` atom is
+   standalone, like `inbox-routing`; it hands a pitch to `pitch_triage`.
+3. A payment notice is recorded through the Inbox, as ADR 0083 records any receipt: the person
+   saves the message as an `.eml` file (Gmail: More, then Download message) into the hub Inbox and
+   ticks it. The books' evidence stays a file this computer hashed.
+4. The wizard starts `workspace-mcp` (2.3.0 or later) with `--permissions gmail:readonly` and every
+   other service at `full`, so the Google sign-in grants read access to Gmail alone. The Google
+   screen's Gmail sending tick box sets the `gmail_write_tools` flag and switches the entry to
+   `gmail:send`, or back. `configure_tool` refuses that flag (`_PERSON_ONLY_FLAGS`), so an
+   instruction in content the assistant reads cannot turn sending on.
+5. Triage results are returned to the session and not stored between runs.
+
+## Consequences
+
+- On Claude Desktop the person sees which inbound mail is from a brand on record, which is a new
+  pitch and which is a payment notice, without Creator OS writing anything.
+- A brand contact who writes from a free webmail address matches only once that address is on the
+  account; an agency writing for a brand from its own domain is not matched.
+- The pile words are fixed lists: a payment notice or a pitch worded another way lands in `other`.
+- Text past 64 KB of a body is not screened or searched (`body_cut`).
+- The claude.ai Gmail connector is not limited by the wizard; it asks the person before each send,
+  and the atom tells the session not to send, label, archive or delete mail.
+- A person who turns Gmail sending on may be asked to sign in to Google again, since the access
+  requested changes.
+- ChatGPT, Gemini and claude.ai on the web, which cannot call the local tool, are a separate change.
+
+## Sources
+
+```sources
+[
+  {"id": "claude-google-workspace-connectors", "name": "Claude Support - Use Google Workspace connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors", "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-google-app-data-controls", "name": "OpenAI Help - Google app data controls FAQ (Gmail scope)", "url": "https://help.openai.com/en/articles/10408842-google-app-data-controls-faq", "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gmail-download-message", "name": "Gmail Help - Download and send emails as attachments (Download message)", "url": "https://support.google.com/mail/answer/9261412", "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "mcp-workspace", "name": "Google Workspace MCP (workspace-mcp)", "url": "https://github.com/taylorwilsdon/google_workspace_mcp/releases", "category": "mcp-server", "tier": "T1"}
+]
+```

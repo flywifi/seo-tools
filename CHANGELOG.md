@@ -13,6 +13,27 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (mail triage, ADR 0084): `tools/accounts.py::resolve_sender` matches an email sender to a CRM
+  account by address: a contact's address resolves; an address on a contact's domain, or on the
+  account's website host, or a subdomain of either on a dot boundary, is a candidate for the person
+  to confirm; a free webmail domain (`FREE_MAIL_DOMAINS`) is not matched by domain; a display name
+  naming an account the address does not belong to is flagged
+  (`display_name_names_another_account`). The new `tools/mail_triage.py` sorts the inbound messages a
+  session read through its own Gmail connector, at most 50 per call and 64 KB of body each: the
+  offline pattern tier screens each sender name, subject and body, a QUARANTINE or BLOCK verdict
+  puts the message in `held` with its subject not echoed, and the rest get one pile
+  (`payment_notice`, `known_brand`, `new_pitch`, `other`) and a next step; its selftest checks that
+  it imports and calls nothing that writes, starts a process or opens a socket. The new
+  `mail_triage` MCP tool (64 tools) wraps it and masks the CRM side of each match on a network
+  transport (`mcp_server._NETWORK_TRANSPORT`). The new standalone `mail-triage` atom reads the mail,
+  hands a pitch to `pitch_triage`, and tells the person to save a payment notice as `.eml` into the
+  hub Inbox. The wizard writes Claude Desktop's `google-workspace` entry as
+  `uvx --from "workspace-mcp>=2.3.0" workspace-mcp --permissions gmail:readonly ...` with the other
+  services at `full`, and its Google screen's Gmail sending box sets the new `gmail_write_tools`
+  flag and switches the entry to `gmail:send`, or back; `configure_tool` refuses that flag
+  (`_PERSON_ONLY_FLAGS`). The config snippet, `docs/DEPENDENCIES.md`, `docs/WIZARD.md`, the
+  connector registry note, knowledge file 09 and the remote-connector runbook say so; the source
+  registry records `workspace-mcp` 2.3.0 and two new vendor pages.
 - P103 (receipt capture): on the wizard's Inbox screen a document waiting for a Claude session (PDF,
   Word, HTML, text, Markdown or `.eml`) can be ticked as a receipt or payment notice;
   `inbox.person_labelled` runs the offline pattern tier on the text `parse_text` extracts and

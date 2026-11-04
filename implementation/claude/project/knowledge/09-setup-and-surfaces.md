@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-10-26 (Creator OS baseline 77bb6d47). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-11-04 (Creator OS baseline 8e62f32c). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS -- setup help and what works where
 
@@ -83,6 +83,14 @@ claude.ai has a built-in Google Workspace connector: open Customize, then Connec
 Google Workspace, click Add, sign in, and click Allow. Creator OS can then read Gmail (brand
 pitches), Google Calendar (content schedule), and Google Drive files when you ask. Microsoft
 365 is not available on claude.ai; it needs the Claude Desktop path.
+
+On Claude Desktop with Creator OS installed, "check my inbox for brands" sorts inbound mail into
+piles on the computer: mail from a brand already in the CRM, a new pitch, a payment notice, held
+(the injection screen flagged it) and other. Senders are matched by address, never by display
+name, and nothing is sent, labelled, moved or recorded. A payment notice is recorded by saving
+the message as an .eml file (in Gmail: More, then Download message) into the hub Inbox. If the
+setup wizard connected Google locally, that local connection opens Gmail read-only until you tick
+Gmail sending on the wizard's Google screen; the built-in connector asks before each send.
 
 ## Switching between Claude, ChatGPT, and Gemini
 

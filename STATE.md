@@ -5,6 +5,14 @@ Live build status for Creator OS. Update at phase boundaries and after a skill s
 P6 through P100 are complete. Drift guard exits 0 (60 invariants enforced); the battery runs 15 gates.
 Branch: `claude/blissful-cannon-ggivl7`.
 
+- P103 (started 2026-10-25, in progress): Creator Books. Landed: the income ledger
+  (`tools/books.py`, the `income-ledger` atom and the books MCP tools; ADR 0082); receipt capture
+  through the hub Inbox (`tools/receipt_extract.py`, the `receipt-extract` atom, the wizard's receipt
+  work order; ADR 0083); mail triage on Claude Desktop (`tools/mail_triage.py`,
+  `accounts.resolve_sender`, the `mail_triage` MCP tool, the `mail-triage` atom, Gmail read-only in
+  the wizard's local Google entry; ADR 0084). Next: the ChatGPT, Gemini and claude.ai web mail lane,
+  the dashboard's Books tab, photo receipts and price capture, and the Windows acceptance run.
+
 - P101 (started 2026-10-02, in progress): Windows support, from the first live run of the suite on
   a Windows PC. Landed: `tools/file_hash.py` hashes a tracked text file over LF-normalised bytes
   and the doc-freshness, knowledge-projection, Mac-surface, skill-package and GIS stores use it;

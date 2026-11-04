@@ -58,7 +58,7 @@ Canonical transports per `shared/connectors/connectors.json`, `docs/STATISTICS.m
 | Server | Runtime | Command | Key / extra |
 |---|---|---|---|
 | creator-os (first-party) | **python3** | `tools/mcp_server.py` | `mcp` pip pkg |
-| google-workspace | **uv** (uvx) | `uvx workspace-mcp --tool-tier core` | Google OAuth OR claude.ai native |
+| google-workspace | **uv** (uvx) | `uvx --from "workspace-mcp>=2.3.0" workspace-mcp --permissions gmail:readonly calendar:full drive:full docs:full sheets:full slides:full forms:full tasks:full contacts:full chat:full search:full appscript:full` (Gmail read-only; the wizard's Gmail sending box changes `gmail:readonly` to `gmail:send`) | Google OAuth OR claude.ai native |
 | microsoft-365 | **Node 20+** (npx) | `npx -y @softeria/ms-365-mcp-server` | device-code login |
 | wolfram-alpha | **uv** (uvx) | `uvx mcp-wolfram-alpha` | `WOLFRAM_APP_ID` (free tier) |
 | e2b-code-interpreter | **Node** (npx) | `npx -y @e2b/mcp-server` | `E2B_API_KEY` |
