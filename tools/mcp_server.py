@@ -1263,15 +1263,41 @@ def _selftest_static() -> tuple:
        and "Hearthline Home" in json.dumps(_rep_local["messages"][0]["account"])
        and src.count("_mail_triage" + "_masked(masked)") == 1
        and src.count("_mail_triage" + "_reply(messages, masked)") == 1)
-    # The flag is assigned twice outside this selftest: its default and the one __main__ line,
-    # which takes the auth gate's network-bind test of the argv (read from the file, see above).
-    _nt_values = sorted(_ast_p102.unparse(n.value) for top in _ast_p102.parse(src).body
-                        if not (isinstance(top, _ast_p102.FunctionDef) and top.name == "_selftest_static")
-                        for n in _ast_p102.walk(top) if isinstance(n, _ast_p102.Assign)
-                        and any(isinstance(t, _ast_p102.Name) and t.id == "_NETWORK_TRANSPORT"
-                                for t in n.targets))
-    ok("__main__ sets the network flag once, from the auth gate's test of the argv",
+    # Read by AST from the file (see above), so a comment cannot stand in for code: the tool returns
+    # the reply helper's result and calls nothing else that triages; the flag is assigned twice
+    # outside this selftest, its default and one statement directly in the __main__ body, from the
+    # auth gate's network-bind test of the argv; and no string, keyword or global statement outside
+    # this selftest names the flag (globals()[...], setattr and the like are refused by name).
+    _A = _ast_p102
+    _outside = [top for top in _A.parse(src).body
+                if not (isinstance(top, _A.FunctionDef) and top.name == "_selftest_static")]
+    _out_nodes = [n for top in _outside for n in _A.walk(top)]
+    _flag = "_NETWORK" + "_TRANSPORT"
+
+    def _targets(n):
+        return (n.targets if isinstance(n, _A.Assign) else
+                [n.target] if isinstance(n, (_A.AugAssign, _A.AnnAssign)) else [])
+    _nt_values = sorted(_A.unparse(n.value) if n.value is not None else "" for n in _out_nodes
+                        if any(isinstance(t, _A.Name) and t.id == _flag for t in _targets(n)))
+    _main = next((top for top in _outside if isinstance(top, _A.If)
+                  and _A.unparse(top.test) == "__name__ == '__main__'"), None)
+    _main_direct = [_A.unparse(st.value) for st in (_main.body if _main else [])
+                    if any(isinstance(t, _A.Name) and t.id == _flag for t in _targets(st))]
+    _named_elsewhere = [n for n in _out_nodes if (isinstance(n, _A.Constant) and isinstance(n.value, str)
+                                                  and _flag in n.value)
+                        or (isinstance(n, _A.keyword) and n.arg == _flag)
+                        or (isinstance(n, _A.Global) and _flag in n.names)]
+    _tool = next((top for top in _outside if isinstance(top, _A.FunctionDef) and top.name == "mail_triage"),
+                 None)
+    _tool_calls = sorted({_A.unparse(n.func) for n in _A.walk(_tool) if isinstance(n, _A.Call)}) if _tool else []
+    _tool_returns = [_A.unparse(n) for n in _A.walk(_tool) if isinstance(n, _A.Return)] if _tool else []
+    ok("__main__ sets the network flag once, directly, from the auth gate's test of the argv, nothing "
+       "else names it, and the mail_triage tool returns the reply helper's result",
        _nt_values == ["False", "_auth_gate_fires(_args.transport, _args.serve_remote)"]
+       and _main_direct == ["_auth_gate_fires(_args.transport, _args.serve_remote)"] and not _named_elsewhere
+       and _tool_calls == sorted(["json.dumps", "mcp.tool", "str", "_mail_triage" + "_reply"])
+       and ("return json.dumps(_mail_triage" + "_reply(messages, masked), indent=2, ensure_ascii=False)")
+       in _tool_returns
        and _auth_gate_fires(None, True) and _auth_gate_fires("sse", False)
        and _auth_gate_fires("streamable-http", False) and not _auth_gate_fires(None, False)
        and not _auth_gate_fires("stdio", False))

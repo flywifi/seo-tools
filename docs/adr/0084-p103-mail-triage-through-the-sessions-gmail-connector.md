@@ -21,22 +21,30 @@ Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail
 1. `tools/accounts.py::resolve_sender` matches an email sender to an account by **address**: a
    contact email on exactly one account resolves; a domain equal to, or a subdomain (on a dot
    boundary) of, the account's website host is a candidate the person confirms, when the website
-   is a homepage address (no path, no user part) whose host is not on or under a domain in
+   is a homepage address (a host and an optional numeric port followed by nothing or a single
+   "/": no path, query, fragment or user part) whose host is not on or under a domain in
    `FREE_MAIL_DOMAINS`. A contact's own mailbox domain is not a basis: it may be a free or ISP
    mailbox domain that the fixed list does not hold, and then every stranger there would be a
-   candidate. A sender on a `FREE_MAIL_DOMAINS` domain is not matched by domain. Domains are
-   compared lowercased, with each non-ASCII label as its punycode A-label and nothing mapped (the
-   stdlib IDNA2003 codec maps ß to "ss"). The header is split into name and address before any
-   decoding; only the name is decoded, and an address written as an encoded word is flagged
-   (`encoded_address`) and not matched. A display name that names an account the address does not
-   belong to is flagged (`display_name_names_another_account`). The display name is not used to
-   match.
+   candidate. A sender on a `FREE_MAIL_DOMAINS` domain is not matched by domain. A mail domain is
+   read whole (`_domain_name`): lowercased, one trailing dot dropped, every label made of letters,
+   digits, combining marks and "-", and each non-ASCII label written as the punycode A-label of its
+   NFC form with nothing mapped (the stdlib IDNA2003 codec maps ß to "ss"). A "/", "?", "#", ":"
+   or space in it, or a non-ASCII letter that lowercases to an ASCII one (the Kelvin sign), makes
+   the address unreadable (`no_address`) rather than cut short. The header is split into name and
+   address before any decoding; only the name is decoded. An address written as an encoded word
+   is flagged (`encoded_address`) and not matched; a name in a charset that cannot be decoded is
+   dropped (`name_undecodable`); a header of the form `Last, First <address>` is read for its one
+   address (`display_name_unquoted`). A display name read from the header that names an account
+   the address does not belong to, or names one when no address could be read, is flagged
+   (`display_name_names_another_account`). The display name is not used to match.
 2. `tools/mail_triage.py` sorts the messages a session read through its connector (at most 50 per
-   call, 65,536 characters of body each): the offline pattern tier screens the sender's name, the
-   subject and the body (pass 1), and a QUARANTINE or BLOCK verdict puts the message in `held` with
-   its display name and subject not echoed and no pass 2; the others get one pile,
-   `payment_notice`, `known_brand`, `new_pitch` or `other`, from fixed word lists and the sender
-   match, with a next step. It has no write path and no mail access; its selftest reads the
+   call, 65,536 characters of body each): the offline pattern tier screens the sender's name and
+   From header, the subject, the body, the Message-ID and the date (pass 1), and a QUARANTINE or
+   BLOCK verdict puts the message in `held` with its display name, subject, Message-ID and date not
+   echoed and no pass 2; the others get one pile, `payment_notice`, `known_brand`, `new_pitch` or
+   `other`, from fixed word lists and the sender match, with a next step. A payment notice whose
+   display name names another account, or whose sender address could not be read, is told to
+   record nothing until the person knows who sent it. It has no write path and no mail access; its selftest reads the
    module's text for imports and calls by name. The `mail_triage` MCP tool wraps it and masks the
    CRM side of each match over a network transport: names and emails, and each account id as a
    per-call token, since an account id can carry a brand's name. The `mail-triage` atom is
@@ -48,7 +56,9 @@ Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail
    other service at `full`, so the Google sign-in grants Gmail's read scope alone and the server
    registers no Gmail tool that sends, drafts or changes labels. Calendar, Drive and Chat keep full access, and
    their tools can send invitations, share notices and chat messages. The Google screen's Gmail
-   sending tick box sets the `gmail_write_tools` flag and switches the entries the wizard wrote to
+   sending tick box sets the `gmail_write_tools` flag and switches the entries the wizard wrote
+   (command `uvx` with exactly the arguments the wizard writes, or `workspace-mcp` alone as earlier
+   versions wrote it) to
    `gmail:send`, or back; the screen shows the level it reads from those entries, so an entry an
    older wizard wrote (no `--permissions`, every Gmail tool on) shows as on until the person saves.
    `configure_tool` refuses that flag (`_PERSON_ONLY_FLAGS`), so an instruction in content the

@@ -290,7 +290,8 @@ access to Gmail and Claude Desktop's local server can read mail but not send, dr
 Calendar, Drive and Chat keep full access, and their tools can still send invitations, share
 notices and chat messages. The Google screen's **Gmail sending** tick box (`/api/google-gmail-write`)
 switches each Claude Desktop settings file's `google-workspace` entry that the wizard wrote
-(command `uvx`, args naming `workspace-mcp`) to `gmail:send`, or back, then sets the
+(command `uvx` with exactly the arguments the wizard writes, or `workspace-mcp` alone as earlier
+versions wrote it) to `gmail:send`, or back, then sets the
 `gmail_write_tools` flag; Google may ask you to sign in again after a change. A settings file
 without such an entry is not written, and another `google-workspace` entry is left as it is. The
 screen shows the level it reads from those entries (`tools/wizard.py::_gmail_entry_levels`), so an

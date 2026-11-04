@@ -4,20 +4,21 @@
 A chat session reads the creator's inbound mail through its own Gmail connector and hands the
 messages here (the mail_triage MCP tool on Claude Desktop, or a JSON file on the command line).
 For each message this module:
-  - screens the sender's display name, the subject and the body with the offline pattern tier
-    (tools/injection_scan.py, pass 1); a QUARANTINE or BLOCK verdict puts the message in the
-    "held" pile, with no other pile, no next step to act on, and its display name and subject not
-    echoed back;
+  - screens the sender's display name and From header, the subject, the body, the Message-ID and
+    the date with the offline pattern tier (tools/injection_scan.py, pass 1); a QUARANTINE or BLOCK
+    verdict puts the message in the "held" pile, with no other pile, no next step to act on, and
+    its display name, subject, Message-ID and date not echoed back;
   - matches the sender to a CRM account by address (tools/accounts.py::resolve_sender), not by
     display name;
   - proposes one pile, payment_notice, known_brand, new_pitch or other, with the next step.
 
 It has no write path and no mail access: it returns a result. Its selftest reads the module's own
 text (_write_free) and fails on an import outside a fixed list, a call by one of a fixed set of
-write, process and network names, a call to __import__, eval, exec or compile, a getattr whose name
-is not a literal, open() used as a value, and an open() whose mode is not a literal "r" or "rb"; it
-does not read the modules this one imports, and a check by names is passed by code that hides a
-name. A payment
+write, process and network names, a bare call to __import__, eval, exec, compile or vars, a getattr
+whose name is not a literal, open used as a value, an open() whose mode is not a literal "r" or
+"rb", the __dict__, __globals__, __builtins__ and __subclasses__ attributes, and any .modules
+attribute; it does not read the modules this one imports, and a check by names is passed by code
+that hides a name. A payment
 notice is recorded the way the hub Inbox records any receipt (ADR 0083): the person saves the
 message as an .eml file into the Inbox and ticks it there. A new pitch goes to the pitch_triage
 chain. The pile hints come from fixed word lists, not a model; the session's own guard (pass 2)
@@ -79,6 +80,8 @@ NEXT_STEP = {
 SPOOF_NOTE = ("The display name names a brand the address does not belong to. Check the sender "
               "address before you reply.")
 SPOOF_PAYMENT = "Record nothing from it until you know who sent it."
+UNREAD_NOTE = "Creator OS could not read the sender's address."
+_UNREAD_SENDER = ("encoded_address", "no_address", "header_too_long")
 
 
 def _text(value, cap):
@@ -97,7 +100,8 @@ def _one(msg, roster, masked, tokens):
     body, body_cut = _text(msg.get("body"), BODY_MAX)
 
     match = _acc.resolve_sender(sender_raw, roster)
-    screen = _inj.scan_text("\n".join([match["sender"]["name"] or "", subject, body]))
+    screen = _inj.scan_text("\n".join([match["sender"]["name"] or "", sender_raw, subject, body,
+                                       mid or "", when]))
     prior = {"risk_level": screen["risk_level"], "total_score": screen["total_score"],
              "patterns_detected": screen["patterns_detected"]}
     flags = list(match["flags"])
@@ -125,6 +129,8 @@ def _one(msg, roster, masked, tokens):
         step = NEXT_STEP["known_brand_candidate"]
     if not held and "display_name_names_another_account" in flags:
         step = SPOOF_NOTE + " " + (SPOOF_PAYMENT if pile == "payment_notice" else step)
+    elif pile == "payment_notice" and set(_UNREAD_SENDER) & set(flags):
+        step = UNREAD_NOTE + " " + SPOOF_PAYMENT
     account = {"resolution": match["resolution"], "resolved": match["resolved"],
                "candidates": match["candidates"]}
     if masked:
@@ -132,10 +138,13 @@ def _one(msg, roster, masked, tokens):
         # that is the same for one account within this call
         account = _acc.redact(account)
         for item in ([account["resolved"]] if account["resolved"] else []) + account["candidates"]:
-            item["account_id"] = tokens.setdefault(item.get("account_id"), f"account-{len(tokens) + 1}")
+            aid = item.get("account_id")
+            key = aid if isinstance(aid, str) and aid else object()   # no usable id: a token of its own
+            item["account_id"] = tokens.setdefault(key, f"account-{len(tokens) + 1}")
     sender = dict(match["sender"], name=None) if held else match["sender"]
-    return {"message_id": mid, "date": when or None,
-            "subject": None if held else (subject or None),   # a flagged name or subject is not echoed
+    # a flagged message's name, subject, Message-ID and date are not echoed; mid stays the de-dup key
+    return mid, {"message_id": None if held else mid, "date": None if held else (when or None),
+            "subject": None if held else (subject or None),
             "link": link or None, "sender": sender, "pile": pile, "account": account,
             "flags": flags, "next_step": step, "offline_pattern_scan": prior,
             "screen_note": _inj.render_prior(prior), "pass2_pending": not held}
@@ -165,12 +174,12 @@ def triage(messages, accounts=None, masked=False):
         if not isinstance(msg, dict):
             out["gaps"].append(f"message {i} is not an object; skipped")
             continue
-        row = _one(msg, roster, masked, tokens)
-        if row["message_id"]:
-            if row["message_id"] in seen:
+        key, row = _one(msg, roster, masked, tokens)
+        if key:
+            if key in seen:
                 out["gaps"].append(f"message {i} repeats an earlier Message-ID; listed once")
                 continue
-            seen.add(row["message_id"])
+            seen.add(key)
         out["messages"].append(row)
         out["counts"][row["pile"]] += 1
     return out
@@ -184,15 +193,19 @@ _TEST_ONLY = ("selftest", "_write_free")   # functions the import-and-call check
 def _write_free(source):
     """What the module's own text (source) holds, outside the test-only functions, that this check
     refuses: an import outside the allowed set; a call by a banned write, process or network name,
-    or a bare call to __import__, eval, exec or compile; a getattr whose name is not a literal, or
-    is a banned name; open used as a value; an open() whose mode is not a literal "r" or "rb";
-    __builtins__ or sys.modules. It reads names in the text, so code that hides a name is not
-    seen."""
+    or a bare call to __import__, eval, exec, compile or vars; a getattr whose name is not a
+    literal, or is a banned name; open used as a value; an open() whose mode is not a literal "r"
+    or "rb"; the name __builtins__; the attributes __builtins__, __dict__, __globals__ and
+    __subclasses__; and any .modules attribute. It reads names in the text, so code that hides a
+    name (a subscript by a built string, an alias of a write method) is not seen."""
     import ast
     allowed = {"argparse", "json", "re", "sys", "pathlib", "accounts", "injection_scan", "__future__"}
     banned_calls = {"write", "write_text", "write_bytes", "unlink", "rename", "replace", "mkdir",
-                    "rmdir", "touch", "symlink_to", "chmod", "system", "popen", "urlopen"}
-    banned_builtins = {"__import__", "eval", "exec", "compile"}
+                    "rmdir", "touch", "symlink_to", "chmod", "system", "popen", "urlopen",
+                    "remove", "removedirs", "makedirs", "truncate", "hardlink_to", "link", "symlink",
+                    "writelines", "rmtree", "copyfile", "copy2", "copytree", "move"}
+    banned_builtins = {"__import__", "eval", "exec", "compile", "vars"}
+    banned_attrs = {"__builtins__", "__dict__", "__globals__", "__subclasses__"}
     bad = []
     tree = ast.parse(source)
     kept = [n for n in tree.body if not (isinstance(n, ast.FunctionDef) and n.name in _TEST_ONLY)]
@@ -224,9 +237,10 @@ def _write_free(source):
             bad.append("open(as a value)")
         elif isinstance(node, ast.Name) and node.id == "__builtins__":
             bad.append("__builtins__")
-        elif (isinstance(node, ast.Attribute) and node.attr == "modules"
-              and isinstance(node.value, ast.Name) and node.value.id == "sys"):
-            bad.append("sys.modules")
+        elif isinstance(node, ast.Attribute) and node.attr == "modules":
+            bad.append(".modules")
+        elif isinstance(node, ast.Attribute) and node.attr in banned_attrs:
+            bad.append(f".{node.attr}")
     return bad
 
 
@@ -284,8 +298,15 @@ def selftest() -> int:
     by_body = one(**{"from": "a@shop.example", "subject": "Hello", "body": _inj1})
     ok("the screen reads the display name, the subject and the body, each on its own",
        [x["pile"] for x in (by_name, by_subject, by_body)] == ["held"] * 3)
-    ok("a held message's display name is not echoed back",
-       by_name["sender"]["name"] is None and by_name["sender"]["email"] == "x@shop.example")
+    ok("a held message's display name, Message-ID and date are not echoed back",
+       by_name["sender"]["name"] is None and by_name["sender"]["email"] == "x@shop.example"
+       and by_name["message_id"] is None and by_name["date"] is None)
+    by_mid = one(**{"from": "a@shop.example", "subject": "Hello", "body": "Hi.", "message_id": f"<{_inj1}>"})
+    by_date = one(**{"from": "a@shop.example", "subject": "Hello", "body": "Hi.", "date": _inj1})
+    by_addr = one(**{"from": f'"{_inj1}"@x.example', "subject": "Hello", "body": "Hi."})
+    ok("the screen reads the Message-ID, the date and the raw From header too",
+       [x["pile"] for x in (by_mid, by_date, by_addr)] == ["held", "held", "held"]
+       and by_mid["message_id"] is None and by_date["date"] is None and by_addr["sender"]["name"] is None)
     held_spoof = one(**{"from": "Hearthline Home <x@phish.example>", "subject": "Hello", "body": _inj1})
     ok("a held message gets the held step alone, with no spoof note",
        held_spoof["pile"] == "held" and held_spoof["next_step"] == NEXT_STEP["held"])
@@ -298,7 +319,16 @@ def selftest() -> int:
     r = one(**{"from": "Hearthline Home <billing@phish.example>", "subject": "Payment received",
                "body": "Your payout is ready."})
     ok("a spoofed payment notice is not given the step that records it",
-       r["pile"] == "payment_notice" and r["next_step"] == SPOOF_NOTE + " " + SPOOF_PAYMENT)
+       r["pile"] == "payment_notice" and r["next_step"] == SPOOF_NOTE + " " + SPOOF_PAYMENT
+       and SPOOF_PAYMENT == "Record nothing from it until you know who sent it."
+       and "Download message" not in r["next_step"])
+    _unread = [one(**{"from": h, "subject": "Payment received", "body": "Your payout is ready."})
+               for h in ("Billing <=?utf-8?q?billing=40phish.example?=>", "Billing <billing phish.example>",
+                         "x" * 2100 + " <billing@phish.example>")]
+    ok("a payment notice whose sender address cannot be read is not given the step that records it",
+       [x["pile"] for x in _unread] == ["payment_notice"] * 3
+       and [x["next_step"] for x in _unread] == [UNREAD_NOTE + " " + SPOOF_PAYMENT] * 3
+       and UNREAD_NOTE == "Creator OS could not read the sender's address.")
     r = one(**{"from": "Marcus Webb <marcus.webb@hearthlinehome.example>", "subject": "Sponsorship renewal",
                "body": "Shall we renew the partnership for spring?"})
     ok("a contact's message with pitch words is a known brand, not a new pitch", r["pile"] == "known_brand")
@@ -342,6 +372,14 @@ def selftest() -> int:
        and mk["sender"]["email"] == "marcus.webb@hearthlinehome.example")
     _crm = [v for a in roster for v in (a["account_id"], a["brand_name"])] + [
         c["name"] for a in roster for c in _acc._all_contacts(a)]
+    _noid = [{"brand_name": "Alpha Goods", "aliases": [], "primary_contact": {"name": "A", "email": "a@alpha.example"}},
+             {"account_id": ["x"], "brand_name": "Beta Goods", "aliases": [],
+              "primary_contact": {"name": "B", "email": "b@beta.example"}},
+             {"brand_name": "Gamma Goods", "aliases": [], "primary_contact": {"name": "G", "email": "g@gamma.example"}}]
+    _ni = triage([{"message_id": f"<i{n}@mail.example>", "from": f"{n}@{d}.example", "subject": "Hi"}
+                  for n, d in (("a", "alpha"), ("b", "beta"), ("g", "gamma"))], accounts=_noid, masked=True)
+    ok("a record with no account id, or one that is not a string, gets a token of its own",
+       [m["account"]["resolved"]["account_id"] for m in _ni["messages"]] == ["account-1", "account-2", "account-3"])
     ok("masked masks candidates too and turns each account id into a token, one per account per call",
        mk_c["account"]["candidates"][0]["brand_name"] == "H.H."
        and mk["account"]["resolved"]["account_id"] == mk_c["account"]["candidates"][0]["account_id"] == "account-1"
@@ -373,9 +411,16 @@ def selftest() -> int:
                       "re.compile('x')\ngetattr(Path('x'), 'write' + '_text')('y')\n"
                       "getattr(Path('x'), 'write_text')('y')\no = open\n__builtins__\nsys.modules['os']\n")
     ok("the write check sees __import__, eval, a getattr by a built name or a banned one, open as a "
-       "value, __builtins__ and sys.modules, and passes a method named compile",
+       "value, __builtins__ and .modules, and passes a method named compile",
        {"__import__", "eval", "getattr(non-literal name)", "getattr(write_text)", "open(as a value)",
-        "__builtins__", "sys.modules"} <= set(_wf) and "compile" not in _wf)
+        "__builtins__", ".modules"} <= set(_wf) and "compile" not in _wf)
+    _wf2 = _write_free("exec('1')\ncompile('1', 'x', 'exec')\ngetattr(x, 'exec')\nvars(Path)['w']\n"
+                       "Path.__dict__\n(lambda: 0).__globals__\njson.__builtins__\nint.__subclasses__()\n"
+                       "pathlib.os.remove('f')\npathlib.os.makedirs('d')\nf.truncate()\nargparse._sys.modules\n")
+    ok("the write check sees bare exec, compile and vars, getattr of exec, the __dict__, __globals__, "
+       "__builtins__ and __subclasses__ attributes, remove, makedirs and truncate, and any .modules",
+       {"exec", "compile", "vars", "getattr(exec)", ".__dict__", ".__globals__", ".__builtins__",
+        ".__subclasses__", "remove", "makedirs", "truncate", ".modules"} <= set(_wf2))
 
     import io
     import contextlib

@@ -56,8 +56,8 @@ Claude Desktop: call the `mail_triage` MCP tool with the messages. On another su
 repo: save them as a JSON list and run `python3 tools/mail_triage.py triage --file messages.json`.
 For each message the tool:
 - screens the sender's display name, the subject and the body with the offline pattern tier
-  (pass 1); QUARANTINE or BLOCK puts it in `held`, its display name and subject not echoed, with
-  nothing to act on;
+  (pass 1), along with the From header, the Message-ID and the date; QUARANTINE or BLOCK puts it in
+  `held`, its display name, subject, Message-ID and date not echoed, with nothing to act on;
 - matches the sender to a CRM account by address (`tools/accounts.py::resolve_sender`): a contact's <!-- verify: tools/accounts.py::resolve_sender -->
   address resolves; an address on the brand's website host (when the account's website is a
   homepage address) is a candidate to confirm; a domain on `FREE_MAIL_DOMAINS` is not matched by
@@ -76,7 +76,9 @@ matched account (or the candidates, to confirm), the flags and the next step. Fo
   in Gmail themselves.
 - `new_pitch`: offer `pitch_triage` on that one message.
 - `payment_notice`: tell the person to open it in Gmail, choose More, then Download message, save
-  the `.eml` file into the hub Inbox, and tick it as a receipt on the wizard's Inbox screen.
+  the `.eml` file into the hub Inbox, and tick it as a receipt on the wizard's Inbox screen. When
+  the next step says to record nothing (a spoofed display name, or a sender address the tool could
+  not read), pass that on instead.
 - `held` and `other`: listed, nothing done.
 
 ## Output contract

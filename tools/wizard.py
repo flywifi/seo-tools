@@ -114,31 +114,33 @@ def _gmail_write_on() -> bool:
     return _flag_enabled(_load_creator_config(), "gmail_write_tools")
 
 
+# The argument lists a version of this wizard wrote for google-workspace, by Gmail level: "all" is
+# the earlier `uvx workspace-mcp` (every Gmail tool on), the others _workspace_mcp_args.
+def _wizard_google_args() -> dict:
+    return {"all": ["workspace-mcp"], "readonly": _workspace_mcp_args(False),
+            "send": _workspace_mcp_args(True)}
+
+
 def _ours_google_entry(cfg):
-    """The google-workspace entry in a Claude Desktop config when it is one this wizard writes (its
-    command is uvx and its args name workspace-mcp), else None. Another entry under that name, the
-    person's own, is left as it is."""
+    """The google-workspace entry in a Claude Desktop config when this wizard wrote it (its command
+    is uvx, and its args are exactly a list _wizard_google_args holds), else None. Another entry
+    under that name, the person's own, is left as it is, whatever it runs."""
     entry = ((cfg or {}).get("mcpServers") or {}).get("google-workspace")
     if not isinstance(entry, dict):
         return None
     command = pathlib.PurePath(str(entry.get("command") or "")).name.lower()
-    args = entry.get("args") if isinstance(entry.get("args"), list) else []
-    return entry if command in ("uvx", "uvx.exe") and "workspace-mcp" in map(str, args) else None
+    args = entry.get("args")
+    return entry if command in ("uvx", "uvx.exe") and args in _wizard_google_args().values() else None
 
 
 def _gmail_entry_levels() -> list:
-    """The Gmail level of each wizard-written google-workspace entry in the Claude Desktop settings
-    files that exist: the gmail: value of --permissions ("readonly", "send", ...), "none" when
-    --permissions names no gmail service, or "all" for an entry with no --permissions (an older
-    wizard's, every Gmail tool on)."""
+    """The Gmail level ("readonly", "send" or "all") of each wizard-written google-workspace entry
+    in the Claude Desktop settings files that exist, read from its args (_wizard_google_args)."""
     levels = []
     for p, _why in _claude_config_targets():
         entry = _ours_google_entry(_read_claude_config_at(p)) if p.exists() else None
-        if entry is None:
-            continue
-        args = [str(a) for a in entry["args"]]
-        levels.append(next((a.split(":", 1)[1] for a in args if a.startswith("gmail:")), "none")
-                      if "--permissions" in args else "all")
+        if entry is not None:
+            levels.append(next(lv for lv, args in _wizard_google_args().items() if args == entry["args"]))
     return levels
 
 def _os_label() -> str:
@@ -1068,7 +1070,7 @@ def _gmail_write_form(saved: str = "") -> str:
     state shown is read from the google-workspace entries this wizard wrote (_gmail_entry_levels),
     so an older entry with every Gmail tool on shows as on; with no such entry, from the flag."""
     levels = _gmail_entry_levels()
-    on = any(lv not in ("readonly", "none") for lv in levels) if levels else _gmail_write_on()
+    on = any(lv != "readonly" for lv in levels) if levels else _gmail_write_on()
     if not levels:
         state = (f"<strong>{'on' if on else 'off'}</strong> for the local Google server this wizard "
                  f"sets up. Claude Desktop has none from this wizard yet.")
@@ -4860,25 +4862,30 @@ anything, and closing this window does not stop the work.</p>
                 elif (cfg.get("mcpServers") or {}).get("google-workspace") is not None:
                     other = True
             word = "on" if want else "off"
+            done = []
             try:
                 for p, cfg in ours:
                     _ours_google_entry(cfg)["args"] = _workspace_mcp_args(want)
                     _write_claude_config(cfg, p)
+                    done.append(str(p))
                 _update_capability_flag("gmail_write_tools", want)
                 if ours:
                     note = (f"Gmail sending is now {word}. Restart Claude Desktop to use it; Google may "
                             f"ask you to sign in again.")
                 elif other:
                     note = (f"Saved: Gmail sending {word}. Claude Desktop's google-workspace entry was "
-                            f"not set up by this wizard (it does not run workspace-mcp through uvx), "
-                            f"so it was left as it is.")
+                            f"not set up by this wizard (its command or arguments differ from the ones "
+                            f"the wizard writes), so it was left as it is.")
                 else:
                     note = (f"Saved: Gmail sending {word}. Claude Desktop has no local Google server from "
                             f"this wizard yet, so the setting applies when you add one.")
                 self._send(_screen_google_done(saved=note))
             except Exception as exc:  # noqa: BLE001
+                switched = (f" These settings files were already switched: "
+                            f"{html.escape(', '.join(done))}." if done else "")
                 self._send(_screen_google_done(saved=f"Could not update the Claude Desktop config: "
-                                                     f"{html.escape(str(exc))}"))
+                                                     f"{html.escape(str(exc))}.{switched} The Gmail "
+                                                     f"sending setting was not changed."))
             return
 
         if path == "/api/write-google":
@@ -5977,6 +5984,89 @@ def _selftest_p101() -> int:
           f"the local Google entry does not open Gmail read-only, or the Gmail sending box does not switch "
           f"the wizard's entries alone, or shows a level the entries do not hold ({_new_gw.get('args')}, "
           f"{_flags_gw}, {_plain_kept}, {_other_kept}, {_none_gw.exists()})")
+    # P103 WP2b: an entry counts as the wizard's only when its command is uvx (any case, .exe on
+    # Windows) and its args are exactly a list the wizard wrote; several settings files are read and
+    # switched together; a failed write leaves the flag as it was and names the files switched.
+    _ro2, _rw2 = _workspace_mcp_args(False), _workspace_mcp_args(True)
+
+    def _cfg2(command, args):
+        return {"mcpServers": {"google-workspace": {"command": command, "args": list(args)}}}
+    _ours_cases = [_ours_google_entry(_cfg2("C:/Tools/UVX.EXE", _ro2)) is not None,
+                   _ours_google_entry(_cfg2("uvx.exe", ["workspace-mcp"])) is not None,
+                   _ours_google_entry(_cfg2("/home/x/.local/bin/uvx", _rw2)) is not None,
+                   _ours_google_entry(_cfg2("uvx", ["workspace-mcp@latest"])) is None,
+                   _ours_google_entry(_cfg2("uvx", ["mcp-other-google"])) is None,
+                   _ours_google_entry(_cfg2("uvx", ["workspace-mcp", "--tools", "gmail", "drive"])) is None,
+                   _ours_google_entry(_cfg2("uvx", ["--from", "workspace-mcp>=2.3.0", "workspace-mcp",
+                                                    "--permissions", "calendar:full"])) is None,
+                   _ours_google_entry(_cfg2("uv", ["workspace-mcp"])) is None]
+    _saved2 = {k: _g_gw[k] for k in _keys_gw + ("_write_claude_config",)}
+    _flags2, _sent2 = [], []
+    with tempfile.TemporaryDirectory() as _td2:
+        _a2 = pathlib.Path(_td2) / "a" / "claude_desktop_config.json"
+        _b2 = pathlib.Path(_td2) / "b" / "claude_desktop_config.json"
+        _c2 = pathlib.Path(_td2) / "c" / "claude_desktop_config.json"
+        for _p2 in (_a2, _b2, _c2):
+            _p2.parent.mkdir()
+
+        def _post2(form):
+            _h = _Handler.__new__(_Handler)
+            _h.path, _h.headers = "/api/google-gmail-write", {}
+            _h._read_form = lambda: dict(form)
+            _h._read_body = lambda: ""
+            _h._send = lambda body, status=200, content_type="text/html": _sent2.append(body)
+            _h._redirect = lambda location: _sent2.append(location)
+            with _cl_rt.redirect_stdout(_io_rt.StringIO()):
+                _h.do_POST()
+
+        def _args2(p):
+            return json.loads(p.read_text(encoding="utf-8"))["mcpServers"]["google-workspace"]["args"]
+        try:
+            _g_gw.update(_claude_config_targets=lambda: [(_a2, "a"), (_b2, "b")],
+                         _update_capability_flag=lambda key, value: _flags2.append((key, value)),
+                         _load_creator_config=lambda: {"capabilities": {}})
+            _a2.write_text(json.dumps(_cfg2("uvx", _ro2)), encoding="utf-8")
+            _b2.write_text(json.dumps(_cfg2("uvx", _rw2)), encoding="utf-8")
+            _levels_mixed, _form_mixed = _gmail_entry_levels(), _gmail_write_form()
+            _post2({})
+            _both_off = [_args2(_a2), _args2(_b2)]
+            _form_both_off = _gmail_write_form()
+            _post2({"gmail_write": "on"})
+            _both_on = [_args2(_a2), _args2(_b2)]
+            _own = {"mcpServers": {"google-workspace": {"command": "uvx", "args": ["workspace-mcp", "--tools",
+                                                                                    "gmail", "drive"]}}}
+            _c2.write_text(json.dumps(_own), encoding="utf-8")
+            _g_gw["_claude_config_targets"] = lambda: [(_c2, "own")]
+            _post2({"gmail_write": "on"})
+            _own_kept = json.loads(_c2.read_text(encoding="utf-8")) == _own
+            _c2.write_text(json.dumps({"mcpServers": {"keep": {"command": "k"}}}), encoding="utf-8")
+            _post2({"gmail_write": "on"})
+            _a2.write_text(json.dumps(_cfg2("uvx", _ro2)), encoding="utf-8")
+            _b2.write_text(json.dumps(_cfg2("uvx", _ro2)), encoding="utf-8")
+            _g_gw["_claude_config_targets"] = lambda: [(_a2, "a"), (_b2, "b")]
+            _real_write, _calls2 = _saved2["_write_claude_config"], []
+
+            def _write_then_fail(cfg, path=None):
+                _calls2.append(path)
+                if len(_calls2) > 1:
+                    raise OSError("disk full")
+                return _real_write(cfg, path)
+            _g_gw["_write_claude_config"] = _write_then_fail
+            _flags2.clear()
+            _post2({"gmail_write": "on"})
+            _after_fail = [_args2(_a2), _args2(_b2)]
+        finally:
+            _g_gw.update(_saved2)
+    _texts2 = [b for b in _sent2 if isinstance(b, str)]
+    check(_ours_cases == [True] * 8
+          and _levels_mixed == ["readonly", "send"] and " checked" in _form_mixed
+          and _both_off == [_ro2, _ro2] and " checked" not in _form_both_off and _both_on == [_rw2, _rw2]
+          and _own_kept and "was not set up by this wizard" in _texts2[2]
+          and "applies when you add one" in _texts2[3] and "was not set up by this wizard" not in _texts2[3]
+          and _after_fail == [_rw2, _ro2] and _flags2 == []
+          and str(_a2) in _texts2[4] and "was not changed" in _texts2[4],
+          f"the wizard counts an entry it did not write as its own, misreads several settings files, or "
+          f"sets the flag after a failed write ({_ours_cases}, {_levels_mixed}, {_flags2})")
     # P102: on Windows a network path is refused from its text, before anything resolves it (a slow
     # or offline server blocks realpath, and the wizard answers one request at a time).
     def _no_fs_n(_p):
