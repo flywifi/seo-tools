@@ -211,8 +211,9 @@ def _thread_stacks(lines) -> list:
 
 def _stall_location(stacks, thread, stdlib) -> str:
     """Where the dump shows the row's thread: its innermost frame outside the folders in stdlib
-    (with the innermost frame when that one is inside them), the thread count, and where up to
-    three other threads stand outside stdlib."""
+    (the parent gives the interpreter's library folders, which outside a virtual environment hold
+    its site-packages too), with the innermost frame when that one is inside them, the thread
+    count, and where up to three other threads stand outside stdlib."""
     def norm(p):   # a backslash read as a slash, so a Windows dump reads the same on any host
         return os.path.normcase(str(p)).replace("\\", "/")
     roots = [norm(p).rstrip("/") + "/" for p in stdlib]
@@ -243,7 +244,8 @@ def _stall_location(stacks, thread, stdlib) -> str:
 def stall_report(labels, stderr, stdlib=()) -> list:
     """The survivor lines for a chunk whose child went past its limit, from the child's partial
     stderr (bytes or text): the row in progress first, `<label> (worker failed: TimeoutExpired in
-    this row; stalled at <file>:<line> in <function>; ...)`, or `after its last row` when the child
+    this row; stalled at <file>:<line> in <function>; ...)` (`no stack dump` when the child was
+    stopped before its dump), or `after its last row` when the child
     had written its done line; every other row `<label> (worker failed: TimeoutExpired)`. With no
     row line the run stopped before its first row, and every row gets the short reason."""
     text = stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else (stderr or "")
@@ -5739,6 +5741,119 @@ _MUTANTS = (
     ('IS46 a spaced character two before a match touches it', 'injection_scan.py',
      '    j = bisect.bisect_left(at, start - 1)\n',
      '    j = bisect.bisect_left(at, start - 2)\n'),
+    # P103: the stalled-child report (stall_dump_delay, note_row, run_rows_child, stall_report,
+    # run_chunk, stalled_first and their helpers).
+    ('ST-01 the dump is armed at the full limit', 'file_hash.py',
+     'return float(limit) - min(STALL_MARGIN, float(limit) / 4)',
+     'return float(limit)'),
+    ('ST-02 the margin is the larger of 60 s and a quarter', 'file_hash.py',
+     'min(STALL_MARGIN, float(limit) / 4)',
+     'max(STALL_MARGIN, float(limit) / 4)'),
+    ('ST-03 the margin is 6 s', 'file_hash.py',
+     'STALL_MARGIN = 60.0',
+     'STALL_MARGIN = 6.0'),
+    ('ST-04 the cap is half the limit', 'file_hash.py',
+     'float(limit) / 4)',
+     'float(limit) / 2)'),
+    ('ST-05 the row line is not flushed', 'file_hash.py',
+     '        stream.flush()\n\n\ndef run_rows_child',
+     '        pass\n\n\ndef run_rows_child'),
+    ('ST-06 the row line writes the thread in hex', 'file_hash.py',
+     '(thread {thread})',
+     '(thread {thread:#x})'),
+    ('ST-07 the child arms the dump at the raw limit', 'file_hash.py',
+     'arm(stall_dump_delay(spec["timeout"]), exit=False, file=stderr)',
+     'arm(float(spec["timeout"]), exit=False, file=stderr)'),
+    ('ST-08 the dump exits the child', 'file_hash.py',
+     'exit=False, file=stderr',
+     'exit=True, file=stderr'),
+    ('ST-09 the child does not pass its stderr as progress', 'file_hash.py',
+     'posix_only=set(spec["posix_only"]), progress=stderr)',
+     'posix_only=set(spec["posix_only"]))'),
+    ('ST-10 the done line is not written', 'file_hash.py',
+     'stderr.write(_ROWS_DONE + "\\n")',
+     'pass'),
+    ('ST-11 the dump is armed with no stderr', 'file_hash.py',
+     '    if stderr is not None:\n        if arm is None:',
+     '    if True:\n        if arm is None:'),
+    ('ST-12 a mutant frame keeps its brackets', 'file_hash.py',
+     'return m.group(1) if m else',
+     'return path if m else'),
+    ('ST-13 a frame name splits only at a slash', 'file_hash.py',
+     're.split(r"[\\\\/]", path)[-1]',
+     'path.split("/")[-1]'),
+    ('ST-15 frames are kept outermost first', 'file_hash.py',
+     'stacks[-1][1].append(',
+     'stacks[-1][1].insert(0, '),
+    ('ST-16 a frame line must start at File', 'file_hash.py',
+     'r\'\\s+File "(.*)", line',
+     'r\'File "(.*)", line'),
+    ('ST-17 the outermost own frame is shown', 'file_hash.py',
+     '    mine = own(frames)\n',
+     '    mine = own(frames[::-1])\n'),
+    ('ST-18 the waiting frame is dropped', 'file_hash.py',
+     'if mine is not None and mine is not frames[0]:',
+     'if False:'),
+    ('ST-19 a stdlib root has no trailing slash', 'file_hash.py',
+     'norm(p).rstrip("/") + "/" for p in stdlib',
+     'norm(p) for p in stdlib'),
+    ('ST-20 a backslash is not read as a slash', 'file_hash.py',
+     '.replace("\\\\", "/")',
+     ''),
+    ('ST-21 one other thread is shown', 'file_hash.py',
+     'others[:3]',
+     'others[:1]'),
+    ('ST-22 one thread is counted in the plural', 'file_hash.py',
+     'count = "1 thread" if len(stacks) == 1 else f"{len(stacks)} threads"',
+     'count = f"{len(stacks)} threads"'),
+    ('ST-23 the first thread is taken as the row thread', 'file_hash.py',
+     'next((fr for ident, fr in stacks if ident == thread), None)',
+     'next((fr for ident, fr in stacks), None)'),
+    ('ST-24 no dump reads as unknown', 'file_hash.py',
+     'return "no stack dump"',
+     'return "stalled at an unknown place"'),
+    ('ST-25 the first started row is blamed', 'file_hash.py',
+     'label, thread = started[-1]',
+     'label, thread = started[0]'),
+    ('ST-26 a row line for another chunk is read', 'file_hash.py',
+     'if name in labels and thread.endswith(")")',
+     'if thread.endswith(")")'),
+    ('ST-27 the done line is ignored', 'file_hash.py',
+     '            done = True\n',
+     '            done = False\n'),
+    ('ST-28 bytes stderr is not decoded', 'file_hash.py',
+     'stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else (stderr or "")',
+     'str(stderr or "")'),
+    ('ST-29 the stalled row is listed twice', 'file_hash.py',
+     'for name, s in zip(labels, short) if name != label]',
+     'for name, s in zip(labels, short)]'),
+    ('ST-30 the limit is not sent to the child', 'file_hash.py',
+     'dict(spec, timeout=timeout, rows=chunk)',
+     'dict(spec, rows=chunk)'),
+    ('ST-31 the default limit is sent', 'file_hash.py',
+     'dict(spec, timeout=timeout, rows=chunk)',
+     'dict(spec, timeout=_CHILD_TIMEOUT, rows=chunk)'),
+    ('ST-32 the stall report is skipped', 'file_hash.py',
+     'return stall_report([r[0] for r in chunk], exc.stderr, stdlib)',
+     'return [f"{r[0]} (worker failed: TimeoutExpired)" for r in chunk]'),
+    ('ST-33 stdout is read for the dump', 'file_hash.py',
+     'exc.stderr, stdlib)',
+     'exc.output, stdlib)'),
+    ('ST-34 stdlib is not passed', 'file_hash.py',
+     'exc.stderr, stdlib)',
+     'exc.stderr)'),
+    ('ST-35 a stalled child passes', 'file_hash.py',
+     'return stall_report([r[0] for r in chunk], exc.stderr, stdlib)',
+     'return []'),
+    ('ST-36 the timeout falls to the generic handler', 'file_hash.py',
+     'except subprocess.TimeoutExpired as exc:',
+     'except subprocess.CalledProcessError as exc:'),
+    ('ST-37 a stalled row is not placed first', 'file_hash.py',
+     'return (0 if stalled else 1, order',
+     'return (1, order'),
+    ('ST-38 after-its-last-row is not placed first', 'file_hash.py',
+     ' or "TimeoutExpired after its last row" in s',
+     ''),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -6075,8 +6190,8 @@ def _stall_controls() -> list:
             "waiting in threading.py:359 in wait; 2 threads, others at wizard.py:900 in _worker)",
             "WZ01 (worker failed: TimeoutExpired)", "WZ03 (worker failed: TimeoutExpired)"]
     out.append(("a stopped child's report names the last row it started first, its own thread's "
-                "innermost frame outside the standard library and the frame it waits in, and the "
-                "other threads; a row line for a row not in the chunk is ignored",
+                "innermost frame outside the interpreter's library folders and the frame it waits "
+                "in, and the other threads",
                 stall_report(labels, dump, ["C:\\py\\Lib"]) == want))
     late = (b"file_hash: row started: HE2 (thread 16)\nfile_hash: rows done\n"
             b"Thread 0x10 (most recent call first):\n"
@@ -6088,6 +6203,28 @@ def _stall_controls() -> list:
                 stall_report(["HE2"], late, ["/usr/lib/python3.13"])
                 == ["HE2 (worker failed: TimeoutExpired after its last row; stalled at threading.py:1543 in "
                     "_shutdown; 2 threads, others at wizard.py:77 in _loop)"]))
+    out.append(("a row line for a row not in the chunk is ignored, even when it is the last one",
+                stall_report(["WZ01"], "file_hash: row started: WZ01 (thread 16)\n"
+                             "file_hash: row started: OTHER (thread 16)\n")[0].startswith(
+                    "WZ01 (worker failed: TimeoutExpired in this row;")))
+    out.append(("a child stopped after a row line but before its dump says so",
+                stall_report(["WZ01", "WZ02"], "file_hash: row started: WZ02 (thread 16)\n")
+                == ["WZ02 (worker failed: TimeoutExpired in this row; no stack dump)",
+                    "WZ01 (worker failed: TimeoutExpired)"]))
+    lone = ("file_hash: row started: R1 (thread 16)\nThread 0x10 (most recent call first):\n"
+            '  File "/usr/lib/python3.13/threading.py", line 359 in wait\n'
+            '  File "/usr/lib/python3.13x/own.py", line 4 in work\n')
+    crowd = lone + "".join(f'Thread 0x{n:x} (most recent call first):\n  File "/r/t{n}.py", line {n} in f{n}\n'
+                           for n in (32, 33, 34, 35))
+    out.append(("one thread reads in the singular, at most three other threads are named, and a folder "
+                "whose name only starts with a library folder's name is not that library",
+                stall_report(["R1"], lone, ["/usr/lib/python3.13"])
+                == ["R1 (worker failed: TimeoutExpired in this row; stalled at own.py:4 in work, waiting in "
+                    "threading.py:359 in wait; 1 thread)"]
+                and stall_report(["R1"], crowd, ["/usr/lib/python3.13"])
+                == ["R1 (worker failed: TimeoutExpired in this row; stalled at own.py:4 in work, waiting in "
+                    "threading.py:359 in wait; 5 threads, "
+                    "others at t32.py:32 in f32, t33.py:33 in f33, t34.py:34 in f34)"]))
     out.append(("a child stopped before its first row line reports each row with the short reason",
                 stall_report(["A", "B"], b"Timeout (0:24:00)!\n", [])
                 == ["A (worker failed: TimeoutExpired)", "B (worker failed: TimeoutExpired)"]
@@ -6344,7 +6481,8 @@ def _runner_controls() -> list:
                              ("slow-b", "slow_b.py", "x = 1\n", "x = 2\n")], base=d3, jobs=2)
         slow_took = _time.monotonic() - began
         # P103: a child that waits forever in a row, and one whose leftover thread holds it at exit
-        # after its rows, each stopped at a 6 s limit (its stack dump at 4.5 s): the report names the
+        # after its rows, each stopped at a 12 s limit (its stack dump 9 s after the child starts, so
+        # a slow start still leaves it time): the report names the
         # row and where the row's thread and the leftover thread stood. These wait only when mutated.
         (d3 / "stall.py").write_text("import threading\nx = 1\ndef hold():\n    lock = threading.Lock()\n"
                                      "    lock.acquire()\n    lock.acquire()\ndef selftest():\n"
@@ -6358,12 +6496,12 @@ def _runner_controls() -> list:
                                 ("stall-row", "stall.py", "x = 1\n", "x = 2\n"),
                                 ("stall-after", "stall.py", "x = 1\n", "x = 1  # again\n"),
                                 ("linger-row", "linger.py", "x = 1\n", "x = 2\n")],
-                               base=d3, jobs=2, child_timeout=6)
+                               base=d3, jobs=2, child_timeout=12)
         stall_took = _time.monotonic() - began
-    out.append(("with jobs above 1 a child past its limit (6 s here) is stopped and fails its rows: the "
+    out.append(("with jobs above 1 a child past its limit (12 s here) is stopped and fails its rows: the "
                 "row it was running first, with where its thread stood, the rows after it with the short "
                 f"reason, a child held at exit after its rows named so ({stall_took:.1f} s; {stalled})",
-                len(stalled) == 4 and stall_took < 30
+                len(stalled) == 4 and stall_took < 40
                 and stalled[0] == "stall-row (worker failed: TimeoutExpired in this row; stalled at "
                                   "stall.py:6 in hold; 1 thread)"
                 and stalled[1].startswith("linger-row (worker failed: TimeoutExpired after its last row; "
