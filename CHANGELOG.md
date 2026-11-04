@@ -23,18 +23,19 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with no IDNA2003 mapping; an address written as an encoded word is flagged (`encoded_address`)
   and not matched; a name in a charset that cannot be decoded is dropped (`name_undecodable`); a
   `Last, First <address>` header is read for its address (`display_name_unquoted`); a display name
-  naming an account the address does not belong to, or naming one when no address could be read,
-  is flagged (`display_name_names_another_account`). The new `tools/mail_triage.py` sorts the
+  read from the header that names an account the address does not belong to, or names one when no
+  address could be read, is flagged (`display_name_names_another_account`). The new `tools/mail_triage.py` sorts the
   inbound messages a session read through its own Gmail connector, at most 50 per call and 65,536
   characters of body each: the offline pattern tier screens each sender name and From header,
-  subject, body, Message-ID and date, a QUARANTINE or BLOCK verdict puts the message in `held` with
-  its display name, subject, Message-ID and date not echoed, and the rest get one pile (`payment_notice`, `known_brand`, `new_pitch`, `other`) and a
+  subject, body, Message-ID, date and link, a QUARANTINE or BLOCK verdict puts the message in
+  `held` with its display name, subject, Message-ID, date and link not echoed, and the rest get one pile (`payment_notice`, `known_brand`, `new_pitch`, `other`) and a
   next step; its selftest reads the module's own text and fails on an import outside a fixed list,
   a call by a listed write, process or network name, a bare `__import__`, `eval`, `exec`, `compile`
   or `vars`, a `getattr` by a name that is not a literal, `open` used as a value, an `open()` whose
   mode is not a literal read mode, the `__dict__`, `__globals__`, `__builtins__` and
-  `__subclasses__` attributes, and any `.modules` attribute. The new `mail_triage` MCP tool (64 tools) wraps it and, on a network transport
-  (`mcp_server._NETWORK_TRANSPORT`), masks the CRM side of each match, each account id as a token.
+  `__subclasses__` attributes, and any `.modules` attribute. The new `mail_triage` MCP tool (64
+  tools) wraps it and, unless the server was started on stdio (`mcp_server._STDIO_BOUND`), masks
+  the CRM side of each match field by field, each account id as a token.
   The new standalone `mail-triage` atom reads the mail, hands a pitch to `pitch_triage`, and tells
   the person to save a payment notice as `.eml` into the hub Inbox. The wizard writes Claude
   Desktop's `google-workspace` entry as

@@ -125,7 +125,8 @@ def _ours_google_entry(cfg):
     """The google-workspace entry in a Claude Desktop config when this wizard wrote it (its command
     is uvx, and its args are exactly a list _wizard_google_args holds), else None. Another entry
     under that name, the person's own, is left as it is, whatever it runs."""
-    entry = ((cfg or {}).get("mcpServers") or {}).get("google-workspace")
+    servers = cfg.get("mcpServers") if isinstance(cfg, dict) else None
+    entry = servers.get("google-workspace") if isinstance(servers, dict) else None
     if not isinstance(entry, dict):
         return None
     command = pathlib.PurePath(str(entry.get("command") or "")).name.lower()
@@ -4857,9 +4858,10 @@ anything, and closing this window does not stop the work.</p>
             ours, other = [], False
             for p, _why in _claude_config_targets():
                 cfg = _read_claude_config_at(p) if p.exists() else {}
+                servers = cfg.get("mcpServers") if isinstance(cfg, dict) else None
                 if _ours_google_entry(cfg) is not None:
                     ours.append((p, cfg))
-                elif (cfg.get("mcpServers") or {}).get("google-workspace") is not None:
+                elif isinstance(servers, dict) and servers.get("google-workspace") is not None:
                     other = True
             word = "on" if want else "off"
             done = []
@@ -4881,11 +4883,13 @@ anything, and closing this window does not stop the work.</p>
                             f"this wizard yet, so the setting applies when you add one.")
                 self._send(_screen_google_done(saved=note))
             except Exception as exc:  # noqa: BLE001
-                switched = (f" These settings files were already switched: "
-                            f"{html.escape(', '.join(done))}." if done else "")
+                switched = (f" These settings files were switched before the error, and the others "
+                            f"were not: {html.escape(', '.join(done))}." if done else
+                            " No settings file was switched.")
                 self._send(_screen_google_done(saved=f"Could not update the Claude Desktop config: "
-                                                     f"{html.escape(str(exc))}.{switched} The Gmail "
-                                                     f"sending setting was not changed."))
+                                                     f"{html.escape(str(exc))}.{switched} Your saved "
+                                                     f"Gmail sending choice for later Google setups "
+                                                     f"was not changed."))
             return
 
         if path == "/api/write-google":
@@ -5999,11 +6003,14 @@ def _selftest_p101() -> int:
                    _ours_google_entry(_cfg2("uvx", ["workspace-mcp", "--tools", "gmail", "drive"])) is None,
                    _ours_google_entry(_cfg2("uvx", ["--from", "workspace-mcp>=2.3.0", "workspace-mcp",
                                                     "--permissions", "calendar:full"])) is None,
-                   _ours_google_entry(_cfg2("uv", ["workspace-mcp"])) is None]
+                   _ours_google_entry(_cfg2("uv", ["workspace-mcp"])) is None,
+                   _ours_google_entry(_cfg2("uvx-legacy", _ro2)) is None,
+                   _ours_google_entry(_cfg2("uvx", list(reversed(_ro2)))) is None,
+                   _ours_google_entry([]) is None and _ours_google_entry({"mcpServers": []}) is None]
     _saved2 = {k: _g_gw[k] for k in _keys_gw + ("_write_claude_config",)}
     _flags2, _sent2 = [], []
     with tempfile.TemporaryDirectory() as _td2:
-        _a2 = pathlib.Path(_td2) / "a" / "claude_desktop_config.json"
+        _a2 = pathlib.Path(_td2) / "a&b" / "claude_desktop_config.json"
         _b2 = pathlib.Path(_td2) / "b" / "claude_desktop_config.json"
         _c2 = pathlib.Path(_td2) / "c" / "claude_desktop_config.json"
         for _p2 in (_a2, _b2, _c2):
@@ -6055,16 +6062,28 @@ def _selftest_p101() -> int:
             _flags2.clear()
             _post2({"gmail_write": "on"})
             _after_fail = [_args2(_a2), _args2(_b2)]
+            _calls2.clear()
+            _calls2.append("make the first write fail")
+            _post2({})
+            _first_fail_args = _args2(_a2)
+            _g_gw["_write_claude_config"] = _real_write
+            _b2.write_text("[]", encoding="utf-8")
+            _post2({"gmail_write": "on"})
+            _list_levels = _gmail_entry_levels()
         finally:
             _g_gw.update(_saved2)
     _texts2 = [b for b in _sent2 if isinstance(b, str)]
-    check(_ours_cases == [True] * 8
+    check(_ours_cases == [True] * 11
           and _levels_mixed == ["readonly", "send"] and " checked" in _form_mixed
           and _both_off == [_ro2, _ro2] and " checked" not in _form_both_off and _both_on == [_rw2, _rw2]
           and _own_kept and "was not set up by this wizard" in _texts2[2]
           and "applies when you add one" in _texts2[3] and "was not set up by this wizard" not in _texts2[3]
-          and _after_fail == [_rw2, _ro2] and _flags2 == []
-          and str(_a2) in _texts2[4] and "was not changed" in _texts2[4],
+          and _after_fail == [_rw2, _ro2] and _flags2 == [("gmail_write_tools", True)]
+          and html.escape(str(_a2)) in _texts2[4] and str(_a2) not in _texts2[4] and str(_b2) not in _texts2[4]
+          and "was not changed" in _texts2[4] and "the others were not" in _texts2[4]
+          and _first_fail_args == _rw2 and "No settings file was switched." in _texts2[5]
+          and "switched before the error" not in _texts2[5]
+          and "Gmail sending is now on" in _texts2[6] and _list_levels == ["send"],
           f"the wizard counts an entry it did not write as its own, misreads several settings files, or "
           f"sets the flag after a failed write ({_ours_cases}, {_levels_mixed}, {_flags2})")
     # P102: on Windows a network path is refused from its text, before anything resolves it (a slow

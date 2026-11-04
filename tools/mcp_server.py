@@ -334,17 +334,18 @@ def _person_only_refusal(capability):
                          "tick box there."}
 
 
-# Set by __main__ from the argv it binds (_auth_gate_fires, the same network-bind test the auth gate
-# uses): True for a network transport (--serve-remote or --transport streamable-http/sse), where a
-# remote client reads the replies (P103 WP2b).
-_NETWORK_TRANSPORT = False
+# False until __main__ starts the server on stdio, the transport a local client such as Claude
+# Desktop uses; set True there, as the statement before that mcp.run() (P103 WP2b). mail_triage
+# masks its CRM matches whenever it is False: on a network transport (--serve-remote or --transport
+# streamable-http/sse), when the module is imported by another host, and when anything resets it.
+_STDIO_BOUND = False
 
 
 def _mail_triage_masked(requested) -> bool:
-    """mail_triage masks the CRM side of its matches when asked, and always over a network
-    transport: brand and contact names, contact emails and account ids from the local store are
-    masked in the replies a remote client reads (mail_triage.triage, masked=True)."""
-    return bool(requested) or bool(_NETWORK_TRANSPORT)
+    """mail_triage masks the CRM side of its matches when asked, and always unless the server was
+    started on stdio: brand and contact names, contact emails and account ids from the local store
+    are masked in the replies a network client reads (mail_triage.triage, masked=True)."""
+    return bool(requested) or not _STDIO_BOUND
 
 
 def _mail_triage_reply(messages, masked, accounts=None) -> dict:
@@ -1233,27 +1234,27 @@ def _selftest_static() -> tuple:
        "other names",
        isinstance(_po_on, dict) and _po_on.get("refused") is True and "wizard" in _po_on.get("next_step", "")
        and _po_other is None and "gmail_write_tools" in _PERSON_ONLY_FLAGS)
-    global _NETWORK_TRANSPORT
-    _nt_saved = _NETWORK_TRANSPORT
+    global _STDIO_BOUND
+    _nt_saved = _STDIO_BOUND
     _mt_msgs = [{"message_id": "<a@mail.example>", "from": "Marcus Webb <marcus.webb@hearthlinehome.example>",
                  "subject": "Hi"},
                 {"message_id": "<b@mail.example>", "from": "Jo <jo@hearthlinehome.example>", "subject": "Hi"},
                 {"message_id": "<c@mail.example>", "from": "Sam <sam@lumenco.example>", "subject": "Hi"}]
     try:
-        _NETWORK_TRANSPORT = False
+        _STDIO_BOUND = True
         _mt_local = (_mail_triage_masked(False), _mail_triage_masked(True))
         sys.path.insert(0, str(HERE))
         import accounts as _acc_mt  # type: ignore
         _rep_local = _mail_triage_reply(_mt_msgs, False, accounts=_acc_mt._ROSTER)
-        _NETWORK_TRANSPORT = True
+        _STDIO_BOUND = False
         _mt_net = (_mail_triage_masked(False), _mail_triage_masked(True))
         _rep_net = _mail_triage_reply(_mt_msgs, False, accounts=_acc_mt._ROSTER)
     finally:
-        _NETWORK_TRANSPORT = _nt_saved
+        _STDIO_BOUND = _nt_saved
     _crm_mt = [str(v) for a in _acc_mt._ROSTER for v in (a["account_id"], a["brand_name"])] + [
         str(c.get(k)) for a in _acc_mt._ROSTER for c in _acc_mt._all_contacts(a) for k in ("name", "email")]
     _net_accounts = json.dumps([m["account"] for m in _rep_net["messages"]], ensure_ascii=False)
-    ok("mail_triage masks when asked, and always over a network transport: there its reply holds no "
+    ok("mail_triage masks when asked, and always unless started on stdio: then its reply holds no "
        "brand, contact name, contact email or account id from the records, candidates included",
        _mt_local == (False, True) and _mt_net == (True, True)
        and _rep_net["masked"] is True and _rep_local["masked"] is False
@@ -1263,44 +1264,55 @@ def _selftest_static() -> tuple:
        and "Hearthline Home" in json.dumps(_rep_local["messages"][0]["account"])
        and src.count("_mail_triage" + "_masked(masked)") == 1
        and src.count("_mail_triage" + "_reply(messages, masked)") == 1)
-    # Read by AST from the file (see above), so a comment cannot stand in for code: the tool returns
-    # the reply helper's result and calls nothing else that triages; the flag is assigned twice
-    # outside this selftest, its default and one statement directly in the __main__ body, from the
-    # auth gate's network-bind test of the argv; and no string, keyword or global statement outside
-    # this selftest names the flag (globals()[...], setattr and the like are refused by name).
+    # Read by AST from the file (see above), so a comment cannot stand in for code. The tool returns
+    # the reply helper's result and calls nothing else that triages. Outside this selftest the flag
+    # is bound twice, by its default False and by `_STDIO_BOUND = True` as the statement before
+    # the stdio branch's mcp.run(); any other binding form (a tuple, walrus, for, with, except or
+    # import target, a deletion), an attribute named for it, a string, keyword or global statement
+    # naming it is refused, and so are the ways to bind a name built at run time: vars, setattr,
+    # locals, exec, eval and __import__ calls, .modules and .__dict__ attributes, and globals()
+    # other than subscripted by a literal that is not the flag (the full tier's CONFIG_LOCAL_PATH
+    # swap). A reset to False masks more, so it cannot unmask.
     _A = _ast_p102
     _outside = [top for top in _A.parse(src).body
                 if not (isinstance(top, _A.FunctionDef) and top.name == "_selftest_static")]
     _out_nodes = [n for top in _outside for n in _A.walk(top)]
-    _flag = "_NETWORK" + "_TRANSPORT"
-
-    def _targets(n):
-        return (n.targets if isinstance(n, _A.Assign) else
-                [n.target] if isinstance(n, (_A.AugAssign, _A.AnnAssign)) else [])
-    _nt_values = sorted(_A.unparse(n.value) if n.value is not None else "" for n in _out_nodes
-                        if any(isinstance(t, _A.Name) and t.id == _flag for t in _targets(n)))
-    _main = next((top for top in _outside if isinstance(top, _A.If)
-                  and _A.unparse(top.test) == "__name__ == '__main__'"), None)
-    _main_direct = [_A.unparse(st.value) for st in (_main.body if _main else [])
-                    if any(isinstance(t, _A.Name) and t.id == _flag for t in _targets(st))]
+    _flag = "_STDIO" + "_BOUND"
+    _bindings = sorted(type(n.ctx).__name__ for n in _out_nodes
+                       if isinstance(n, _A.Name) and n.id == _flag and not isinstance(n.ctx, _A.Load))
+    _assigns = sorted(_A.unparse(n) for n in _out_nodes if isinstance(n, _A.Assign)
+                      and any(isinstance(t, _A.Name) and t.id == _flag for t in n.targets))
     _named_elsewhere = [n for n in _out_nodes if (isinstance(n, _A.Constant) and isinstance(n.value, str)
                                                   and _flag in n.value)
                         or (isinstance(n, _A.keyword) and n.arg == _flag)
-                        or (isinstance(n, _A.Global) and _flag in n.names)]
+                        or (isinstance(n, _A.Global) and _flag in n.names)
+                        or (isinstance(n, _A.Attribute) and n.attr == _flag)
+                        or (isinstance(n, _A.alias) and _flag in (n.name, n.asname))
+                        or (isinstance(n, _A.ExceptHandler) and n.name == _flag)]
+    _glob_ok = {id(n.value) for n in _out_nodes if isinstance(n, _A.Subscript)
+                and _A.unparse(n.value) == "globals()" and isinstance(n.slice, _A.Constant)
+                and isinstance(n.slice.value, str) and _flag not in n.slice.value}
+    _dynamic = [_A.unparse(n) for n in _out_nodes
+                if (isinstance(n, _A.Call) and isinstance(n.func, _A.Name)
+                    and (n.func.id in ("vars", "setattr", "locals", "exec", "eval", "__import__")
+                         or (n.func.id == "globals" and id(n) not in _glob_ok)))
+                or (isinstance(n, _A.Attribute) and n.attr in ("modules", "__dict__"))]
+    _main = next((top for top in _outside if isinstance(top, _A.If)
+                  and _A.unparse(top.test) == "__name__ == '__main__'"), None)
+    _branch = next((st for st in (_main.body if _main else []) if isinstance(st, _A.If)
+                    and _A.unparse(st.test) == "_transport != 'stdio'"), None)
+    _stdio_tail = [_A.unparse(st) for st in (_branch.orelse if _branch else [])]
     _tool = next((top for top in _outside if isinstance(top, _A.FunctionDef) and top.name == "mail_triage"),
                  None)
     _tool_calls = sorted({_A.unparse(n.func) for n in _A.walk(_tool) if isinstance(n, _A.Call)}) if _tool else []
     _tool_returns = [_A.unparse(n) for n in _A.walk(_tool) if isinstance(n, _A.Return)] if _tool else []
-    ok("__main__ sets the network flag once, directly, from the auth gate's test of the argv, nothing "
-       "else names it, and the mail_triage tool returns the reply helper's result",
-       _nt_values == ["False", "_auth_gate_fires(_args.transport, _args.serve_remote)"]
-       and _main_direct == ["_auth_gate_fires(_args.transport, _args.serve_remote)"] and not _named_elsewhere
+    ok("the stdio flag is bound by its default and by the statement before the stdio mcp.run() alone, "
+       "nothing else names it, and the mail_triage tool returns the reply helper's result",
+       _bindings == ["Store", "Store"] and _assigns == sorted([_flag + " = False", _flag + " = True"])
+       and _stdio_tail == [_flag + " = True", "mcp.run()"] and not _named_elsewhere and not _dynamic
        and _tool_calls == sorted(["json.dumps", "mcp.tool", "str", "_mail_triage" + "_reply"])
        and ("return json.dumps(_mail_triage" + "_reply(messages, masked), indent=2, ensure_ascii=False)")
-       in _tool_returns
-       and _auth_gate_fires(None, True) and _auth_gate_fires("sse", False)
-       and _auth_gate_fires("streamable-http", False) and not _auth_gate_fires(None, False)
-       and not _auth_gate_fires("stdio", False))
+       in _tool_returns)
     ok("configure_tool checks the capability name before it takes the write lock",
        len(_ct_body) > 2 and _ast_p102.unparse(_ct_body[0])
        == "refusal = _unknown_capability(capability) or _person_only_refusal(capability)"
@@ -2775,7 +2787,8 @@ def mail_triage(messages: list[dict], masked: bool = False) -> str:
     untrusted content. A payment notice is recorded by the person saving the message as an .eml
     file into the hub Inbox; a new pitch goes to pitch triage. EXPOSURE NOTE: matches name real
     brands and contacts from pipeline/accounts/*.local.json; pass masked=True for anything quoted
-    off this machine. Over a network transport the CRM side is always masked, account ids included."""
+    off this machine. Unless the server was started on stdio, the CRM side is always masked, account
+    ids included."""
     try:
         return json.dumps(_mail_triage_reply(messages, masked), indent=2, ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001
@@ -3294,7 +3307,6 @@ if __name__ == "__main__":
                           "streamable-http/sse, when no token is set)")
     _args, _ = _ap.parse_known_args()
     _transport = _args.transport or ("streamable-http" if _args.serve_remote else "stdio")
-    _NETWORK_TRANSPORT = _auth_gate_fires(_args.transport, _args.serve_remote)   # mail_triage masks there
     # One quiet, non-blocking startup notice (stderr only; stdout is the stdio protocol channel).
     # No network call happens here: the update_check tool polls only when explicitly invoked.
     try:
@@ -3377,4 +3389,5 @@ if __name__ == "__main__":
                     sys.exit(2)
         mcp.run(transport=_transport, **_bind_kwargs(_MCP2, _args.host, _args.port, _security))
     else:
+        _STDIO_BOUND = True   # a local client reads mail_triage's replies; see _mail_triage_masked
         mcp.run()

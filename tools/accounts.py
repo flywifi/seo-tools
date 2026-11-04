@@ -231,21 +231,25 @@ def _a_labels(host):
 
 
 def _lower(text):
-    """text lowercased, or None when a non-ASCII character lowercases to ASCII (U+212A KELVIN SIGN
-    to "k", U+0130 to "i" and a dot): such a spelling would compare equal to a different, plain
-    ASCII address or domain."""
-    out = text.lower()
-    if any(not c.isascii() and any(x.isascii() for x in c.lower()) for c in text):
+    """text lowercased one character at a time (so a capital sigma becomes a medial sigma, as UTS 46
+    maps it, never the final form str.lower() picks by context), or None when a non-ASCII character
+    lowercases, or normalises (NFC), to ASCII (U+212A KELVIN SIGN to "k" or "K", U+0130 to "i" and
+    a dot, U+037E to ";"): such a spelling would compare equal to a different, plain ASCII address
+    or domain."""
+    import unicodedata
+    if any(not c.isascii() and (any(x.isascii() for x in c.lower())
+                                or unicodedata.normalize("NFC", c).isascii()) for c in text):
         return None
-    return out
+    return "".join(c.lower() for c in text)
 
 
 def _domain_name(value):
     """A domain name for comparing, or "" when value is not one: lowercased (_lower), one trailing
-    dot dropped, every label non-empty and made of letters, digits, combining marks and "-" alone,
-    and each non-ASCII label as the A-label of its NFC form (_a_labels). A "/", "?", "#", ":", "@"
-    or space anywhere makes it not one, so nothing after such a character is cut away and the rest
-    compared."""
+    dot dropped, every label non-empty and made of ASCII letters and digits, "-", and non-ASCII
+    characters of the Unicode categories L (letters), Nd (decimal digits), Mn and Mc (combining
+    marks) alone, and each non-ASCII label as the A-label of its NFC form (_a_labels). A "/", "?",
+    "#", ":", "@" or space anywhere makes it not one, so nothing after such a character is cut away
+    and the rest compared."""
     import unicodedata
     d = _lower(str(value or "").strip())
     if not d:
@@ -261,7 +265,7 @@ def _domain_name(value):
         if ch.isascii():
             if not (ch.isalnum() or ch == "-"):
                 return ""
-        elif not (ch.isalnum() or unicodedata.category(ch) in ("Mn", "Mc")):
+        elif not (unicodedata.category(ch)[0] == "L" or unicodedata.category(ch) in ("Nd", "Mn", "Mc")):
             return ""
     return _a_labels(d)
 
@@ -273,18 +277,22 @@ def _address(value):
     local, at, domain = s.rpartition("@")
     if not at or not local or not domain or any(c.isspace() for c in s):
         return ""
-    local, host = _lower(local), _domain_name(domain)
+    import unicodedata
+    low = _lower(local)
+    local, host = (unicodedata.normalize("NFC", low) if low else ""), _domain_name(domain)
     return f"{local}@{host}" if local and host else ""
 
 
 def _homepage_host(url, free=FREE_MAIL_DOMAINS):
-    """The host of a website field when it is a homepage address: an optional scheme, a host with
-    an optional numeric port, then nothing or a single "/" (no path, query or fragment), and no
-    user part; "www." is removed, and a host equal to or under a domain in free is refused. ""
-    otherwise: a page on a shared platform ("https://social.example/brand", ".../#!/brand",
-    "...?u=brand") or a URL with a user part names a host the brand does not own."""
+    """The host of a website field when it is a homepage address: an optional scheme ("https://",
+    or "//" at the start), a host of two or more labels with an optional numeric port, then nothing
+    or a single "/" (no path, query or fragment), and no user part; "www." is removed, and a host
+    equal to or under a domain in free is refused. "" otherwise: a page on a shared platform
+    ("https://social.example/brand", ".../#!/brand", "...?u=brand", or "social.example/u//brand"
+    written without a scheme) or a URL with a user part names a host the brand does not own."""
     s = str(url or "").strip()
-    rest = s.split("//", 1)[1] if "//" in s else s
+    scheme = _URL_SCHEME.match(s)
+    rest = s[scheme.end():] if scheme else s
     cut = min((i for i in (rest.find(c) for c in "/?#") if i >= 0), default=len(rest))
     authority, tail = rest[:cut], rest[cut:]
     if "@" in authority or tail not in ("", "/"):
@@ -296,7 +304,7 @@ def _homepage_host(url, free=FREE_MAIL_DOMAINS):
     host = _domain_name(authority)
     if host.startswith("www."):
         host = host[4:]
-    if not host or any(host == d or host.endswith("." + d) for d in free):
+    if "." not in host or any(host == d or host.endswith("." + d) for d in free):
         return ""
     return host
 
@@ -310,6 +318,8 @@ def _sender_domains(acct, free=FREE_MAIL_DOMAINS):
 
 
 _ONE_ANGLE_ADDRESS = re.compile(r"([^<>@]*)<([^<>@\s]+@[^<>@\s]+)>\s*")
+_URL_SCHEME = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//")
+_ENCODED_WORD = re.compile(r"=\?[^?\s]*\?[bBqQ]\?[^?\s]*\?=")
 
 
 def resolve_sender(from_header, accounts=None, free_mail=None):
@@ -347,18 +357,22 @@ def resolve_sender(from_header, accounts=None, free_mail=None):
         if one:
             name, raw_addr = one.group(1).strip().strip('"').strip(), one.group(2)
             result["flags"].append("display_name_unquoted")
+    raw_name = name
     try:
         name = str(make_header(decode_header(name)))
     except (ValueError, LookupError, UnicodeError, HeaderParseError):
         name = ""
         result["flags"].append("name_undecodable")
-        result["gaps"].append("the display name is in a charset that could not be decoded; not read")
+        result["gaps"].append("the display name is in a charset that could not be decoded; not shown")
     name = name.strip()[:SENDER_NAME_MAX]
+    # the spoof check reads an undecodable name with its encoded words taken out, so a broken one
+    # beside a brand name does not hide the brand name
+    check_name = name or _ENCODED_WORD.sub(" ", raw_name).strip()[:SENDER_NAME_MAX]
 
     def _finish():
         # the spoof check: a name read from the header that names an account the address is not on
-        if name and accts:
-            named = (resolve(name, accts).get("resolved") or {}).get("account_id")
+        if check_name and accts:
+            named = (resolve(check_name, accts).get("resolved") or {}).get("account_id")
             matched = {result["resolved"]["account_id"]} if result["resolved"] else set()
             matched |= {c["account_id"] for c in result["candidates"]}
             if named and named not in matched:
@@ -714,9 +728,13 @@ def selftest():
     _kel = [{"account_id": "acct-k-001", "brand_name": "Kiln Co", "aliases": [],
              "website": "https://oaklinetools.example/",
              "primary_contact": {"name": "Mark", "email": "markcus@kilnco.example"}}]
-    ok("a non-ASCII letter that lowercases to an ASCII one is not read as that letter",
+    _kel.append({"account_id": "acct-k-002", "brand_name": "Pat Goods", "aliases": [],
+                 "primary_contact": {"name": "Pat", "email": "pat`s@patgoods.example"}})
+    ok("a non-ASCII character that lowercases or normalises to an ASCII one is not read as it",
        _snd("x@oa\u212alinetools.example", _kel)["resolution"] == "none"
-       and _snd("mar\u212acus@kilnco.example", _kel)["resolution"] == "none")
+       and _snd("mar\u212acus@kilnco.example", _kel)["resolution"] == "none"
+       and _snd("pat\u1fefs@patgoods.example", _kel)["resolution"] == "none"
+       and _snd("pat`s@patgoods.example", _kel)["resolution"] == "contact_email")
     _cafe = [{"account_id": "acct-cafe-001", "brand_name": "Cafe Goods", "aliases": [],
               "primary_contact": {"name": "Lee", "email": "lee@caf\u00e9.example"}}]
     ok("an NFD spelling of a record's NFC domain is the same address, and capitals in a non-ASCII "
@@ -737,6 +755,39 @@ def selftest():
        and "display_name_unquoted" in s["flags"]
        and _snd("a@b.example, c@d.example")["resolution"] == "none"
        and "display_name_unquoted" not in _snd("Webb, Marcus <a@b.example>, Other <c@d.example>")["flags"])
+    s = _snd("eve@evil.example, Marcus <marcus.webb@hearthlinehome.example>")
+    ok("the one-address reading refuses a name holding an @",
+       s["resolution"] == "none" and "no_address" in s["flags"] and "display_name_unquoted" not in s["flags"])
+    for _hdr in ("x@" ".hearthlinehome.example", "marcus.webb@hearthlinehome.example..",
+                 "marcus.webb@hearthl\u0130nehome.example", "marcus.webb@hearthline\u200dhome.example",
+                 "marcus.webb@hearthline\u00adhome.example", "marcus.webb@hearthlinehome\u037e.example",
+                 "marcus.webb@brand\u00bd.example", "marcus.webb@brand\u20dd.example"):
+        s = _snd(_hdr)
+        ok(f"a domain with an empty label, a second trailing dot, or a character outside letters, digits "
+           f"and combining marks is unreadable ({ascii(_hdr[-14:])})",
+           s["resolution"] == "none" and "no_address" in s["flags"])
+    _dev = [{"account_id": "acct-dev-001", "brand_name": "Hindi Goods", "aliases": [],
+             "primary_contact": {"name": "Ravi", "email": "ravi@\u0939\u093f\u0902\u0926\u0940.example"}}]
+    ok("a Devanagari domain with its vowel signs, and a domain with a non-ASCII digit, are read",
+       _snd("ravi@\u0939\u093f\u0902\u0926\u0940.example", _dev)["resolution"] == "contact_email"
+       and _domain_name("brand\u0663.example").startswith("xn--"))
+    _greek = [{"account_id": "acct-greek-001", "brand_name": "Odos One", "aliases": [],
+               "primary_contact": {"name": "Niko", "email": "niko@\u03bf\u03b4\u03bf\u03c2-shop.example"}},
+              {"account_id": "acct-greek-002", "brand_name": "Odos Two", "aliases": [],
+               "primary_contact": {"name": "Eleni", "email": "eleni@\u03bf\u03b4\u03bf\u03c3-shop.example"}}]
+    s = _snd("NIKO@\u039f\u0394\u039f\u03a3-SHOP.EXAMPLE", _greek)
+    s2 = _snd("ELENI@\u039f\u0394\u039f\u03a3-SHOP.EXAMPLE", _greek)
+    ok("a capital sigma lowercases to the medial sigma, so the final-sigma domain is another domain",
+       s["resolution"] == "none" and s2["resolution"] == "contact_email"
+       and s2["resolved"]["account_id"] == "acct-greek-002")
+    _nfd = [{"account_id": "acct-jose-001", "brand_name": "Jose Goods", "aliases": [],
+             "primary_contact": {"name": "Jose", "email": "jos\u00e9@josegoods.example"}}]
+    ok("an NFD local part is the same address as its NFC record",
+       _snd("jose\u0301@josegoods.example", _nfd)["resolution"] == "contact_email")
+    s = _snd("Hearthline Home =?utf-8?b?S?= <billing@phish.example>")
+    ok("a display name that cannot be decoded is not shown, and its brand name beside it is still checked",
+       s["sender"]["name"] is None and "name_undecodable" in s["flags"]
+       and "display_name_names_another_account" in s["flags"])
     s = _snd("x" * 2100 + " <marcus.webb@hearthlinehome.example>")
     ok("an over-long header is not matched even when it carries a contact's address",
        s["resolution"] == "none" and s["resolved"] is None and "header_too_long" in s["flags"])
@@ -770,6 +821,15 @@ def selftest():
     ok("a website with a port is read by its host",
        _snd("press@oaklinetools.example", _site("https://oaklinetools.example:8443/"))["resolution"]
        == "domain_candidate")
+    ok("a website written without a scheme whose path holds // is read as a page, not a host",
+       [_snd("x@pagebrand.example", _site(u))["resolution"]
+        for u in ("www.social.example/share?u=https://pagebrand.example", "social.example/u//pagebrand.example",
+                  "social.example/r?to=//pagebrand.example/")] == ["none"] * 3
+       and _snd("x@pagebrand.example", _site("//pagebrand.example/"))["resolution"] == "domain_candidate")
+    ok("a website tail of //, an empty port and a one-label host are not a domain basis",
+       [_snd("noreply@social.example", _site(u))["resolution"]
+        for u in ("https://social.example//", "https://social.example:/", "https://social.example:/x")]
+       == ["none"] * 3 and _homepage_host("https://com/") == "")
     ok("a website with a query or a fragment on /, or a port that is not a number, is not a domain basis",
        [_snd("noreply@social.example", _site(u))["resolution"]
         for u in ("https://social.example/#!/oaklinetools", "https://social.example/?u=oaklinetools",

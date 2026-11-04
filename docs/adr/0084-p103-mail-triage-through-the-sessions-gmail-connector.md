@@ -26,8 +26,10 @@ Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail
    `FREE_MAIL_DOMAINS`. A contact's own mailbox domain is not a basis: it may be a free or ISP
    mailbox domain that the fixed list does not hold, and then every stranger there would be a
    candidate. A sender on a `FREE_MAIL_DOMAINS` domain is not matched by domain. A mail domain is
-   read whole (`_domain_name`): lowercased, one trailing dot dropped, every label made of letters,
-   digits, combining marks and "-", and each non-ASCII label written as the punycode A-label of its
+   read whole (`_domain_name`): lowercased one character at a time, one trailing dot dropped, every
+   label made of ASCII letters and digits, "-", and non-ASCII characters of the Unicode categories
+   L, Nd, Mn and Mc (letters, decimal digits and combining marks), and each non-ASCII label written
+   as the punycode A-label of its
    NFC form with nothing mapped (the stdlib IDNA2003 codec maps ß to "ss"). A "/", "?", "#", ":"
    or space in it, or a non-ASCII letter that lowercases to an ASCII one (the Kelvin sign), makes
    the address unreadable (`no_address`) rather than cut short. The header is split into name and
@@ -39,15 +41,17 @@ Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail
    (`display_name_names_another_account`). The display name is not used to match.
 2. `tools/mail_triage.py` sorts the messages a session read through its connector (at most 50 per
    call, 65,536 characters of body each): the offline pattern tier screens the sender's name and
-   From header, the subject, the body, the Message-ID and the date (pass 1), and a QUARANTINE or
-   BLOCK verdict puts the message in `held` with its display name, subject, Message-ID and date not
-   echoed and no pass 2; the others get one pile, `payment_notice`, `known_brand`, `new_pitch` or
+   From header, the subject, the body, the Message-ID, the date and the link (pass 1), and a
+   QUARANTINE or BLOCK verdict puts the message in `held` with its display name, subject,
+   Message-ID, date and link not echoed and no pass 2; the others get one pile, `payment_notice`, `known_brand`, `new_pitch` or
    `other`, from fixed word lists and the sender match, with a next step. A payment notice whose
-   display name names another account, or whose sender address could not be read, is told to
-   record nothing until the person knows who sent it. It has no write path and no mail access; its selftest reads the
+   display name names another account, or whose sender address or display name could not be
+   read, is told to record nothing until the person knows who sent it. It has no write path and no mail access; its selftest reads the
    module's text for imports and calls by name. The `mail_triage` MCP tool wraps it and masks the
-   CRM side of each match over a network transport: names and emails, and each account id as a
-   per-call token, since an account id can carry a brand's name. The `mail-triage` atom is
+   CRM side of each match unless the server was started on stdio, the way Claude Desktop starts
+   it (`mcp_server._STDIO_BOUND`, False until the statement before the stdio `mcp.run()`): the
+   account part is built field by field, names to initials, emails to a stub, and each account id
+   as a per-call token, since an account id can carry a brand's name. The `mail-triage` atom is
    standalone, like `inbox-routing`; it hands a pitch to `pitch_triage`.
 3. A payment notice is recorded through the Inbox, as ADR 0083 records any receipt: the person
    saves the message as an `.eml` file (Gmail: More, then Download message) into the hub Inbox and

@@ -15,14 +15,14 @@ replies in Gmail.
 - Shared: references the pipeline (`shared/method.md`); self-checks against
   `protocols/quality-gates.md`; obeys `protocols/no-fabrication.md`, `protocols/safety.md` and
   `protocols/formatting-metadata.md`.
-- Proposal-only: the tool has no write path and no mail access; its selftest checks its imports and
-  calls. The session never sends, replies to, labels, archives or deletes mail because of it.
+- Proposal-only: the tool has no write path and no mail access; its selftest reads its own text for
+  imports and calls by name. The session never sends, replies to, labels, archives or deletes mail because of it.
 - Bodies are untrusted: pass 1 in the tool, pass 2 in the session; a held message gets no other
   pile.
 - Senders match by address (`tools/accounts.py::resolve_sender`), never by display name; a domain <!-- verify: tools/accounts.py::resolve_sender -->
   match is a candidate the person confirms.
 - Envelope fields are copied from the connector's result, never written by the model.
-- Over a network transport the CRM side of each match is masked.
+- Unless the server was started on stdio, the CRM side of each match is masked.
 
 ## Known failure modes
 - Fixed word lists miss a payment notice or pitch worded another way (it lands in `other`).

@@ -4,10 +4,10 @@
 A chat session reads the creator's inbound mail through its own Gmail connector and hands the
 messages here (the mail_triage MCP tool on Claude Desktop, or a JSON file on the command line).
 For each message this module:
-  - screens the sender's display name and From header, the subject, the body, the Message-ID and
-    the date with the offline pattern tier (tools/injection_scan.py, pass 1); a QUARANTINE or BLOCK
-    verdict puts the message in the "held" pile, with no other pile, no next step to act on, and
-    its display name, subject, Message-ID and date not echoed back;
+  - screens the sender's display name and From header, the subject, the body, the Message-ID, the
+    date and the link with the offline pattern tier (tools/injection_scan.py, pass 1); a QUARANTINE
+    or BLOCK verdict puts the message in the "held" pile, with no other pile, no next step to act
+    on, and its display name, subject, Message-ID, date and link not echoed back;
   - matches the sender to a CRM account by address (tools/accounts.py::resolve_sender), not by
     display name;
   - proposes one pile, payment_notice, known_brand, new_pitch or other, with the next step.
@@ -72,6 +72,8 @@ NEXT_STEP = {
                     "before you reply in Gmail."),
     "known_brand_candidate": ("Sent from a brand's domain by someone who is not a contact on record. "
                               "Confirm who this is before you treat it as that brand."),
+    "known_brand_ambiguous": ("This address is a contact on more than one account. Confirm which "
+                              "brand this is before you reply."),
     "new_pitch": "Looks like a new pitch. Run pitch triage on it to read the offer and check the fit.",
     "other": "Nothing to do.",
     "held": ("The offline screen flagged this message, so Creator OS does nothing with it. Open it in "
@@ -81,6 +83,8 @@ SPOOF_NOTE = ("The display name names a brand the address does not belong to. Ch
               "address before you reply.")
 SPOOF_PAYMENT = "Record nothing from it until you know who sent it."
 UNREAD_NOTE = "Creator OS could not read the sender's address."
+UNREAD_NAME_NOTE = "Creator OS could not read the sender's display name."
+MASKED = "(masked)"   # a name or email field whose value is not a string, in a masked result
 _UNREAD_SENDER = ("encoded_address", "no_address", "header_too_long")
 
 
@@ -88,6 +92,41 @@ def _text(value, cap):
     """value as a string cut to cap characters, and whether it was cut."""
     s = value if isinstance(value, str) else ("" if value is None else str(value))
     return s[:cap], len(s) > cap
+
+
+def _masked_name(v):
+    return _acc._initials(v) if isinstance(v, str) and v.strip() else (MASKED if v else None)
+
+
+def _masked_email(v):
+    return _acc._mask_email(v) if isinstance(v, str) and "@" in v else (MASKED if v else None)
+
+
+def _masked_account(account, tokens):
+    """The account part of a row for a result that leaves this computer, built field by field from
+    a fixed list: brand and contact names to initials, contact emails to a stub, any other value
+    under those keys to MASKED, each account id to a per-call token (one token per non-empty
+    string id within a call; any other id gets a token of its own), the contact's role and kind
+    kept when they are strings. Other keys are left out."""
+    def token(aid):
+        key = aid if isinstance(aid, str) and aid else object()
+        return tokens.setdefault(key, f"account-{len(tokens) + 1}")
+
+    def text(v):
+        return v if isinstance(v, str) else None
+    out = {"resolution": account["resolution"], "resolved": None, "candidates": []}
+    r = account["resolved"]
+    if r:
+        c = r.get("contact") if isinstance(r.get("contact"), dict) else {}
+        out["resolved"] = {"account_id": token(r.get("account_id")),
+                           "brand_name": _masked_name(r.get("brand_name")),
+                           "contact": {"name": _masked_name(c.get("name")),
+                                       "email": _masked_email(c.get("email")),
+                                       "role": text(c.get("role")), "kind": text(c.get("kind"))}}
+    out["candidates"] = [{"account_id": token(c.get("account_id")),
+                          "brand_name": _masked_name(c.get("brand_name")),
+                          "match_basis": text(c.get("match_basis"))} for c in account["candidates"]]
+    return out
 
 
 def _one(msg, roster, masked, tokens):
@@ -101,7 +140,7 @@ def _one(msg, roster, masked, tokens):
 
     match = _acc.resolve_sender(sender_raw, roster)
     screen = _inj.scan_text("\n".join([match["sender"]["name"] or "", sender_raw, subject, body,
-                                       mid or "", when]))
+                                       mid or "", when, link]))
     prior = {"risk_level": screen["risk_level"], "total_score": screen["total_score"],
              "patterns_detected": screen["patterns_detected"]}
     flags = list(match["flags"])
@@ -125,37 +164,37 @@ def _one(msg, roster, masked, tokens):
         pile = "other"
 
     step = NEXT_STEP[pile]
-    if pile == "known_brand" and match["resolution"] != "contact_email":
+    if pile == "known_brand" and match["resolution"] == "contact_email_ambiguous":
+        step = NEXT_STEP["known_brand_ambiguous"]
+    elif pile == "known_brand" and match["resolution"] != "contact_email":
         step = NEXT_STEP["known_brand_candidate"]
     if not held and "display_name_names_another_account" in flags:
         step = SPOOF_NOTE + " " + (SPOOF_PAYMENT if pile == "payment_notice" else step)
     elif pile == "payment_notice" and set(_UNREAD_SENDER) & set(flags):
         step = UNREAD_NOTE + " " + SPOOF_PAYMENT
+    elif pile == "payment_notice" and "name_undecodable" in flags:
+        step = UNREAD_NAME_NOTE + " " + SPOOF_PAYMENT
     account = {"resolution": match["resolution"], "resolved": match["resolved"],
                "candidates": match["candidates"]}
     if masked:
-        # names and emails masked; each account id, which may carry a brand slug, becomes a token
-        # that is the same for one account within this call
-        account = _acc.redact(account)
-        for item in ([account["resolved"]] if account["resolved"] else []) + account["candidates"]:
-            aid = item.get("account_id")
-            key = aid if isinstance(aid, str) and aid else object()   # no usable id: a token of its own
-            item["account_id"] = tokens.setdefault(key, f"account-{len(tokens) + 1}")
+        account = _masked_account(account, tokens)
     sender = dict(match["sender"], name=None) if held else match["sender"]
-    # a flagged message's name, subject, Message-ID and date are not echoed; mid stays the de-dup key
-    return mid, {"message_id": None if held else mid, "date": None if held else (when or None),
+    # a flagged message's name, subject, Message-ID, date and link are not echoed; the de-dup key
+    # keeps held and other messages apart, so a held copy does not hide a later message
+    return (mid, held), {"message_id": None if held else mid, "date": None if held else (when or None),
             "subject": None if held else (subject or None),
-            "link": link or None, "sender": sender, "pile": pile, "account": account,
+            "link": None if held else (link or None), "sender": sender, "pile": pile, "account": account,
             "flags": flags, "next_step": step, "offline_pattern_scan": prior,
             "screen_note": _inj.render_prior(prior), "pass2_pending": not held}
 
 
 def triage(messages, accounts=None, masked=False):
     """Sort a batch of inbound messages into piles (see the module docstring). accounts is an
-    in-memory roster (default: the local store, pipeline/accounts/*.local.json). masked=True masks
-    the CRM side of each match (brand and contact names and contact emails with accounts.redact,
-    and each account id as a token such as account-1), for a result that leaves this computer; the
-    sender fields came from the caller and stay as sent."""
+    in-memory roster (default: the local store, pipeline/accounts/*.local.json). masked=True builds
+    the CRM side of each match field by field (_masked_account: brand and contact names to
+    initials, contact emails to a stub, other values there to MASKED, each account id to a token
+    such as account-1), for a result that leaves this computer; the sender fields came from the
+    caller and stay as sent."""
     out = {"boundary": BOUNDARY, "human_review_required": True, "computed_by": f"{TOOL} triage",
            "messages": [], "counts": {p: 0 for p in PILES}, "gaps": []}
     if not isinstance(messages, list):
@@ -175,7 +214,7 @@ def triage(messages, accounts=None, masked=False):
             out["gaps"].append(f"message {i} is not an object; skipped")
             continue
         key, row = _one(msg, roster, masked, tokens)
-        if key:
+        if key[0]:
             if key in seen:
                 out["gaps"].append(f"message {i} repeats an earlier Message-ID; listed once")
                 continue
@@ -307,6 +346,18 @@ def selftest() -> int:
     ok("the screen reads the Message-ID, the date and the raw From header too",
        [x["pile"] for x in (by_mid, by_date, by_addr)] == ["held", "held", "held"]
        and by_mid["message_id"] is None and by_date["date"] is None and by_addr["sender"]["name"] is None)
+    import base64 as _b64
+    _enc = "=?utf-8?b?" + _b64.b64encode(_inj1.encode()).decode() + "?="
+    by_enc = one(**{"from": f"{_enc} <a@x.example>", "subject": "Hello", "body": "Hi."})
+    by_link = one(**{"from": "a@shop.example", "subject": "Hello", "body": "Hi.", "link": _inj1})
+    ok("an encoded-word display name is screened as decoded, and the link is screened and not echoed when held",
+       by_enc["pile"] == "held" and by_link["pile"] == "held" and by_link["link"] is None)
+    _two_held = run([{"message_id": "<h@mail.example>", "from": "a@shop.example", "body": _inj1},
+                     {"message_id": "<h@mail.example>", "from": "a@shop.example", "body": _inj1},
+                     {"message_id": "<h@mail.example>", "from": "Marcus Webb <marcus.webb@hearthlinehome.example>",
+                      "subject": "Payment sent", "body": "Your payout is ready."}])
+    ok("two held copies of one Message-ID are listed once, and a held copy does not hide a later message",
+       [m["pile"] for m in _two_held["messages"]] == ["held", "payment_notice"])
     held_spoof = one(**{"from": "Hearthline Home <x@phish.example>", "subject": "Hello", "body": _inj1})
     ok("a held message gets the held step alone, with no spoof note",
        held_spoof["pile"] == "held" and held_spoof["next_step"] == NEXT_STEP["held"])
@@ -325,6 +376,16 @@ def selftest() -> int:
     _unread = [one(**{"from": h, "subject": "Payment received", "body": "Your payout is ready."})
                for h in ("Billing <=?utf-8?q?billing=40phish.example?=>", "Billing <billing phish.example>",
                          "x" * 2100 + " <billing@phish.example>")]
+    r_sp = one(**{"from": "Hearthline Home <=?utf-8?q?billing=40phish.example?=>", "subject": "Payment received",
+                  "body": "Your payout is ready."})
+    r_np = one(**{"from": "Billing <billing phish.example>", "subject": "Hello", "body": "Quick question."})
+    r_un = one(**{"from": "=?utf-8?b?S?= <billing@phish.example>", "subject": "Payment received",
+                  "body": "Your payout is ready."})
+    ok("a spoof note comes first when the address is also unreadable, an unreadable sender on another pile "
+       "keeps its step, and an undecodable name on a payment notice records nothing",
+       r_sp["next_step"] == SPOOF_NOTE + " " + SPOOF_PAYMENT and r_np["next_step"] == NEXT_STEP["other"]
+       and r_un["next_step"] == UNREAD_NAME_NOTE + " " + SPOOF_PAYMENT
+       and UNREAD_NAME_NOTE == "Creator OS could not read the sender's display name.")
     ok("a payment notice whose sender address cannot be read is not given the step that records it",
        [x["pile"] for x in _unread] == ["payment_notice"] * 3
        and [x["next_step"] for x in _unread] == [UNREAD_NOTE + " " + SPOOF_PAYMENT] * 3
@@ -337,9 +398,10 @@ def selftest() -> int:
                                                   "email": "marcus.webb@hearthlinehome.example"}}]
     r = triage([{"message_id": "<amb@mail.example>", "from": "marcus.webb@hearthlinehome.example",
                  "subject": "Hi"}], accounts=_dup)["messages"][0]
-    ok("an address on two accounts is a known brand to confirm",
+    ok("an address on two accounts is a known brand to confirm, with a step of its own",
        r["pile"] == "known_brand" and r["account"]["resolution"] == "contact_email_ambiguous"
-       and r["next_step"] == NEXT_STEP["known_brand_candidate"])
+       and r["next_step"] == NEXT_STEP["known_brand_ambiguous"]
+       and "more than one account" in r["next_step"])
 
     d = run([{"message_id": "<dup@mail.example>", "from": "a@shop.example", "subject": "One"},
              {"message_id": "dup@mail.example", "from": "a@shop.example", "subject": "One again"},
@@ -378,6 +440,24 @@ def selftest() -> int:
              {"brand_name": "Gamma Goods", "aliases": [], "primary_contact": {"name": "G", "email": "g@gamma.example"}}]
     _ni = triage([{"message_id": f"<i{n}@mail.example>", "from": f"{n}@{d}.example", "subject": "Hi"}
                   for n, d in (("a", "alpha"), ("b", "beta"), ("g", "gamma"))], accounts=_noid, masked=True)
+    _odd_rec = [{"account_id": "acct-list-001", "brand_name": ["Listed Brand"], "aliases": [],
+                 "primary_contact": {"name": ["Pat", "Lee"], "email": "pat@listed.example", "role": ["x"],
+                                     "extra": "Pat Lee"}},
+                {"account_id": "", "brand_name": "Empty One", "aliases": [],
+                 "primary_contact": {"name": "E", "email": "e@emptyone.example"}},
+                {"account_id": "", "brand_name": "Empty Two", "aliases": [],
+                 "primary_contact": {"name": "F", "email": "f@emptytwo.example"}}]
+    _od = triage([{"message_id": f"<o{n}@mail.example>", "from": a, "subject": "Hi"}
+                  for n, a in enumerate(("pat@listed.example", "e@emptyone.example", "f@emptytwo.example"))],
+                 accounts=_odd_rec, masked=True)
+    _od_dump = json.dumps([m["account"] for m in _od["messages"]])
+    ok("masked builds the account part from a fixed list: a list value is masked, an extra key is left "
+       "out, and two empty ids get two tokens",
+       _od["messages"][0]["account"]["resolved"]["brand_name"] == MASKED
+       and _od["messages"][0]["account"]["resolved"]["contact"]["name"] == MASKED
+       and _od["messages"][0]["account"]["resolved"]["contact"]["role"] is None
+       and "Listed" not in _od_dump and "Pat" not in _od_dump and "extra" not in _od_dump
+       and [m["account"]["resolved"]["account_id"] for m in _od["messages"]][1:] == ["account-2", "account-3"])
     ok("a record with no account id, or one that is not a string, gets a token of its own",
        [m["account"]["resolved"]["account_id"] for m in _ni["messages"]] == ["account-1", "account-2", "account-3"])
     ok("masked masks candidates too and turns each account id into a token, one per account per call",
@@ -422,6 +502,16 @@ def selftest() -> int:
        {"exec", "compile", "vars", "getattr(exec)", ".__dict__", ".__globals__", ".__builtins__",
         ".__subclasses__", "remove", "makedirs", "truncate", ".modules"} <= set(_wf2))
 
+    _names = ("write", "write_text", "write_bytes", "unlink", "rename", "replace", "mkdir", "rmdir", "touch",
+              "symlink_to", "chmod", "system", "popen", "urlopen", "remove", "removedirs", "makedirs",
+              "truncate", "hardlink_to", "link", "symlink", "writelines", "rmtree", "copyfile", "copy2",
+              "copytree", "move")
+    _missed = [n for n in _names if n not in _write_free(f"x.{n}()")]
+    _missed += [n for n in ("__import__", "eval", "exec", "compile", "vars") if n not in _write_free(f"{n}()")]
+    _missed += [a for a in ("__builtins__", "__dict__", "__globals__", "__subclasses__", "modules")
+                if f".{a}" not in _write_free(f"x.{a}")]
+    ok("the write check refuses each listed write, process and network name, bare builtin and attribute",
+       _missed == [])
     import io
     import contextlib
     import tempfile
