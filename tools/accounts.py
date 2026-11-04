@@ -14,9 +14,10 @@ This tool READS brand account and deal records and answers four questions:
     choose.
   - resolve_sender(from_header): which account does an email sender belong to? It matches the
     ADDRESS, not the display name (P103): an address that is a contact email on one account
-    resolves; an address whose domain is a contact-email domain or the account's website host
-    (or a subdomain of one) is a candidate only; a free webmail domain is never matched by domain;
-    a display name that names an account the address does not match is flagged.
+    resolves; an address whose domain is the account's website host, when the website is a
+    homepage address (or a subdomain of that host), is a candidate only; a domain on
+    FREE_MAIL_DOMAINS is not matched by domain; a display name that names an account the address
+    does not match is flagged.
   - contacts(query, person): the contact(s) on the resolved account, optionally filtered to a
     person hint. A person hint that matches nobody returns a gap, never the wrong person.
   - deal_status(query|deal_id): the lifecycle stage of a deal, reported VERBATIM from the record
@@ -195,8 +196,11 @@ def resolve(query, accounts=None):
 
 # ── sender (an email From header) ────────────────────────────────────────────
 
-# Free webmail domains: anyone can hold an address there, so a sender on one is matched by its full
-# address only, never by domain (P103). A brand contact who writes from one still matches exactly.
+# Free webmail domains: anyone can hold an address there, so a website host on or under one of these
+# is not a domain basis and a sender on one is flagged free_mail_domain (P103). The list is fixed and
+# incomplete; the domain basis is the website host alone, so a contact's mailbox domain, listed here
+# or not, never makes other senders there candidates. A brand contact who writes from one still
+# matches by the exact address.
 FREE_MAIL_DOMAINS = frozenset({
     "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "hotmail.co.uk", "live.com",
     "msn.com", "yahoo.com", "yahoo.co.uk", "ymail.com", "rocketmail.com", "icloud.com", "me.com",
@@ -208,9 +212,28 @@ SENDER_HEADER_MAX = 2048   # characters of a From header read; a longer one is n
 SENDER_NAME_MAX = 200      # characters of a display name compared against account names
 
 
+def _a_labels(host):
+    """host with each non-ASCII label written as its punycode A-label ("xn--" + punycode of the
+    NFC label), mapping nothing: "glaßhouse.example" stays apart from "glasshouse.example", as
+    IDNA2008 keeps them, where the stdlib "idna" codec (IDNA2003) maps ß to "ss" and drops joiners
+    and soft hyphens. "" when a label cannot be encoded."""
+    import unicodedata
+    out = []
+    for label in unicodedata.normalize("NFC", host).split("."):
+        if label.isascii():
+            out.append(label)
+            continue
+        try:
+            out.append("xn--" + label.encode("punycode").decode("ascii"))
+        except UnicodeError:
+            return ""
+    return ".".join(out)
+
+
 def _host(value):
     """The lowercase ASCII host of a domain or URL ("https://www.Brand.example/shop" ->
-    "brand.example"), IDNA-encoded so a Unicode and a punycode spelling compare equal, or ""."""
+    "brand.example"), each non-ASCII label as its A-label (_a_labels), so a Unicode and a punycode
+    spelling of one domain compare equal; or ""."""
     s = str(value or "").strip().lower()
     if not s:
         return ""
@@ -220,46 +243,57 @@ def _host(value):
     s = s.rstrip(".")
     if s.startswith("www."):
         s = s[4:]
-    try:
-        s = s.encode("idna").decode("ascii")
-    except UnicodeError:
-        pass
-    return s
+    return _a_labels(s)
 
 
 def _address(value):
-    """A lowercase address with its domain IDNA-encoded, or "" when value is not one address."""
+    """A lowercase address with its domain through _host, or "" when value is not one address."""
     s = str(value or "").strip().lower()
     local, at, domain = s.rpartition("@")
     if not at or not local or not domain or any(c.isspace() for c in s):
         return ""
-    return f"{local}@{_host(domain)}"
+    host = _host(domain)
+    return f"{local}@{host}" if host else ""
+
+
+def _homepage_host(url, free=FREE_MAIL_DOMAINS):
+    """The host of a website field when it is a homepage address: no user part, no path beyond "/",
+    and a host not equal to or under a domain in free. "" otherwise: a page on a shared platform
+    ("https://social.example/brand") or a URL with a user part names a host the brand does not
+    own."""
+    s = str(url or "").strip()
+    rest = s.split("//", 1)[1] if "//" in s else s
+    authority, slash, path = rest.split("?", 1)[0].split("#", 1)[0].partition("/")
+    if "@" in authority or path.strip("/"):
+        return ""
+    host = _host(authority)
+    if not host or any(host == d or host.endswith("." + d) for d in free):
+        return ""
+    return host
 
 
 def _sender_domains(acct, free=FREE_MAIL_DOMAINS):
-    """The domains a sender may share with this account: its contact-email domains and its website
-    host, leaving out free webmail domains (free)."""
-    out = set()
-    for c in _all_contacts(acct):
-        addr = _address(c.get("email"))
-        if addr:
-            out.add(addr.rsplit("@", 1)[1])
-    site = _host(acct.get("website"))
-    if site:
-        out.add(site)
-    return {d for d in out if d and d not in free}
+    """The domains a sender may share with this account: its website host, when the website is a
+    homepage address (_homepage_host). A contact's mailbox domain is not one: it may be a free or
+    ISP mailbox domain that FREE_MAIL_DOMAINS does not list."""
+    site = _homepage_host(acct.get("website"), free)
+    return {site} if site else set()
 
 
 def resolve_sender(from_header, accounts=None, free_mail=None):
     """Which account an email sender belongs to, by ADDRESS (P103). `resolved` is set only when the
     address is a contact email on exactly one account. A sender whose domain equals, or is a
-    subdomain of, an account's contact-email domain or website host is a candidate for the human
-    to confirm (`domain_candidate`), never resolved: anyone at a company can write, and a domain
-    says nothing about which person. A free webmail domain is never matched by domain. The
-    display name is not used to match; when it names an account the address does not match, the
-    result carries the flag `display_name_names_another_account` (what a spoofed brand email looks
-    like). free_mail stands in for FREE_MAIL_DOMAINS (the selftest passes .example names, so no
-    address at a real provider is written into the repo)."""
+    subdomain of, an account's website host (a homepage address, _homepage_host) is a candidate
+    for the human to confirm (`domain_candidate`), never resolved: anyone at a company can write,
+    and a domain says nothing about which person. A domain on FREE_MAIL_DOMAINS is not matched by
+    domain. The header is split into name and address before any decoding, and only the display
+    name is decoded: an address holding an encoded word (RFC 2047 keeps them out of an address) is
+    flagged `encoded_address` and not matched. The display name is not used to match; when it
+    names an account the address does not match, the result carries the flag
+    `display_name_names_another_account` (what a spoofed brand email looks like). free_mail stands
+    in for FREE_MAIL_DOMAINS (the selftest passes .example names, so no address at a real provider
+    is written into the repo)."""
+    from email.errors import HeaderParseError
     from email.header import decode_header, make_header
     from email.utils import parseaddr
     accts = load_accounts(accounts)
@@ -272,13 +306,19 @@ def resolve_sender(from_header, accounts=None, free_mail=None):
         result["flags"].append("header_too_long")
         result["gaps"].append(f"the From header is longer than {SENDER_HEADER_MAX} characters; not matched")
         return result
+    name, raw_addr = parseaddr(raw)
     try:
-        raw = str(make_header(decode_header(raw)))
-    except (ValueError, LookupError, UnicodeError):
+        name = str(make_header(decode_header(name)))
+    except (ValueError, LookupError, UnicodeError, HeaderParseError):
         pass
-    name, addr = parseaddr(raw)
-    addr = _address(addr)
     name = name.strip()[:SENDER_NAME_MAX]
+    if "=?" in raw_addr:
+        result["sender"] = {"name": name or None, "email": None}
+        result["flags"].append("encoded_address")
+        result["gaps"].append("the sender address is written as an encoded word, which an address "
+                              "cannot be; not matched")
+        return result
+    addr = _address(raw_addr)
     result["sender"] = {"name": name or None, "email": addr or None}
     if not addr:
         result["flags"].append("no_address")
@@ -474,6 +514,7 @@ def redact(obj):
 _ROSTER = [
     {"account_id": "acct-hearthline-001", "brand_name": "Hearthline Home",
      "brand_category": "home decor", "aliases": ["hearthline"],
+     "website": "https://www.hearthlinehome.example",
      "primary_contact": {"name": "Marcus Webb", "email": "marcus.webb@hearthlinehome.example",
                          "role": "Partnerships Manager"},
      "secondary_contacts": [{"name": "Dana Ellis", "email": "dana.ellis@hearthlinehome.example",
@@ -565,18 +606,57 @@ def selftest():
     ok("a secondary contact's address resolves",
        s["resolved"] and s["resolved"]["contact"]["kind"] == "secondary")
     s = _snd("New Person <jo@hearthlinehome.example>")
-    ok("an unknown address on a contact's domain is a candidate, not resolved",
+    ok("an unknown address on the website's host is a candidate, not resolved",
        s["resolution"] == "domain_candidate" and s["resolved"] is None
        and [c["account_id"] for c in s["candidates"]] == ["acct-hearthline-001"]
        and s["candidates"][0]["match_basis"] == "domain")
     s = _snd("Ops <billing@mail.hearthlinehome.example>")
-    ok("a subdomain of a contact's domain is a candidate",
+    ok("a subdomain of the website's host is a candidate",
        s["resolution"] == "domain_candidate" and s["candidates"][0]["match_basis"] == "subdomain")
+    s = _snd("Hearthline Home <jo@hearthlinehome.example>")
+    ok("a display name naming the candidate's own account is not flagged",
+       s["resolution"] == "domain_candidate" and "display_name_names_another_account" not in s["flags"])
+    _caps = [dict(_ROSTER[2], primary_contact={"name": "Sam Ortega", "email": "Sam@LumenCo.example",
+                                               "role": "Founder"})]
+    _twice = [dict(_ROSTER[0], secondary_contacts=[{"name": "Marcus Webb",
+                                                    "email": "marcus.webb@hearthlinehome.example"}])]
+    s = _snd("Marcus <marcus.webb@hearthlinehome.example>", _twice)
+    ok("a record address in capitals matches, and an address listed twice on one account resolves",
+       _snd("sam@lumenco.example", _caps)["resolution"] == "contact_email"
+       and s["resolution"] == "contact_email" and not s["flags"])
+    ok("a trailing dot on the sender's domain is the same address",
+       _snd("marcus.webb@hearthlinehome.example.")["resolution"] == "contact_email")
+    s = _snd("Marcus <marcus webb@hearthlinehome.example>")
+    ok("an address with a space in it is not read",
+       s["resolution"] == "none" and "no_address" in s["flags"])
+    _glass = [{"account_id": "acct-glass-001", "brand_name": "Glasshouse Goods", "aliases": [],
+               "primary_contact": {"name": "Lee", "email": "lee@glasshouse.example"}}]
+    _glass_a = [{"account_id": "acct-glass-002", "brand_name": "Glasshouse Goods", "aliases": [],
+                 "primary_contact": {"name": "Lee", "email": "lee@xn--glahouse-sya.example"}}]
+    ok("an eszett domain is not the ss domain, and its Unicode and A-label spellings are one address",
+       _host("gla\u00dfhouse.example") == "xn--glahouse-sya.example"
+       and _snd("Lee <lee@gla\u00dfhouse.example>", _glass)["resolution"] == "none"
+       and _snd("Lee <lee@gla\u00dfhouse.example>", _glass_a)["resolution"] == "contact_email")
+    ok("a fullwidth or soft-hyphen spelling of a brand's domain is not that domain",
+       _snd("marcus.webb@ｈｅａｒｔｈｌｉｎｅｈｏｍｅ"
+            ".example")["resolution"] == "none"
+       and _snd("marcus.webb@hearthline­home.example")["resolution"] == "none")
+    for _hdr in ("X <=?utf-8?q?marcus.webb=40hearthlinehome.example?=>",
+                 "=?utf-8?b?bWFyY3VzLndlYmJAaGVhcnRobGluZWhvbWUuZXhhbXBsZQ==?="):
+        s = _snd(_hdr)
+        ok(f"an address written as an encoded word is flagged and not matched ({_hdr[:12]})",
+           s["resolution"] == "none" and "encoded_address" in s["flags"] and s["sender"]["email"] is None)
+    s = _snd("=?x-unknown?q?abc?= <marcus.webb@hearthlinehome.example>")
+    ok("a display name in an unknown charset keeps the address",
+       s["resolution"] == "contact_email" and s["sender"]["name"] == "=?x-unknown?q?abc?=")
+    s = _snd("x" * 2100 + " <marcus.webb@hearthlinehome.example>")
+    ok("an over-long header is not matched even when it carries a contact's address",
+       s["resolution"] == "none" and s["resolved"] is None and "header_too_long" in s["flags"])
     s = _snd("Hearthline Home <billing@phish.example>")
     ok("a display name naming an account does not match it, and is flagged",
        s["resolution"] == "none" and s["resolved"] is None and not s["candidates"]
        and "display_name_names_another_account" in s["flags"])
-    ok("a look-alike domain that ends with a contact's domain plus more does not match",
+    ok("a look-alike domain that starts with a brand's host and goes on does not match",
        _snd("Sam <marcus.webb@hearthlinehome.example.phish.example>")["resolution"] == "none")
     ok("a domain that merely ends with the same letters does not match",
        _snd("x <x@evil-hearthlinehome.example>")["resolution"] == "none")
@@ -586,18 +666,34 @@ def selftest():
        s["resolution"] == "none" and "free_mail_domain" in s["flags"])
     _gm = [{"account_id": "acct-gm-001", "brand_name": "Kiln Studio", "aliases": [],
             "primary_contact": {"name": "Ana", "email": "kiln.studio@freemail.example", "role": "Owner"}}]
-    ok("a contact on a free webmail domain still matches by full address, and no one else there does",
+    ok("a contact's mailbox domain is not a domain basis, on the free list or off it",
        resolve_sender("Ana <kiln.studio@freemail.example>", _gm, free_mail=_free)["resolution"] == "contact_email"
        and resolve_sender("Other <someone@freemail.example>", _gm, free_mail=_free)["resolution"] == "none"
-       and resolve_sender("Other <someone@freemail.example>", _gm, free_mail=())["resolution"]
-       == "domain_candidate")
+       and resolve_sender("Other <someone@freemail.example>", _gm, free_mail=())["resolution"] == "none")
     ok("the free webmail list holds the large providers",
        {"gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotmail.com"} <= FREE_MAIL_DOMAINS)
-    _site = [{"account_id": "acct-site-001", "brand_name": "Oakline Tools", "aliases": [],
-              "website": "https://www.oaklinetools.example/shop", "primary_contact": {}}]
-    s = _snd("Press <press@oaklinetools.example>", _site)
-    ok("the website host makes the domain a candidate",
+
+    def _site(url):
+        return [{"account_id": "acct-site-001", "brand_name": "Oakline Tools", "aliases": [],
+                 "website": url, "primary_contact": {}}]
+    s = _snd("Press <press@oaklinetools.example>", _site("https://www.oaklinetools.example/"))
+    ok("a homepage website host makes the domain a candidate",
        s["resolution"] == "domain_candidate" and s["candidates"][0]["account_id"] == "acct-site-001")
+    ok("a website with a port is read by its host",
+       _snd("press@oaklinetools.example", _site("https://oaklinetools.example:8443/"))["resolution"]
+       == "domain_candidate")
+    ok("a website that is a page on another host, or that has a user part, is not a domain basis",
+       _snd("promo@social.example", _site("https://www.social.example/oaklinetools"))["resolution"] == "none"
+       and _snd("x@evil.example", _site("https://oaklinetools.example@evil.example/"))["resolution"] == "none"
+       and _snd("x@oaklinetools.example", _site("https://oaklinetools.example@evil.example/"))["resolution"]
+       == "none")
+    ok("a website host on, or under, a free webmail domain is not a domain basis",
+       resolve_sender("x@mail.freemail.example", _site("https://freemail.example/"),
+                      free_mail=_free)["resolution"] == "none"
+       and resolve_sender("x@shop.freemail.example", _site("https://shop.freemail.example/"),
+                          free_mail=_free)["resolution"] == "none"
+       and resolve_sender("x@shop.freemail.example", _site("https://shop.freemail.example/"),
+                          free_mail=())["resolution"] == "domain_candidate")
     _dup = [dict(_ROSTER[0]), {"account_id": "acct-dup-001", "brand_name": "Other Brand", "aliases": [],
                                "primary_contact": {"name": "Marcus Webb",
                                                    "email": "marcus.webb@hearthlinehome.example"}}]
@@ -608,9 +704,9 @@ def selftest():
        "no_address" in _snd("not an address")["flags"]
        and "header_too_long" in _snd("a" * (SENDER_HEADER_MAX + 1))["flags"]
        and _snd("marcus.webb@hearthlinehome.example", [])["resolution"] == "none")
-    s = _snd("=?utf-8?q?Hearthline_Home?= <billing@phish.example>")
+    s = _snd("=?utf-8?b?SGVhcnRobGluZSBIb21l?= <billing@phish.example>")
     ok("an encoded display name is decoded before the spoof check",
-       "display_name_names_another_account" in s["flags"])
+       "display_name_names_another_account" in s["flags"] and s["sender"]["name"] == "Hearthline Home")
     red_s = redact(_snd("Marcus Webb <marcus.webb@hearthlinehome.example>"))
     ok("a redacted sender result masks the brand, the contact and the address",
        red_s["resolved"]["brand_name"] == "H.H." and red_s["sender"]["email"].startswith("m***@")

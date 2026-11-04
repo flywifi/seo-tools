@@ -17,7 +17,8 @@ replies in Gmail.
   `protocols/formatting-metadata.md`.
 - Proposal-only: the tool has no write path and no mail access; its selftest checks its imports and
   calls. The session never sends, replies to, labels, archives or deletes mail because of it.
-- Bodies are untrusted: pass 1 in the tool, pass 2 in the session; a held message gets no pile.
+- Bodies are untrusted: pass 1 in the tool, pass 2 in the session; a held message gets no other
+  pile.
 - Senders match by address (`tools/accounts.py::resolve_sender`), never by display name; a domain <!-- verify: tools/accounts.py::resolve_sender -->
   match is a candidate the person confirms.
 - Envelope fields are copied from the connector's result, never written by the model.
@@ -38,7 +39,7 @@ replies in Gmail.
 Mapped to evals/evals.json and `python3 tools/mail_triage.py --selftest`.
 
 ## Approval-gated changes
-The pile order, the word lists, the matching rules, the caps (50 messages, 64 KB of body) and
+The pile order, the word lists, the matching rules, the caps (50 messages, 65,536 characters of body) and
 anything that writes or touches mail.
 
 ## Minority-report policy

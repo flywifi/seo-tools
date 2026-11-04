@@ -318,8 +318,9 @@ def _unknown_capability(capability, config_path=None):
 
 
 # Flags the person sets on the setup wizard's screen, not through configure_tool (P103 WP2b): an
-# instruction hidden in content the assistant reads (an email, a page) cannot switch them, and the
-# wizard keeps the flag and the Claude Desktop entry it controls in step.
+# instruction hidden in content the assistant reads (an email, a page) cannot switch them through
+# this server's tools, and the wizard keeps the flag and the Claude Desktop entry it controls in
+# step. A session with a shell or file tool of its own is outside what this refusal covers.
 _PERSON_ONLY_FLAGS = frozenset({"gmail_write_tools"})
 
 
@@ -333,15 +334,29 @@ def _person_only_refusal(capability):
                          "tick box there."}
 
 
-# Set by __main__ from the transport it binds: True for a network transport (--serve-remote or
-# --transport streamable-http/sse), where a remote client reads the replies (P103 WP2b).
+# Set by __main__ from the argv it binds (_auth_gate_fires, the same network-bind test the auth gate
+# uses): True for a network transport (--serve-remote or --transport streamable-http/sse), where a
+# remote client reads the replies (P103 WP2b).
 _NETWORK_TRANSPORT = False
 
 
 def _mail_triage_masked(requested) -> bool:
     """mail_triage masks the CRM side of its matches when asked, and always over a network
-    transport, so brand and contact names from the local store do not leave this computer there."""
+    transport: brand and contact names, contact emails and account ids from the local store are
+    masked in the replies a remote client reads (mail_triage.triage, masked=True)."""
     return bool(requested) or bool(_NETWORK_TRANSPORT)
+
+
+def _mail_triage_reply(messages, masked, accounts=None) -> dict:
+    """The mail_triage tool's reply (P103 WP2b): the triage result, masked when _mail_triage_masked
+    says so, with `masked` saying whether it was. accounts stands in for the local store (the
+    selftest passes its roster)."""
+    sys.path.insert(0, str(HERE))
+    import mail_triage as _mt  # type: ignore
+    use_mask = _mail_triage_masked(masked)
+    result = _mt.triage(messages, accounts=accounts, masked=use_mask)
+    result["masked"] = use_mask
+    return result
 
 
 _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
@@ -1220,17 +1235,46 @@ def _selftest_static() -> tuple:
        and _po_other is None and "gmail_write_tools" in _PERSON_ONLY_FLAGS)
     global _NETWORK_TRANSPORT
     _nt_saved = _NETWORK_TRANSPORT
+    _mt_msgs = [{"message_id": "<a@mail.example>", "from": "Marcus Webb <marcus.webb@hearthlinehome.example>",
+                 "subject": "Hi"},
+                {"message_id": "<b@mail.example>", "from": "Jo <jo@hearthlinehome.example>", "subject": "Hi"},
+                {"message_id": "<c@mail.example>", "from": "Sam <sam@lumenco.example>", "subject": "Hi"}]
     try:
         _NETWORK_TRANSPORT = False
         _mt_local = (_mail_triage_masked(False), _mail_triage_masked(True))
+        sys.path.insert(0, str(HERE))
+        import accounts as _acc_mt  # type: ignore
+        _rep_local = _mail_triage_reply(_mt_msgs, False, accounts=_acc_mt._ROSTER)
         _NETWORK_TRANSPORT = True
         _mt_net = (_mail_triage_masked(False), _mail_triage_masked(True))
+        _rep_net = _mail_triage_reply(_mt_msgs, False, accounts=_acc_mt._ROSTER)
     finally:
         _NETWORK_TRANSPORT = _nt_saved
-    ok("mail_triage masks when asked, and always over a network transport",
+    _crm_mt = [str(v) for a in _acc_mt._ROSTER for v in (a["account_id"], a["brand_name"])] + [
+        str(c.get(k)) for a in _acc_mt._ROSTER for c in _acc_mt._all_contacts(a) for k in ("name", "email")]
+    _net_accounts = json.dumps([m["account"] for m in _rep_net["messages"]], ensure_ascii=False)
+    ok("mail_triage masks when asked, and always over a network transport: there its reply holds no "
+       "brand, contact name, contact email or account id from the records, candidates included",
        _mt_local == (False, True) and _mt_net == (True, True)
+       and _rep_net["masked"] is True and _rep_local["masked"] is False
+       and [m["account"]["resolution"] for m in _rep_net["messages"]]
+       == ["contact_email", "domain_candidate", "contact_email"]
+       and not [v for v in _crm_mt if v in _net_accounts]
+       and "Hearthline Home" in json.dumps(_rep_local["messages"][0]["account"])
        and src.count("_mail_triage" + "_masked(masked)") == 1
-       and "_NETWORK_TRANSPORT = _transport != \"stdio\"" in src)
+       and src.count("_mail_triage" + "_reply(messages, masked)") == 1)
+    # The flag is assigned twice outside this selftest: its default and the one __main__ line,
+    # which takes the auth gate's network-bind test of the argv (read from the file, see above).
+    _nt_values = sorted(_ast_p102.unparse(n.value) for top in _ast_p102.parse(src).body
+                        if not (isinstance(top, _ast_p102.FunctionDef) and top.name == "_selftest_static")
+                        for n in _ast_p102.walk(top) if isinstance(n, _ast_p102.Assign)
+                        and any(isinstance(t, _ast_p102.Name) and t.id == "_NETWORK_TRANSPORT"
+                                for t in n.targets))
+    ok("__main__ sets the network flag once, from the auth gate's test of the argv",
+       _nt_values == ["False", "_auth_gate_fires(_args.transport, _args.serve_remote)"]
+       and _auth_gate_fires(None, True) and _auth_gate_fires("sse", False)
+       and _auth_gate_fires("streamable-http", False) and not _auth_gate_fires(None, False)
+       and not _auth_gate_fires("stdio", False))
     ok("configure_tool checks the capability name before it takes the write lock",
        len(_ct_body) > 2 and _ast_p102.unparse(_ct_body[0])
        == "refusal = _unknown_capability(capability) or _person_only_refusal(capability)"
@@ -2705,14 +2749,9 @@ def mail_triage(messages: list[dict], masked: bool = False) -> str:
     untrusted content. A payment notice is recorded by the person saving the message as an .eml
     file into the hub Inbox; a new pitch goes to pitch triage. EXPOSURE NOTE: matches name real
     brands and contacts from pipeline/accounts/*.local.json; pass masked=True for anything quoted
-    off this machine. Over a network transport the CRM side is always masked."""
-    sys.path.insert(0, str(HERE))
-    import mail_triage as _mt  # type: ignore
+    off this machine. Over a network transport the CRM side is always masked, account ids included."""
     try:
-        use_mask = _mail_triage_masked(masked)
-        result = _mt.triage(messages, masked=use_mask)
-        result["masked"] = use_mask
-        return json.dumps(result, indent=2, ensure_ascii=False)
+        return json.dumps(_mail_triage_reply(messages, masked), indent=2, ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": str(exc)})
 
@@ -3229,7 +3268,7 @@ if __name__ == "__main__":
                           "streamable-http/sse, when no token is set)")
     _args, _ = _ap.parse_known_args()
     _transport = _args.transport or ("streamable-http" if _args.serve_remote else "stdio")
-    _NETWORK_TRANSPORT = _transport != "stdio"   # mail_triage masks its CRM matches over a network
+    _NETWORK_TRANSPORT = _auth_gate_fires(_args.transport, _args.serve_remote)   # mail_triage masks there
     # One quiet, non-blocking startup notice (stderr only; stdout is the stdio protocol channel).
     # No network call happens here: the update_check tool polls only when explicitly invoked.
     try:

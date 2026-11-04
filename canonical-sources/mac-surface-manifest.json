@@ -18,7 +18,7 @@
     "canonical-sources/operational-url-allowlist.json": "f2a7cb2ab20751553250ac447c425c9db3176303b4a981a8c1929dde05715588",
     "canonical-sources/volatile-corrections.2026-07-14.json": "94c3216314225ce2ece91a6f901072b5a25bbca926844134d6286656da64cb82",
     "canonical-sources/whisper-models.json": "647626cf65ce018558f8394dc3e6cd9bdffd972b47c6a80d6db0ebfa3a7f012e",
-    "creator-os-config.json": "cb31fc194879126fe56f4f4a75b8f96e322e57edb1b5fc1d9acbcaf1def0c7c4",
+    "creator-os-config.json": "38ec446e5333576cdd119384f7b3af687a86eeed17a0f566cf332091eef255c9",
     "docs/ARCHITECTURE.md": "0a830810802f83c38b0988bd03e7d2c27521461d578196c1630ce3bdfa765494",
     "docs/AUDIT-PROTOCOL.md": "afd0ea7b92d0eb0aafb2d77ef617df199bb9aec220b734efe761f00887bb13f3",
     "docs/CONTENT-IMPORT.md": "50fba36b0b6e7818c8d44ab847b3d1a8ff022ef60129ec36c7d4ce510a9886cb",
@@ -39,7 +39,7 @@
     "docs/TRANSITIONS.md": "954632020c77b15706036c33670bbe634df055dcc1fe979a5dfbfce1295a897d",
     "docs/VIDEO_EDITING.md": "fc6dcd66a90be29de277aa9a7e21c348a494b1382e5639d857b0619abc701d91",
     "docs/VIDEO_TOOLING_EVAL.md": "845e02231809d709208e7d1f60c36b2774c5bebd154b5ced95fc8bc365b290eb",
-    "docs/WIZARD.md": "6da1f18998fb49b38a766531c3f25f10f8f0ab20096b2cb354c1cedfcfd2c031",
+    "docs/WIZARD.md": "7a8547dc4d2f47b5f10c61e290aa5fe5b50cb39381263d94d0d875ce76c96ac7",
     "docs/adr/0013-p29-media-tool-integration.md": "c6daebb703c4e021c85a0ae248acc2cee8d654eebe392d4854ffa0b4f8249171",
     "docs/adr/0030-p45-content-import.md": "202bfac8e19ae00b96a97c39481bb058e0f7bdacdcf43e27e221b93a55ca7ca3",
     "docs/adr/0031-p46-content-import-hardening.md": "84c051ba8d6a2a63cd792b89308f01838e0001de2200ae1473839fd5314933f3",
@@ -72,7 +72,7 @@
     "docs/wizard/README.md": "cfb032348e946753c5f02333a755cded8cefebcc9b0490884319184801a1f15e",
     "docs/wizard/screenshot-guide.md": "7a1414adf6a53a80921d3c0dd19ae8b1764ce53dfbc4eb17c88103651bd3ff54",
     "implementation/claude/desktop/README.md": "784ba143dd56325b0f1c801ba373c5bbe52db3db03adae89b4ec016ea68a89e1",
-    "implementation/claude/desktop/claude_desktop_config_snippet.json": "752556c567c8a1f1816019e0c20db10327b62baa59be3062b12d123a09d64cff",
+    "implementation/claude/desktop/claude_desktop_config_snippet.json": "8563d3ad98eda8862f4edf345fc92493f69dd3e52af2791fb994921ec94cb2bc",
     "requirements-transcribe.txt": "0826a1011fe9ce9b1859da90b5017deefd4d4683dbfc76b18240151418cb09c1",
     "requirements-videoedit.txt": "87c8f1aa2bcb85afaac60ada26b05e8999d4f4ecf1fafc758bcb05404fd27868",
     "shared/connectors/connectors.json": "dca3ae18b6e8f10f9bf64ef48d30605b8082ed02a0c169cbf704c1112cfce9b7",
@@ -116,7 +116,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "7498aabbb805fd9bf83afbc2d53a365b58392365b785e076775891af8354963d"
+    "tools/wizard.py": "ea9d87ef5a008e7366ef294193dc7061da8815e9e82ceb5ab5fed1ffa37fe045"
   },
   "excluded": {}
 }

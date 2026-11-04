@@ -20,26 +20,40 @@ Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail
 
 1. `tools/accounts.py::resolve_sender` matches an email sender to an account by **address**: a
    contact email on exactly one account resolves; a domain equal to, or a subdomain (on a dot
-   boundary) of, a contact-email domain or the account's website host is a candidate the person
-   confirms; a free webmail domain (`FREE_MAIL_DOMAINS`) is never matched by domain; a display
-   name that names an account the address does not belong to is flagged
-   (`display_name_names_another_account`). The display name is not used to match.
+   boundary) of, the account's website host is a candidate the person confirms, when the website
+   is a homepage address (no path, no user part) whose host is not on or under a domain in
+   `FREE_MAIL_DOMAINS`. A contact's own mailbox domain is not a basis: it may be a free or ISP
+   mailbox domain that the fixed list does not hold, and then every stranger there would be a
+   candidate. A sender on a `FREE_MAIL_DOMAINS` domain is not matched by domain. Domains are
+   compared lowercased, with each non-ASCII label as its punycode A-label and nothing mapped (the
+   stdlib IDNA2003 codec maps ß to "ss"). The header is split into name and address before any
+   decoding; only the name is decoded, and an address written as an encoded word is flagged
+   (`encoded_address`) and not matched. A display name that names an account the address does not
+   belong to is flagged (`display_name_names_another_account`). The display name is not used to
+   match.
 2. `tools/mail_triage.py` sorts the messages a session read through its connector (at most 50 per
-   call, 64 KB of body each): the offline pattern tier screens the sender's name, the subject and
-   the body (pass 1), and a QUARANTINE or BLOCK verdict puts the message in `held` with its subject
-   not echoed and no pass 2; the others get one pile, `payment_notice`, `known_brand`, `new_pitch`
-   or `other`, from fixed word lists and the sender match, with a next step. It has no write path
-   and no mail access; its selftest checks its imports and calls. The `mail_triage` MCP tool wraps it
-   and masks the CRM side of each match over a network transport. The `mail-triage` atom is
+   call, 65,536 characters of body each): the offline pattern tier screens the sender's name, the
+   subject and the body (pass 1), and a QUARANTINE or BLOCK verdict puts the message in `held` with
+   its display name and subject not echoed and no pass 2; the others get one pile,
+   `payment_notice`, `known_brand`, `new_pitch` or `other`, from fixed word lists and the sender
+   match, with a next step. It has no write path and no mail access; its selftest reads the
+   module's text for imports and calls by name. The `mail_triage` MCP tool wraps it and masks the
+   CRM side of each match over a network transport: names and emails, and each account id as a
+   per-call token, since an account id can carry a brand's name. The `mail-triage` atom is
    standalone, like `inbox-routing`; it hands a pitch to `pitch_triage`.
 3. A payment notice is recorded through the Inbox, as ADR 0083 records any receipt: the person
    saves the message as an `.eml` file (Gmail: More, then Download message) into the hub Inbox and
    ticks it. The books' evidence stays a file this computer hashed.
 4. The wizard starts `workspace-mcp` (2.3.0 or later) with `--permissions gmail:readonly` and every
-   other service at `full`, so the Google sign-in grants read access to Gmail alone. The Google
-   screen's Gmail sending tick box sets the `gmail_write_tools` flag and switches the entry to
-   `gmail:send`, or back. `configure_tool` refuses that flag (`_PERSON_ONLY_FLAGS`), so an
-   instruction in content the assistant reads cannot turn sending on.
+   other service at `full`, so the Google sign-in grants Gmail's read scope alone and the server
+   registers no Gmail tool that sends, drafts or changes labels. Calendar, Drive and Chat keep full access, and
+   their tools can send invitations, share notices and chat messages. The Google screen's Gmail
+   sending tick box sets the `gmail_write_tools` flag and switches the entries the wizard wrote to
+   `gmail:send`, or back; the screen shows the level it reads from those entries, so an entry an
+   older wizard wrote (no `--permissions`, every Gmail tool on) shows as on until the person saves.
+   `configure_tool` refuses that flag (`_PERSON_ONLY_FLAGS`), so an instruction in content the
+   assistant reads cannot turn sending on through Creator OS's MCP tools; a session with a shell or
+   file tool of its own is outside that refusal.
 5. Triage results are returned to the session and not stored between runs.
 
 ## Consequences
@@ -47,9 +61,10 @@ Google tool server (`workspace-mcp`) was started with every tool on, `send_gmail
 - On Claude Desktop the person sees which inbound mail is from a brand on record, which is a new
   pitch and which is a payment notice, without Creator OS writing anything.
 - A brand contact who writes from a free webmail address matches only once that address is on the
-  account; an agency writing for a brand from its own domain is not matched.
+  account; an agency writing for a brand from its own domain is not matched. A colleague at the
+  brand is a candidate only when the account's website is recorded as a homepage address.
 - The pile words are fixed lists: a payment notice or a pitch worded another way lands in `other`.
-- Text past 64 KB of a body is not screened or searched (`body_cut`).
+- Text past 65,536 characters of a body is not screened or searched (`body_cut`).
 - The claude.ai Gmail connector is not limited by the wizard; it asks the person before each send,
   and the atom tells the session not to send, label, archive or delete mail.
 - A person who turns Gmail sending on may be asked to sign in to Google again, since the access

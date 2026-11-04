@@ -56,15 +56,17 @@ Claude Desktop: call the `mail_triage` MCP tool with the messages. On another su
 repo: save them as a JSON list and run `python3 tools/mail_triage.py triage --file messages.json`.
 For each message the tool:
 - screens the sender's display name, the subject and the body with the offline pattern tier
-  (pass 1); QUARANTINE or BLOCK puts it in `held`, its subject not echoed, with nothing to act on;
+  (pass 1); QUARANTINE or BLOCK puts it in `held`, its display name and subject not echoed, with
+  nothing to act on;
 - matches the sender to a CRM account by address (`tools/accounts.py::resolve_sender`): a contact's <!-- verify: tools/accounts.py::resolve_sender -->
-  address resolves; an address on a brand's domain is a candidate to confirm; a free webmail
-  domain is not matched by domain; a display name naming a brand the address does not belong to is
-  flagged as a possible spoof;
+  address resolves; an address on the brand's website host (when the account's website is a
+  homepage address) is a candidate to confirm; a domain on `FREE_MAIL_DOMAINS` is not matched by
+  domain; a display name naming a brand the address does not belong to is flagged as a possible
+  spoof;
 - gives one pile: `payment_notice`, `known_brand`, `new_pitch` or `other`, with the next step.
 
-Over a network transport the tool masks the CRM side of each match. Pass `masked: true` when the
-result will be quoted off this computer.
+Over a network transport the tool masks the CRM side of each match (names, emails, and each
+account id as a token). Pass `masked: true` when the result will be quoted off this computer.
 
 ### Step 3: report
 Run the session guard (pass 2) on each message the tool did not hold, with its `screen_note` as an
@@ -87,10 +89,12 @@ the mail.
 
 ## Failure modes
 - No account records on this computer: every sender is unmatched; the gap says so.
-- A brand that writes from a free webmail address not on record: `other` or `new_pitch`, never
-  `known_brand`; add the address to the account to match it next time.
+- A brand that writes from an address not on record, on a domain that is not the account's
+  website host: unmatched, so it is sorted by its words alone; add the address to the account to
+  match it next time. An account with no website, or a website that is a page on another host, gives no
+  domain candidates at all.
 - An agency writing for a brand from its own domain: not matched; the person links it.
-- A body over 64 KB: the rest is not screened or searched (`body_cut`).
+- A body over 65,536 characters: the rest is not screened or searched (`body_cut`).
 - Pile words are fixed lists: a payment notice that uses none of them lands in `other`.
 - A PDF receipt attached to a message: the connector reads attachment names, not their content;
   save the message as `.eml` and the Inbox flow reads it.

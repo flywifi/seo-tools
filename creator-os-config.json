@@ -60,7 +60,7 @@
     },
     "gmail_write_tools": {
       "enabled": false,
-      "description": "Let Claude Desktop's local Google tool server (workspace-mcp) send, draft and label Gmail. Off by default: the wizard starts it with Gmail read-only (--permissions gmail:readonly), so reading mail, Calendar and Drive work and nothing can be sent with that sign-in. Set only on the setup wizard's Google screen; configure_tool refuses it. It does not limit the claude.ai Gmail connector, which asks before each send.",
+      "description": "Let Claude Desktop's local Google tool server (workspace-mcp) send, draft and label Gmail. Off by default: the wizard starts it with Gmail read-only (--permissions gmail:readonly), so reading mail, Calendar and Drive work and Gmail cannot send, draft or label mail with that sign-in; Calendar, Drive and Chat keep full access. Set only on the setup wizard's Google screen; configure_tool refuses it. It does not limit the claude.ai Gmail connector, which asks before each send.",
       "requires": "Run python3 tools/wizard.py, open the Google screen, and tick the Gmail sending box (then restart Claude Desktop)"
     },
     "microsoft_365": {
@@ -359,7 +359,7 @@
     "job_store_writes_disabled": "Compute jobs never write to the library; they produce reviewable proposals only. Apply results yourself on the wizard /import screen or in a Claude session. This is the default and safest behavior.",
     "playwright_disabled": "Browser automation is off. Competitor and SERP work uses saved HTML snapshots you provide; no page is fetched or rendered. Say that the data came from a snapshot and give its date, never imply a live read.",
     "google_workspace_disabled": "Google Workspace is not connected. Documents are produced as local files for you to upload by hand; no Doc, Sheet, or Drive item is read or written.",
-    "gmail_write_tools_disabled": "Gmail sending is off (default). Claude Desktop's local Google server reads mail but cannot send, draft or label it; the person replies in Gmail. Turn it on only on the setup wizard's Google screen.",
+    "gmail_write_tools_disabled": "Gmail sending is off (default). A local Google server the setup wizard set up from P103 on reads mail but cannot send, draft or label it; one an older wizard set up keeps every Gmail tool until the person saves the Gmail sending box or sets Google up again. The person replies in Gmail. Turn sending on only on the setup wizard's Google screen.",
     "microsoft_365_disabled": "Microsoft 365 is not connected. Documents are produced as local files for you to upload by hand; no OneDrive or SharePoint item is read or written.",
     "task_tracking_disabled": "The task register is off. Tasks are returned as a plan in the reply and are not persisted; nothing is stored, transitioned, or reminded about between sessions.",
     "shipment_tracking_disabled": "Shipment tracking is off. Carrier status cannot be looked up; report the tracking number and carrier and let the human check it, never infer a delivery state.",

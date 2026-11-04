@@ -18,8 +18,9 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
 - When a token IS set, the server enforces an **in-process bearer gate** (`Authorization: Bearer
   <token>`, constant-time compared, 401 otherwise) in addition to whatever the proxy enforces.
 - On a network transport the `mail_triage` tool (P103) masks the CRM side of each sender match
-  (brand and contact names, contact emails) whatever the caller asks, so it does not pass names
-  from `pipeline/accounts/` to a remote client. Other tools keep their own `redacted` option.
+  whatever the caller asks: brand and contact names to initials, contact emails to a stub, and each
+  account id to a token such as `account-1`. The sender fields stay as the caller sent them. Other
+  tools keep their own `redacted` option, which leaves account ids clear.
 - A loopback bind (`--host 127.0.0.1`, the documented pattern) needs no token: the proxy in front
   is the auth boundary.
 - A loopback bind behind a proxy DOES need `--allowed-host YOUR-HOST` (or `remote_mcp_allowed_hosts`

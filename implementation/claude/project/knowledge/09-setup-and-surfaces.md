@@ -89,8 +89,10 @@ piles on the computer: mail from a brand already in the CRM, a new pitch, a paym
 (the injection screen flagged it) and other. Senders are matched by address, never by display
 name, and nothing is sent, labelled, moved or recorded. A payment notice is recorded by saving
 the message as an .eml file (in Gmail: More, then Download message) into the hub Inbox. If the
-setup wizard connected Google locally, that local connection opens Gmail read-only until you tick
-Gmail sending on the wizard's Google screen; the built-in connector asks before each send.
+setup wizard connected Google locally, a connection it set up from this version on opens Gmail
+read-only until you tick Gmail sending on the wizard's Google screen; a connection an older
+version set up keeps every Gmail tool until you save that box or set Google up again, and the
+screen says which you have. The built-in connector asks before each send.
 
 ## Switching between Claude, ChatGPT, and Gemini
 
