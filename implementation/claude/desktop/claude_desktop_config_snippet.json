@@ -14,9 +14,9 @@
       }
     },
     "google-workspace": {
-      "_comment": "Optional. Added by wizard when you connect Google. Requires uv (user-only: the wizard installs it into the repo private .venv, or curl -LsSf https://astral.sh/uv/install.sh | sh puts it in ~/.local/bin). Covers Gmail, Calendar, Drive, Docs, and Sheets.",
+      "_comment": "Optional. Added by wizard when you connect Google. Requires uv (user-only: the wizard installs it into the repo private .venv, or curl -LsSf https://astral.sh/uv/install.sh | sh puts it in ~/.local/bin). Covers Gmail, Calendar, Drive, Docs, and Sheets. Gmail is read-only (gmail:readonly asks Google for Gmail's read scope alone, so Gmail cannot send, draft or label mail with this sign-in; Calendar, Drive and Chat keep full access); to let Claude Desktop send, draft and label Gmail, tick Gmail sending on the wizard's Google screen, which changes gmail:readonly to gmail:send.",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tool-tier", "core"],
+      "args": ["--from", "workspace-mcp>=2.3.0", "workspace-mcp", "--permissions", "gmail:readonly", "calendar:full", "drive:full", "docs:full", "sheets:full", "slides:full", "forms:full", "tasks:full", "contacts:full", "chat:full", "search:full", "appscript:full"],
       "env": {
         "GOOGLE_OAUTH_CLIENT_ID": "REPLACE_WITH_CLIENT_ID",
         "GOOGLE_OAUTH_CLIENT_SECRET": "REPLACE_WITH_CLIENT_SECRET"

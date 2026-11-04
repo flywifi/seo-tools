@@ -132,9 +132,14 @@ machine.
 
 The third realized instance is the CRM read lane (P32): `tools/accounts.py` reads
 `pipeline/accounts/*.local.json` and `pipeline/deals/*.local.json` to resolve a fuzzy brand phrase
-to one account (tiered exact/alias/substring/difflib/brand-category matching that never auto-picks
-past a confident exact or alias match), read its contacts, and report a deal's lifecycle status
-verbatim. It is READ-ONLY (no write modes at all), CREATOR_OS_ROOT-sandboxed, carries `computed_by`
+to one account (tiered exact/alias/substring/difflib/brand-category matching that resolves a
+decisive exact or alias match, or a single candidate at 0.8 or above), read its contacts, and
+report a deal's lifecycle status verbatim. `resolve_sender` (P103) matches an email sender to an <!-- verify: tools/accounts.py::resolve_sender -->
+account by address: a contact's address resolves, an address on the account's website host (a
+homepage address) or a subdomain of it is a candidate for the human to confirm, a domain on
+`FREE_MAIL_DOMAINS` is not matched by domain, and a display name that names one account (as
+`accounts.resolve` reads it) that the address does not belong to is flagged. `tools/mail_triage.py` uses it to sort inbound mail a session read through its own Gmail
+connector into piles (the `mail_triage` MCP tool; ADR 0084); it writes nothing. It is READ-ONLY (no write modes at all), CREATOR_OS_ROOT-sandboxed, carries `computed_by`
 and `gaps[]`, and degrades to an empty result plus a gap on a fresh clone. Contacts are PII, so the
 `contact_lookup` and `deal_status` MCP tools (and the `--redacted` CLI flag) mask names to initials <!-- verify: tools/accounts.py::deal_status -->
 and emails to a stub for anything quoted off this machine; the raw result is for the human operator

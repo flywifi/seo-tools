@@ -29,6 +29,16 @@ One hub classification, `pitch_triage`, routed to the `deal-pipeline` spoke, run
 4. **gap-record** then **govern-artifact**: every gap travels with the brief; the quality gate
    rules the release.
 
+### Before the pitch: sorting the inbox (P103)
+
+"Check my inbox for brands" runs the standalone `mail-triage` atom: the session reads inbound mail
+through its own Gmail connector, and `tools/mail_triage.py` (the `mail_triage` MCP tool on Claude <!-- verify: tools/mail_triage.py::triage -->
+Desktop) screens each message offline, matches the sender to an account by address
+(`tools/accounts.py::resolve_sender`), and puts it in one pile: `known_brand`, `new_pitch`,
+`payment_notice`, `held` or `other`. A new pitch is then run through `pitch_triage` one message at
+a time; a payment notice is saved as an `.eml` file into the hub Inbox and recorded there (ADR
+0083). Nothing is sent, labelled, moved or written (ADR 0084).
+
 The brief contract: `fit_verdict`, `price_floor_package`, `content_angle_handoff` (strong personas
 handed to content-strategy for video ideas), `recommended_next_steps`,
 `human_review_required: true`. Contract drafting is NOT auto-run: the brief ends by telling the

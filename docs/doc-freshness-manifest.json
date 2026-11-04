@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "5aa5059e02cda6af77ff839640d12eb0f6f28f4e6524368ccc92240f57ea2f21",
+        "tools/wizard.py": "4b2b96a8fd1a78e8f1d5ed4fae655b08bb1b97b4478cf2d77fdf5c429f0b5bbe",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "f24cb367aca6f896eec6d7bc12e18fdaa6ae57a38ee9ea868ff3c200ff254fdb"
+        "tools/mcp_server.py": "ec2bd07cec9882aac2ba9d17dac241c9932036257b1821eb907890b7404b8fbe"
       }
     },
     "docs/TRANSITIONS.md": {
@@ -75,7 +75,7 @@
     },
     "implementation/claude/desktop/README.md": {
       "sources": {
-        "implementation/claude/desktop/claude_desktop_config_snippet.json": "5fe1c50b0f8827bb93516aba9af1de6d53b87570081b71fbda402557da5a8f49"
+        "implementation/claude/desktop/claude_desktop_config_snippet.json": "8563d3ad98eda8862f4edf345fc92493f69dd3e52af2791fb994921ec94cb2bc"
       }
     },
     "docs/UPDATING.md": {

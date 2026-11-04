@@ -13,6 +13,42 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (mail triage, ADR 0084): `tools/accounts.py::resolve_sender` matches an email sender to a CRM
+  account by address: a contact's address resolves; an address on the account's website host, when
+  the website is a homepage address (nothing but a single "/" after the host and port), or on a
+  subdomain of that host on a dot boundary, is a
+  candidate for the person to confirm (a contact's own mailbox domain is not a basis); a domain on
+  `FREE_MAIL_DOMAINS` is not matched by domain; a mail domain is read whole (a "/", "?", "#", ":" or
+  space makes the address unreadable) and a non-ASCII label is compared as its punycode A-label,
+  with no IDNA2003 mapping; an address written as an encoded word is flagged (`encoded_address`)
+  and not matched; the words of a display name that cannot be decoded are dropped and the rest
+  kept (`name_undecodable`); a `Last, First <address>` header is read for its address
+  (`display_name_unquoted`); a display name read from the header that names one account (as
+  `accounts.resolve` reads it) that the address does not belong to, or names one when no address
+  could be read, is flagged (`display_name_names_another_account`); the local part is lowercased
+  with `str.lower`. The new `tools/mail_triage.py` sorts the
+  inbound messages a session read through its own Gmail connector, at most 50 per call and 65,536
+  characters of body each: the offline pattern tier screens each sender name and From header,
+  subject, body, Message-ID, date and link, a QUARANTINE or BLOCK verdict puts the message in
+  `held` with its display name, subject, Message-ID, date and link not echoed, and the rest get one pile (`payment_notice`, `known_brand`, `new_pitch`, `other`) and a
+  next step; its selftest reads the module's own text and fails on an import outside a fixed list,
+  a call by a listed write, process or network name, a bare `__import__`, `eval`, `exec`, `compile`
+  or `vars`, a `getattr` by a name that is not a literal, `open` used as a value, an `open()` whose
+  mode is not a literal read mode, the `__dict__`, `__globals__`, `__builtins__` and
+  `__subclasses__` attributes, and any `.modules` attribute. The new `mail_triage` MCP tool (64
+  tools) wraps it and, unless the server was started on stdio (`mcp_server._STDIO_BOUND`), masks
+  the CRM side of each match field by field, each account id as a token.
+  The new standalone `mail-triage` atom reads the mail, hands a pitch to `pitch_triage`, and tells
+  the person to save a payment notice as `.eml` into the hub Inbox. The wizard writes Claude
+  Desktop's `google-workspace` entry as
+  `uvx --from "workspace-mcp>=2.3.0" workspace-mcp --permissions gmail:readonly ...` with the other
+  services at `full`, and its Google screen's Gmail sending box sets the new `gmail_write_tools`
+  flag and switches the entries the wizard wrote (`uvx` with exactly the arguments it writes, or
+  `workspace-mcp` alone) to `gmail:send`, or back, and shows the level read
+  from those entries (an older entry with no `--permissions` shows as on); `configure_tool` refuses
+  that flag (`_PERSON_ONLY_FLAGS`). The config snippet, `docs/DEPENDENCIES.md`, `docs/WIZARD.md`, the
+  connector registry note, knowledge file 09 and the remote-connector runbook say so; the source
+  registry records `workspace-mcp` 2.3.0 and two new vendor pages.
 - P103 (receipt capture): on the wizard's Inbox screen a document waiting for a Claude session (PDF,
   Word, HTML, text, Markdown or `.eml`) can be ticked as a receipt or payment notice;
   `inbox.person_labelled` runs the offline pattern tier on the text `parse_text` extracts and

@@ -283,6 +283,23 @@ which runs via `uvx workspace-mcp`. This is simpler than Google's official MCP s
 it only needs a standard OAuth Client ID and Secret -- no Google Cloud service account or
 complex API setup. The wizard installs `uv` automatically if it is not already present.
 
+**Gmail starts read-only (P103):** the wizard writes the `google-workspace` entry as
+`uvx --from "workspace-mcp>=2.3.0" workspace-mcp --permissions gmail:readonly ...` with every other
+service at `:full` (`tools/wizard.py::_workspace_mcp_args`), so the Google sign-in asks for read
+access to Gmail and Claude Desktop's local server can read mail but not send, draft or label it.
+Calendar, Drive and Chat keep full access, and their tools can still send invitations, share
+notices and chat messages. The Google screen's **Gmail sending** tick box (`/api/google-gmail-write`)
+switches each Claude Desktop settings file's `google-workspace` entry that the wizard wrote
+(command `uvx` with exactly the arguments the wizard writes, or `workspace-mcp` alone as earlier
+versions wrote it) to `gmail:send`, or back, then sets the
+`gmail_write_tools` flag; Google may ask you to sign in again after a change. A settings file
+without such an entry is not written, and another `google-workspace` entry is left as it is. The
+screen shows the level it reads from those entries (`tools/wizard.py::_gmail_entry_levels`), so an
+entry an older wizard wrote, with no `--permissions` and every Gmail tool on, shows as on until you
+save the box or set Google up again. The flag is set there and not through the `configure_tool` MCP
+tool, which refuses it, so an instruction in an email cannot turn sending on through Creator OS's
+MCP tools. The built-in Google connector in Claude is not changed by this box.
+
 **Microsoft device code flow:** The `ms-365-mcp-server` (by Softeria) uses Microsoft's device
 code OAuth variant. Instead of a browser redirect, Claude Desktop shows a short code and a URL.
 You visit the URL, enter the code, and Microsoft authorizes the connection. This works through
