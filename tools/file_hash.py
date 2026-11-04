@@ -38,7 +38,9 @@ already yields backslashes, so the same selftests run there unchanged.
 The selftest runs the committed mutation rows in child processes (`--run-rows`, rows as JSON on
 stdin), at most 12 rows of one module per child and up to 8 children at a time
 (`CREATOR_OS_FILE_HASH_JOBS` sets another number, for a computer with little memory), to keep the
-run under the selftest sweep's per-tool limit.
+run under the selftest sweep's per-tool limit. A child that goes past its limit fails its rows, and
+the report lists first the row it was running and where that row's thread stood, read from the stack
+dump the child writes to stderr shortly before the limit (`stall_report`).
 """
 from __future__ import annotations
 
@@ -132,6 +134,167 @@ def mutant_jobs(env=None, cpu_count=None) -> int:
     if raw.isdecimal() and int(raw) >= 1:
         return int(raw)
     return min(8, (os.cpu_count() if cpu_count is None else cpu_count) or 1)
+
+
+# A mutation-run child that goes past its limit (P103). The child writes a line to stderr naming
+# each row as it starts it, and arms faulthandler to dump every thread's stack shortly before the
+# parent's limit; when the parent stops the child it reads that partial stderr and reports the row
+# in progress and where its thread stood. These sit above the selftest marker, so committed rows
+# can mutate them; the parent and child code below the marker calls them.
+STALL_MARGIN = 60.0
+_ROW_STARTED = "file_hash: row started: "
+_ROWS_DONE = "file_hash: rows done"
+
+
+def stall_dump_delay(limit) -> float:
+    """Seconds after a --run-rows child starts at which it dumps every thread's stack: the parent's
+    limit less min(STALL_MARGIN, a quarter of the limit), so the dump is written before the parent
+    stops the child (1440 s of 1500, 6 s of 8)."""
+    return float(limit) - min(STALL_MARGIN, float(limit) / 4)
+
+
+def note_row(stream, label, thread) -> None:
+    """Write the line naming the row a --run-rows child starts, with the thread that runs it (the
+    number faulthandler prints for it), and flush it so a stopped child's stderr still holds it."""
+    if stream is not None:
+        stream.write(f"{_ROW_STARTED}{label} (thread {thread})\n")
+        stream.flush()
+
+
+def run_rows_child(text, stdout, stderr, run, arm=None) -> int:
+    """The --run-rows child: text is the JSON spec (rows, settings, nonce, and the parent's limit in
+    seconds as `timeout`). It arms the stack dump (arm, faulthandler.dump_traceback_later unless
+    given) at stall_dump_delay of that limit, writes to stderr, runs the rows through run
+    (_run_mutants) with stderr for the row lines, and writes the done line to stderr and the
+    result to stdout. Without a stderr it runs the rows with no dump and no lines."""
+    import json
+    spec = json.loads(text)
+    if stderr is not None:
+        if arm is None:
+            import faulthandler
+            arm = faulthandler.dump_traceback_later
+        arm(stall_dump_delay(spec["timeout"]), exit=False, file=stderr)
+    rows = [tuple(r) for r in spec["rows"]]
+    survivors = run(rows, base=spec["base"], entries=spec["entries"],
+                    posix_only=set(spec["posix_only"]), progress=stderr)
+    if stderr is not None:
+        stderr.write(_ROWS_DONE + "\n")
+        stderr.flush()
+    stdout.write(json.dumps({"nonce": spec["nonce"], "rows": len(rows), "survivors": survivors}) + "\n")
+    stdout.flush()
+    return 0
+
+
+def _frame_name(path) -> str:
+    """The file name a stack frame shows: `wizard.py` for a mutant compiled as `<wizard.py mutant>`,
+    else the last part of the path, split at a slash or a backslash."""
+    import re
+    m = re.fullmatch(r"<(.+) mutant>", path)
+    return m.group(1) if m else re.split(r"[\\/]", path)[-1]
+
+
+def _thread_stacks(lines) -> list:
+    """(thread number, frames innermost first) for each thread in a faulthandler dump; a frame is
+    (file, line, function)."""
+    import re
+    stacks = []
+    for ln in lines:
+        head = re.match(r"(?:Current thread|Thread) (0x[0-9a-fA-F]+)", ln)
+        if head:
+            stacks.append((int(head.group(1), 16), []))
+            continue
+        frame = re.match(r'\s+File "(.*)", line (\d+) in (.+)$', ln)
+        if frame and stacks:
+            stacks[-1][1].append((frame.group(1), frame.group(2), frame.group(3).strip()))
+    return stacks
+
+
+def _stall_location(stacks, thread, stdlib) -> str:
+    """Where the dump shows the row's thread: its innermost frame outside the folders in stdlib
+    (with the innermost frame when that one is inside them), the thread count, and where up to
+    three other threads stand outside stdlib."""
+    def norm(p):   # a backslash read as a slash, so a Windows dump reads the same on any host
+        return os.path.normcase(str(p)).replace("\\", "/")
+    roots = [norm(p).rstrip("/") + "/" for p in stdlib]
+
+    def own(frames):
+        return next((f for f in frames if not any(norm(f[0]).startswith(r) for r in roots)), None)
+
+    def shown(f):
+        return f"{_frame_name(f[0])}:{f[1]} in {f[2]}"
+    if not stacks:
+        return "no stack dump"
+    frames = next((fr for ident, fr in stacks if ident == thread), None)
+    if not frames:
+        return f"no stack for its thread; {len(stacks)} threads"
+    mine = own(frames)
+    where = shown(mine or frames[0])
+    if mine is not None and mine is not frames[0]:
+        where += f", waiting in {shown(frames[0])}"
+    others = []
+    for ident, fr in stacks:
+        o = own(fr)
+        if ident != thread and o is not None and shown(o) not in others:
+            others.append(shown(o))
+    count = "1 thread" if len(stacks) == 1 else f"{len(stacks)} threads"
+    return f"stalled at {where}; {count}" + (f", others at {', '.join(others[:3])}" if others else "")
+
+
+def stall_report(labels, stderr, stdlib=()) -> list:
+    """The survivor lines for a chunk whose child went past its limit, from the child's partial
+    stderr (bytes or text): the row in progress first, `<label> (worker failed: TimeoutExpired in
+    this row; stalled at <file>:<line> in <function>; ...)`, or `after its last row` when the child
+    had written its done line; every other row `<label> (worker failed: TimeoutExpired)`. With no
+    row line the run stopped before its first row, and every row gets the short reason."""
+    text = stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else (stderr or "")
+    lines = text.splitlines()
+    started, done = [], False
+    for ln in lines:
+        if ln.startswith(_ROW_STARTED):
+            name, _sep, thread = ln[len(_ROW_STARTED):].rpartition(" (thread ")
+            if name in labels and thread.endswith(")") and thread[:-1].isdecimal():
+                started.append((name, int(thread[:-1])))
+        elif ln.strip() == _ROWS_DONE:
+            done = True
+    short = [f"{label} (worker failed: TimeoutExpired)" for label in labels]
+    if not started:
+        return short
+    label, thread = started[-1]
+    at = "after its last row" if done else "in this row"
+    head = f"{label} (worker failed: TimeoutExpired {at}; {_stall_location(_thread_stacks(lines), thread, stdlib)})"
+    return [head] + [s for name, s in zip(labels, short) if name != label]
+
+
+def run_chunk(chunk, spec, timeout, run, stdlib=()) -> list:
+    """One child's rows: run(input text, timeout) starts `file_hash.py --run-rows` with the spec,
+    the rows and the limit as JSON and returns its CompletedProcess. A child past the limit is
+    reported through stall_report; one that cannot start, or exits without this run's result,
+    reports each row as a survivor with the reason; else the child's survivors."""
+    import json
+    import subprocess
+    try:
+        done = run(json.dumps(dict(spec, timeout=timeout, rows=chunk)), timeout)
+    except subprocess.TimeoutExpired as exc:
+        return stall_report([r[0] for r in chunk], exc.stderr, stdlib)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return [f"{r[0]} (worker failed: {type(exc).__name__})" for r in chunk]
+    try:
+        result = json.loads(done.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        result = None
+    if (done.returncode != 0 or not isinstance(result, dict) or result.get("nonce") != spec["nonce"]
+            or result.get("rows") != len(chunk) or not isinstance(result.get("survivors"), list)):
+        return [f"{r[0]} (worker failed: exit {done.returncode}, no result)" for r in chunk]
+    return result["survivors"]
+
+
+def stalled_first(found, order) -> list:
+    """Survivors in table order (order maps a label to its row number), a row a stalled child was
+    running placed first, so a report cut short still names it."""
+    def key(s):
+        stalled = "(worker failed: TimeoutExpired in this row" in s or "TimeoutExpired after its last row" in s
+        return (0 if stalled else 1, order.get(s.split(" (", 1)[0], len(order)))
+    return sorted(found, key=key)
 
 
 # --- selftest: everything below is test code; the committed mutations apply above this line ---
@@ -5721,17 +5884,23 @@ def _restore_global_state(saved) -> None:
 _MISSING = object()
 
 
-def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1) -> list:
+def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, progress=None,
+                 child_timeout=None) -> list:
     """The labels of rows no selftest caught, each with the reason when the row is invalid: an anchor
     not found exactly once, an anchor inside the entry function itself (the test that scores the
     row; other test helpers are not detected), a mutant that does not compile or load, a module with
     no entry function, or a module whose unmutated entry does not pass (then no row against it can
     be scored). Path class attributes, the working folder and the environment are restored after
     each row, so a row that leaks state cannot decide the rows after it. With jobs above 1 the rows
-    of each module run in a process of their own, up to jobs at a time (_run_mutants_parallel)."""
+    of each module run in a process of their own, up to jobs at a time (_run_mutants_parallel),
+    each given child_timeout seconds (_CHILD_TIMEOUT unless given). With a stream as progress, a
+    line naming each row is written to it before the row runs (note_row; a --run-rows child gives
+    its stderr)."""
+    import threading
     if jobs > 1:
         return _run_mutants_parallel(list(_MUTANTS if table is None else table), base, entries,
-                                     posix_only, jobs)
+                                     posix_only, jobs,
+                                     _CHILD_TIMEOUT if child_timeout is None else child_timeout)
     here = Path(base) if base is not None else Path(__file__).resolve().parent
     me = Path(__file__).resolve()
     entries = _ENTRIES if entries is None else entries
@@ -5739,6 +5908,7 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1) -
     for label, module, old, new in (_MUTANTS if table is None else table):
         if os.name == "nt" and label in (_POSIX_ONLY if posix_only is None else posix_only):
             continue
+        note_row(progress, label, threading.get_ident())
         path = here / module
         entry = entries.get(module, "selftest")
         src = path.read_text(encoding="utf-8")
@@ -5785,7 +5955,8 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1) -
 # (P102), and the wizard's entry takes about 10 s on a Linux computer and several times that on a
 # hosted Windows runner, where a child of 12 wizard rows went past 600 s in one CI run (P103). The
 # limit bounds one child; the selftest sweep's cap for this tool (selftest_sweep._tool_timeout)
-# bounds the whole run.
+# bounds the whole run. A child past the limit is stopped and fails the run; its report names the
+# row it was running and where its thread stood (run_chunk, stall_report).
 _CHUNK_ROWS = 12
 _CHILD_TIMEOUT = 1500
 
@@ -5797,17 +5968,19 @@ def _parallel_spec(base, entries, posix_only) -> dict:
             "posix_only": sorted(_POSIX_ONLY if posix_only is None else posix_only)}
 
 
-def _run_mutants_parallel(rows, base, entries, posix_only, jobs) -> list:
+def _run_mutants_parallel(rows, base, entries, posix_only, jobs, child_timeout=_CHILD_TIMEOUT) -> list:
     """_run_mutants for rows in child processes (`file_hash.py --run-rows`: rows and settings as JSON
     on stdin), at most jobs at a time. A child gets rows of one module only, at most _CHUNK_ROWS of
     them, in table order, so a module's baseline and the state restored between its rows behave as
-    in a serial run; survivors come back in table order. A child's result counts only when it
-    exits 0 and its last stdout line is the JSON object carrying this run's nonce and the number of
-    rows it was sent; otherwise each of its rows is reported as a survivor with the reason."""
+    in a serial run; survivors come back in table order, a row a stalled child was running first. A
+    child's result counts only when it exits 0 and its last stdout line is the JSON object carrying
+    this run's nonce and the number of rows it was sent; otherwise each of its rows is reported as
+    a survivor with the reason (run_chunk). A child gets child_timeout seconds, sent to it in the
+    spec so its stack dump lands before the limit; one past it is stopped, with no retry."""
     import concurrent.futures
-    import json
     import secrets
     import subprocess
+    import sysconfig
     chunks, by_module = [], {}
     for row in rows:
         by_module.setdefault(row[1], []).append(list(row))
@@ -5815,28 +5988,18 @@ def _run_mutants_parallel(rows, base, entries, posix_only, jobs) -> list:
         chunks += [module_rows[i:i + _CHUNK_ROWS] for i in range(0, len(module_rows), _CHUNK_ROWS)]
     spec = dict(_parallel_spec(base, entries, posix_only), nonce=secrets.token_hex(8))
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    paths = sysconfig.get_paths()
+    stdlib = sorted({paths[k] for k in ("stdlib", "platstdlib") if paths.get(k)})
 
-    def run(chunk):
-        try:
-            done = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--run-rows"],
-                                  input=json.dumps(dict(spec, rows=chunk)), text=True,
-                                  encoding="utf-8", errors="replace", capture_output=True,
-                                  timeout=_CHILD_TIMEOUT, env=env)
-        except (OSError, subprocess.SubprocessError) as exc:
-            return [f"{r[0]} (worker failed: {type(exc).__name__})" for r in chunk]
-        try:
-            result = json.loads(done.stdout.strip().splitlines()[-1])
-        except (ValueError, IndexError):
-            result = None
-        if (done.returncode != 0 or not isinstance(result, dict) or result.get("nonce") != spec["nonce"]
-                or result.get("rows") != len(chunk) or not isinstance(result.get("survivors"), list)):
-            return [f"{r[0]} (worker failed: exit {done.returncode}, no result)" for r in chunk]
-        return result["survivors"]
+    def start(text, timeout):
+        return subprocess.run([sys.executable, str(Path(__file__).resolve()), "--run-rows"],
+                              input=text, text=True, encoding="utf-8", errors="replace",
+                              capture_output=True, timeout=timeout, env=env)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
-        found = [s for got in pool.map(run, chunks) for s in got]
-    order = {row[0]: i for i, row in enumerate(rows)}
-    return sorted(found, key=lambda s: order.get(s.split(" (", 1)[0], len(order)))
+        found = [s for got in pool.map(lambda c: run_chunk(c, spec, child_timeout, start, stdlib), chunks)
+                 for s in got]
+    return stalled_first(found, {row[0]: i for i, row in enumerate(rows)})
 
 
 def _coverage_gaps(table=None, base=None) -> list:
@@ -5852,6 +6015,107 @@ def _coverage_gaps(table=None, base=None) -> list:
     count = {m: sum(1 for r in rows if r[1] == m) for m in need}
     return sorted(f"{m}: {n} of {MIN_MUTANTS_PER_MODULE}" for m, n in count.items()
                   if n < MIN_MUTANTS_PER_MODULE)
+
+
+def _stall_controls() -> list:
+    """(name, ok) for the stalled-child report, on stand-ins: a recording stream, a stand-in
+    faulthandler arm, a stand-in child that raises TimeoutExpired with a written stderr. Cheap, so
+    they also run inside each mutant of this module (P103)."""
+    import io
+    import json
+    import subprocess
+    import tempfile
+    out = []
+
+    class _Rec(io.StringIO):
+        flushes = 0
+
+        def flush(self):
+            self.flushes += 1
+            super().flush()
+    out.append(("the stack dump is armed at the limit less min(60 s, a quarter of it)",
+                (stall_dump_delay(1500), stall_dump_delay(100), stall_dump_delay(8)) == (1440.0, 75.0, 6.0)))
+    rec = _Rec()
+    note_row(rec, "WZ01", 77)
+    note_row(None, "WZ02", 77)
+    out.append(("a row line names the row and its thread and is flushed",
+                rec.getvalue() == "file_hash: row started: WZ01 (thread 77)\n" and rec.flushes == 1))
+    armed, err, res = [], _Rec(), io.StringIO()
+    with tempfile.TemporaryDirectory() as td:
+        (Path(td) / "good.py").write_text("x = 1\ndef selftest():\n    return 0 if x == 1 else 1\n",
+                                          encoding="utf-8")
+        spec = {"base": td, "entries": {}, "posix_only": [], "nonce": "n1", "timeout": 8,
+                "rows": [["c-equivalent", "good.py", "x = 1\n", "x = 1  # same\n"],
+                         ["c-caught", "good.py", "x = 1\n", "x = 2\n"]]}
+        rc = run_rows_child(json.dumps(spec), res, err, _run_mutants,
+                            arm=lambda delay, **kw: armed.append((delay, kw)))
+        quiet = io.StringIO()
+        rc_quiet = run_rows_child(json.dumps(spec), quiet, None, _run_mutants,
+                                  arm=lambda delay, **kw: armed.append((delay, kw)))
+    lines = err.getvalue().splitlines()
+    out.append(("a --run-rows child arms the dump from the spec's limit, names each row before it "
+                "runs and writes its done line after the rows, then its result",
+                rc == 0 and armed == [(6.0, {"exit": False, "file": err})]
+                and [ln.split(" (thread ")[0] for ln in lines]
+                == ["file_hash: row started: c-equivalent", "file_hash: row started: c-caught",
+                    "file_hash: rows done"]
+                and json.loads(res.getvalue()) == {"nonce": "n1", "rows": 2, "survivors": ["c-equivalent"]}
+                and rc_quiet == 0 and quiet.getvalue() == res.getvalue()))
+    dump = ("file_hash: row started: WZ01 (thread 4096)\nfile_hash: row started: OTHER (thread 4096)\n"
+            "file_hash: row started: WZ02 (thread 4096)\nTimeout (0:24:00)!\n"
+            "Thread 0x0000000000002000 (most recent call first):\n"
+            '  File "C:\\py\\Lib\\threading.py", line 359 in wait\n'
+            '  File "C:\\repo\\tools\\wizard.py", line 900 in _worker\n\n'
+            "Thread 0x0000000000001000 (most recent call first):\n"
+            '  File "C:\\py\\Lib\\threading.py", line 359 in wait\n'
+            '  File "C:\\repo\\tools\\atomic_io.py", line 120 in _acquire\n'
+            '  File "<wizard.py mutant>", line 512 in _set\n')
+    labels = ["WZ01", "WZ02", "WZ03"]
+    want = ["WZ02 (worker failed: TimeoutExpired in this row; stalled at atomic_io.py:120 in _acquire, "
+            "waiting in threading.py:359 in wait; 2 threads, others at wizard.py:900 in _worker)",
+            "WZ01 (worker failed: TimeoutExpired)", "WZ03 (worker failed: TimeoutExpired)"]
+    out.append(("a stopped child's report names the last row it started first, its own thread's "
+                "innermost frame outside the standard library and the frame it waits in, and the "
+                "other threads; a row line for a row not in the chunk is ignored",
+                stall_report(labels, dump, ["C:\\py\\Lib"]) == want))
+    late = (b"file_hash: row started: HE2 (thread 16)\nfile_hash: rows done\n"
+            b"Thread 0x10 (most recent call first):\n"
+            b'  File "/usr/lib/python3.13/threading.py", line 1543 in _shutdown\n'
+            b"Thread 0x20 (most recent call first):\n"
+            b'  File "<wizard.py mutant>", line 77 in _loop\n')
+    out.append(("a child stopped after its done line is reported after its last row, its stderr read "
+                "as bytes, a frame of a mutant named by its module",
+                stall_report(["HE2"], late, ["/usr/lib/python3.13"])
+                == ["HE2 (worker failed: TimeoutExpired after its last row; stalled at threading.py:1543 in "
+                    "_shutdown; 2 threads, others at wizard.py:77 in _loop)"]))
+    out.append(("a child stopped before its first row line reports each row with the short reason",
+                stall_report(["A", "B"], b"Timeout (0:24:00)!\n", [])
+                == ["A (worker failed: TimeoutExpired)", "B (worker failed: TimeoutExpired)"]
+                and stall_report(["A"], None) == ["A (worker failed: TimeoutExpired)"]))
+    sent = []
+
+    def stalls(text, timeout):
+        sent.append((json.loads(text).get("timeout"), timeout, json.loads(text).get("rows")))
+        raise subprocess.TimeoutExpired(["child"], timeout, output=b"", stderr=dump.encode("utf-8"))
+
+    def cannot_start(text, timeout):
+        raise OSError("no python")
+    chunk = [[label, "wizard.py", "a", "b"] for label in labels]
+    out.append(("a chunk whose child goes past its limit is reported through the stall report, and "
+                "the child is sent the limit it gets",
+                run_chunk(chunk, {"nonce": "n2"}, 8, stalls, ["C:\\py\\Lib"]) == want
+                and sent == [(8, 8, chunk)]
+                and run_chunk(chunk[:1], {"nonce": "n2"}, 8, cannot_start)
+                == ["WZ01 (worker failed: OSError)"]))
+    out.append(("the row a stalled child was running is listed first, the rest in table order",
+                stalled_first(["b (worker failed: TimeoutExpired)", "a",
+                               "c (worker failed: TimeoutExpired in this row; stalled at x.py:1 in f)",
+                               "d (worker failed: TimeoutExpired after its last row; stalled at y.py:2 in g)"],
+                              {"a": 0, "b": 1, "c": 2, "d": 3})
+                == ["c (worker failed: TimeoutExpired in this row; stalled at x.py:1 in f)",
+                    "d (worker failed: TimeoutExpired after its last row; stalled at y.py:2 in g)",
+                    "a", "b (worker failed: TimeoutExpired)"]))
+    return out
 
 
 def _runner_controls() -> list:
@@ -6079,6 +6343,34 @@ def _runner_controls() -> list:
         slow = _run_mutants([("slow-a", "slow_a.py", "x = 1\n", "x = 2\n"),
                              ("slow-b", "slow_b.py", "x = 1\n", "x = 2\n")], base=d3, jobs=2)
         slow_took = _time.monotonic() - began
+        # P103: a child that waits forever in a row, and one whose leftover thread holds it at exit
+        # after its rows, each stopped at a 6 s limit (its stack dump at 4.5 s): the report names the
+        # row and where the row's thread and the leftover thread stood. These wait only when mutated.
+        (d3 / "stall.py").write_text("import threading\nx = 1\ndef hold():\n    lock = threading.Lock()\n"
+                                     "    lock.acquire()\n    lock.acquire()\ndef selftest():\n"
+                                     "    if x == 2:\n        hold()\n    return 0\n", encoding="utf-8")
+        (d3 / "linger.py").write_text("import threading, time\nx = 1\ndef spin():\n    while True:\n"
+                                      "        time.sleep(0.05)\ndef selftest():\n    if x == 2:\n"
+                                      "        threading.Thread(target=spin).start()\n"
+                                      "    return 0 if x == 1 else 1\n", encoding="utf-8")
+        began = _time.monotonic()
+        stalled = _run_mutants([("stall-before", "stall.py", "x = 1\n", "x = 1  # same\n"),
+                                ("stall-row", "stall.py", "x = 1\n", "x = 2\n"),
+                                ("stall-after", "stall.py", "x = 1\n", "x = 1  # again\n"),
+                                ("linger-row", "linger.py", "x = 1\n", "x = 2\n")],
+                               base=d3, jobs=2, child_timeout=6)
+        stall_took = _time.monotonic() - began
+    out.append(("with jobs above 1 a child past its limit (6 s here) is stopped and fails its rows: the "
+                "row it was running first, with where its thread stood, the rows after it with the short "
+                f"reason, a child held at exit after its rows named so ({stall_took:.1f} s; {stalled})",
+                len(stalled) == 4 and stall_took < 30
+                and stalled[0] == "stall-row (worker failed: TimeoutExpired in this row; stalled at "
+                                  "stall.py:6 in hold; 1 thread)"
+                and stalled[1].startswith("linger-row (worker failed: TimeoutExpired after its last row; "
+                                          "stalled at threading.py:")
+                and stalled[1].endswith(" in _shutdown; 2 threads, others at linger.py:5 in spin)")
+                and stalled[2:] == ["stall-before (worker failed: TimeoutExpired)",
+                                    "stall-after (worker failed: TimeoutExpired)"]))
     out.append(("with jobs above 1 the survivors match a serial run, in table order",
                 parallel_mixed == serial_mixed
                 == ["p-equivalent", "p-redbase (unmutated selftest: fail)", "p-equivalent-2"]))
@@ -6209,6 +6501,8 @@ def selftest() -> int:
                  for k in _jobs_cases}
     ok("the mutation run's child count is CREATOR_OS_FILE_HASH_JOBS when it is a whole number of 1 or "
        "more, else min(8, the CPU count)", _jobs_got == _jobs_cases)
+    for name, cond in _stall_controls():
+        ok(f"stall report: {name}", cond)
     if not _IN_MUTANT:
         for name, cond in _runner_controls():
             ok(f"runner control: {name}", cond)
@@ -6231,13 +6525,7 @@ def main(argv) -> int:
     if "--selftest" in argv:
         return selftest()
     if argv == ["--run-rows"]:   # a child of _run_mutants_parallel
-        import json
-        spec = json.loads(sys.stdin.read())
-        rows = [tuple(r) for r in spec["rows"]]
-        survivors = _run_mutants(rows, base=spec["base"], entries=spec["entries"],
-                                 posix_only=set(spec["posix_only"]))
-        print(json.dumps({"nonce": spec["nonce"], "rows": len(rows), "survivors": survivors}))
-        return 0
+        return run_rows_child(sys.stdin.read(), sys.stdout, sys.__stderr__, _run_mutants)
     if not argv:
         print(__doc__)
         return 2
