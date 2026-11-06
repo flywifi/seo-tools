@@ -407,6 +407,19 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
+  to stderr naming each mutation row before it runs it and a done line after its rows, and arms
+  `faulthandler` to dump its threads' stacks (up to the 100 threads faulthandler prints) at its
+  limit less min(60 s, a quarter of it) after the child starts, 1440 s
+  of the 1500 s `file_hash._CHILD_TIMEOUT`, which the parent now sends it in the JSON spec. When a
+  child goes past the limit the parent reads its partial stderr and lists first the row it was
+  running, as `<label> (worker failed: TimeoutExpired in this row; stalled at <file>:<line> in
+  <function>; <n> threads, others at ...)`, the frame being the thread's innermost one outside the
+  interpreter's library folders, which outside a virtual environment include its site-packages
+  (`file_hash.stall_report`); a child held up after its done line reads `after its last row`, one
+  stopped before its dump reads `no stack dump`, and the chunk's other rows keep
+  `(worker failed: TimeoutExpired)`. A stalled child still
+  fails the run, with no retry.
 - P102 (wizard checks share one speech-probe result): the wizard selftest's import-route and page
   checks that render the import screen get one stored result of the speech-backend probe
   (`_stt_backend_present`) through a stand-in that each block removes when it ends, where each
