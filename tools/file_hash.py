@@ -40,8 +40,8 @@ stdin), at most 12 rows of one module per child and up to 8 children at a time
 (`CREATOR_OS_FILE_HASH_JOBS` sets another number, for a computer with little memory), to keep the
 run under the selftest sweep's per-tool limit. A child that goes past its limit fails its rows, and
 the report lists first the row it was running, with where its thread stood in the stack dump the
-child writes to stderr once, min(60 s, a quarter of the limit) before the limit as the child counts
-it from its own start (`stall_report`). A row that started after that dump is reported as such,
+child writes to stderr once, min(60 s, a quarter of the limit) before the limit, counted from when
+the child arms the dump after its start-up (`stall_report`). A row that started after that dump is reported as such,
 with the place the dump shows for the row it was taken during.
 """
 from __future__ import annotations
@@ -268,7 +268,7 @@ def stall_report(labels, stderr, stdlib=()) -> list:
     stopped inside the baseline run it makes before a module's first row, or `after its last row`
     when the child had written its done line; every other row `<label> (worker failed:
     TimeoutExpired)`. The place is read from the dump (the lines from its `Timeout (h:mm:ss)!` head
-    on, or every line when there is no head); a row that started after the dump reads `started
+    on, the seconds with or without a fraction; with no head there is no dump); a row that started after the dump reads `started
     after the stack dump, taken during <earlier row>: stalled at ...`, the place shown being the
     earlier row's, and a dump faulthandler cut at 100 threads adds `the dump stops at 100 threads`.
     A marker line is read after text a row left on stderr without a line end. With no row line the
@@ -276,7 +276,7 @@ def stall_report(labels, stderr, stdlib=()) -> list:
     import re
     text = stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else (stderr or "")
     lines = text.splitlines()
-    dump_at = next((i for i, ln in enumerate(lines) if re.search(r"Timeout \(\d+:\d\d:\d\d\)!", ln)), None)
+    dump_at = next((i for i, ln in enumerate(lines) if re.search(r"Timeout \(\d+:\d\d:\d\d(?:\.\d+)?\)!", ln)), None)
     started, done = [], False
     for i, ln in enumerate(lines):
         if _ROW_STARTED in ln:
@@ -296,7 +296,7 @@ def stall_report(labels, stderr, stdlib=()) -> list:
     row_at, in_baseline = started[-1][2:]
     at = ("after its last row" if done else "in the unmutated baseline run before this row" if in_baseline
           else "in this row")
-    dump = lines if dump_at is None else lines[dump_at:]
+    dump = [] if dump_at is None else lines[dump_at:]
     if dump_at is not None and row_at > dump_at:
         before = [s for s in started if s[2] < dump_at]
         where = "started after the stack dump" + (
@@ -6596,7 +6596,7 @@ _MUTANTS = (
      '"in the unmutated baseline run before this row" if in_baseline',
      '"in this row" if in_baseline'),
     ('ST-47 the dump is read from every line', 'file_hash.py',
-     '    dump = lines if dump_at is None else lines[dump_at:]',
+     '    dump = [] if dump_at is None else lines[dump_at:]',
      '    dump = lines'),
     ('ST-48 a row after the dump is shown with the dump place', 'file_hash.py',
      '    if dump_at is not None and row_at > dump_at:',
@@ -6605,8 +6605,8 @@ _MUTANTS = (
      '{before[-1][0]}: {_stall_location(_thread_stacks(dump), before[-1][1], stdlib)}',
      '{before[0][0]}: {_stall_location(_thread_stacks(dump), before[0][1], stdlib)}'),
     ('ST-50 a dump head without its seconds is not found', 'file_hash.py',
-     r're.search(r"Timeout \(\d+:\d\d:\d\d\)!", ln)',
-     r're.search(r"Timeout \(\d+:\d\d\)!", ln)'),
+     r're.search(r"Timeout \(\d+:\d\d:\d\d(?:\.\d+)?\)!", ln)',
+     r're.search(r"Timeout \(\d+:\d\d(?:\.\d+)?\)!", ln)'),
     ('ST-51 a cut dump is not reported', 'file_hash.py',
      '        where += "; the dump stops at 100 threads"',
      '        pass'),
@@ -6676,6 +6676,33 @@ _MUTANTS = (
     ('ST-R18 the limit is sent in minutes', 'file_hash.py',
      '        done = run(json.dumps(dict(spec, timeout=timeout, rows=chunk)), timeout)\n',
      '        done = run(json.dumps(dict(spec, timeout=timeout / 60, rows=chunk)), timeout)\n'),
+    ('ST-56 a dump head with a fraction of a second is not found', 'file_hash.py',
+     're.search(r"Timeout \\(\\d+:\\d\\d:\\d\\d(?:\\.\\d+)?\\)!", ln)',
+     're.search(r"Timeout \\(\\d+:\\d\\d:\\d\\d\\)!", ln)'),
+    ('ST-57 the dump head is found only at a line start', 'file_hash.py',
+     're.search(r"Timeout \\(\\d+:\\d\\d:\\d\\d(?:\\.\\d+)?\\)!", ln)',
+     're.match(r"Timeout \\(\\d+:\\d\\d:\\d\\d(?:\\.\\d+)?\\)!", ln)'),
+    ('ST-58 every row but the last counts as before the dump', 'file_hash.py',
+     '        before = [s for s in started if s[2] < dump_at]\n',
+     '        before = started[:-1]\n'),
+    ('ST-59 the row the dump was taken during is the last started row', 'file_hash.py',
+     '        before = [s for s in started if s[2] < dump_at]\n',
+     '        before = started\n'),
+    ('ST-60 the baseline line is always the done line', 'file_hash.py',
+     '        stream.write((_BASELINE_STARTED if started else _BASELINE_DONE) + "\\n")\n',
+     '        stream.write(_BASELINE_DONE + "\\n")\n'),
+    ('ST-61 the baseline line has no line end', 'file_hash.py',
+     '        stream.write((_BASELINE_STARTED if started else _BASELINE_DONE) + "\\n")\n',
+     '        stream.write(_BASELINE_STARTED if started else _BASELINE_DONE)\n'),
+    ('ST-62 the dump is read from the lines before its head', 'file_hash.py',
+     '    dump = [] if dump_at is None else lines[dump_at:]\n',
+     '    dump = [] if dump_at is None else lines[:dump_at]\n'),
+    ('ST-63 the library roots are compared unescaped', 'file_hash.py',
+     '    roots = [norm(p).rstrip("/") + "/" for p in stdlib]\n',
+     '    roots = [os.path.normcase(str(p)).replace("\\\\", "/").rstrip("/") + "/" for p in stdlib]\n'),
+    ('ST-64 a non-ASCII character is escaped as an XML reference', 'file_hash.py',
+     'os.path.normcase(str(p).encode("ascii", "backslashreplace").decode("ascii"))',
+     'os.path.normcase(str(p).encode("ascii", "xmlcharrefreplace").decode("ascii"))'),
     ('ST-06 the row line writes the thread in hex', 'file_hash.py',
      '(thread {thread})',
      '(thread {thread:#x})'),
@@ -7136,7 +7163,7 @@ def _stall_controls() -> list:
                 "innermost frame outside the interpreter's library folders and the frame it waits "
                 "in, and the other threads",
                 stall_report(labels, dump, ["C:\\py\\Lib"]) == want))
-    late = (b"file_hash: row started: HE2 (thread 16)\nfile_hash: rows done\n"
+    late = (b"file_hash: row started: HE2 (thread 16)\nfile_hash: rows done\nTimeout (0:00:06)!\n"
             b"Thread 0x10 (most recent call first):\n"
             b'  File "/usr/lib/python3.13/threading.py", line 1543 in _shutdown\n'
             b"Thread 0x20 (most recent call first):\n"
@@ -7154,7 +7181,7 @@ def _stall_controls() -> list:
                 stall_report(["WZ01", "WZ02"], "file_hash: row started: WZ02 (thread 16)\n")
                 == ["WZ02 (worker failed: TimeoutExpired in this row; no stack dump)",
                     "WZ01 (worker failed: TimeoutExpired)"]))
-    lone = ("file_hash: row started: R1 (thread 16)\nThread 0x10 (most recent call first):\n"
+    lone = ("file_hash: row started: R1 (thread 16)\nTimeout (0:00:06)!\nThread 0x10 (most recent call first):\n"
             '  File "/usr/lib/python3.13/threading.py", line 359 in wait\n'
             '  File "/usr/lib/python3.13x/own.py", line 4 in work\n')
     crowd = lone + "".join(f'Thread 0x{n:x} (most recent call first):\n  File "/r/t{n}.py", line {n} in f{n}\n'
@@ -7195,10 +7222,30 @@ def _stall_controls() -> list:
                             "taken during R2: stalled at own.py:4")))
     stray = ('file_hash: row started: R1 (thread 16)\nThread 0x10 (most recent call first):\n'
              '  File "/r/stray.py", line 1 in old\n')
-    out.append(("the place is read from the dump, not from thread-shaped lines a row wrote before it",
+    out.append(("the place is read from the dump, not from thread-shaped lines a row wrote before it, "
+                "and thread-shaped lines with no dump head are no dump",
                 stall_report(["R1"], stray + head + own_at, ["/usr/lib/python3.13"])
                 == ["R1 (worker failed: TimeoutExpired in this row; stalled at own.py:4 in work, waiting in "
-                    "threading.py:359 in wait; 1 thread)"]))
+                    "threading.py:359 in wait; 1 thread)"]
+                and stall_report(["R1"], stray, ["/usr/lib/python3.13"])
+                == ["R1 (worker failed: TimeoutExpired in this row; no stack dump)"]))
+    out.append(("a dump head with a fraction of a second, or glued to text a row left without a line "
+                "end, is the dump's start; with two rows after the dump the row the dump was taken "
+                "during is the last one before it",
+                stall_report(["R1", "R2"], "file_hash: row started: R1 (thread 16)\nTimeout (0:00:07.500000)!\n"
+                             + own_at + "file_hash: row started: R2 (thread 16)\n", ["/usr/lib/python3.13"])[0]
+                .startswith("R2 (worker failed: TimeoutExpired in this row; started after the stack dump, "
+                            "taken during R1: stalled at own.py:4")
+                and stall_report(["A", "B"], "file_hash: row started: A (thread 16)\nwarn, no line end"
+                                 "Timeout (0:00:06)!\n" + own_at + "file_hash: row started: B (thread 16)\n",
+                                 ["/usr/lib/python3.13"])[0]
+                .startswith("B (worker failed: TimeoutExpired in this row; started after the stack dump, "
+                            "taken during A: stalled at own.py:4")
+                and stall_report(["R1", "R2", "R3"], "file_hash: row started: R1 (thread 16)\n" + head + own_at
+                                 + "file_hash: row started: R2 (thread 16)\nfile_hash: row started: R3 (thread 16)\n",
+                                 ["/usr/lib/python3.13"])[0]
+                .startswith("R3 (worker failed: TimeoutExpired in this row; started after the stack dump, "
+                            "taken during R1: stalled at own.py:4")))
     out.append(("a child stopped in a module's baseline run is reported there, and once the baseline "
                 "is done, in the row",
                 stall_report(["R1"], "file_hash: row started: R1 (thread 16)\nfile_hash: baseline started\n")
