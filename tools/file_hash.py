@@ -39,8 +39,10 @@ The selftest runs the committed mutation rows in child processes (`--run-rows`, 
 stdin), at most 12 rows of one module per child and up to 8 children at a time
 (`CREATOR_OS_FILE_HASH_JOBS` sets another number, for a computer with little memory), to keep the
 run under the selftest sweep's per-tool limit. A child that goes past its limit fails its rows, and
-the report lists first the row it was running and where that row's thread stood, read from the stack
-dump the child writes to stderr shortly before the limit (`stall_report`).
+the report lists first the row it was running, with where its thread stood in the stack dump the
+child writes to stderr once, min(60 s, a quarter of the limit) before the limit as the child counts
+it from its own start (`stall_report`). A row that started after that dump is reported as such,
+with the place the dump shows for the row it was taken during.
 """
 from __future__ import annotations
 
@@ -137,19 +139,24 @@ def mutant_jobs(env=None, cpu_count=None) -> int:
 
 
 # A mutation-run child that goes past its limit (P103). The child writes a line to stderr naming
-# each row as it starts it, and arms faulthandler to dump every thread's stack shortly before the
-# parent's limit; when the parent stops the child it reads that partial stderr and reports the row
-# in progress and where its thread stood. These sit above the selftest marker, so committed rows
-# can mutate them; the parent and child code below the marker calls them.
+# each row as it starts it, one before and after each module's unmutated baseline run, and arms
+# faulthandler to dump the threads' stacks once (up to 100 threads, newest first, as faulthandler
+# prints them) shortly before the parent's limit; when the parent stops the child it reads that
+# partial stderr and reports the row in progress and where the dump shows its thread. These sit
+# above the selftest marker, so committed rows can mutate them; the parent and child code below the
+# marker calls them.
 STALL_MARGIN = 60.0
 _ROW_STARTED = "file_hash: row started: "
 _ROWS_DONE = "file_hash: rows done"
+_BASELINE_STARTED = "file_hash: baseline started"
+_BASELINE_DONE = "file_hash: baseline done"
 
 
 def stall_dump_delay(limit) -> float:
-    """Seconds after a --run-rows child starts at which it dumps every thread's stack: the parent's
-    limit less min(STALL_MARGIN, a quarter of the limit), so the dump is written before the parent
-    stops the child (1440 s of 1500, 6 s of 8)."""
+    """Seconds after a --run-rows child arms its stack dump at which the dump is written: the
+    parent's limit less min(STALL_MARGIN, a quarter of the limit) (1440 s of 1500, 6 s of 8). The
+    child counts from when it arms the dump, after its own start-up, so a start-up longer than that
+    margin leaves the parent's limit reached before the dump ("no stack dump")."""
     return float(limit) - min(STALL_MARGIN, float(limit) / 4)
 
 
@@ -158,6 +165,15 @@ def note_row(stream, label, thread) -> None:
     number faulthandler prints for it), and flush it so a stopped child's stderr still holds it."""
     if stream is not None:
         stream.write(f"{_ROW_STARTED}{label} (thread {thread})\n")
+        stream.flush()
+
+
+def note_baseline(stream, started) -> None:
+    """Write the line a --run-rows child writes before (started true) or after a module's unmutated
+    baseline run, so a child stopped inside that run is reported as stopped there, not in the row
+    named before it."""
+    if stream is not None:
+        stream.write((_BASELINE_STARTED if started else _BASELINE_DONE) + "\n")
         stream.flush()
 
 
@@ -210,24 +226,28 @@ def _thread_stacks(lines) -> list:
 
 
 def _stall_location(stacks, thread, stdlib) -> str:
-    """Where the dump shows the row's thread: its innermost frame outside the folders in stdlib
-    (the parent gives the interpreter's library folders, which outside a virtual environment hold
-    its site-packages too), with the innermost frame when that one is inside them, the thread
-    count, and where up to three other threads stand outside stdlib."""
-    def norm(p):   # a backslash read as a slash, so a Windows dump reads the same on any host
-        return os.path.normcase(str(p)).replace("\\", "/")
+    """Where the dump shows the row's thread: its innermost frame outside the folders in stdlib and
+    outside the interpreter's frozen modules (`<frozen os>`), with the innermost frame when that one
+    is inside them, the thread count, and where up to three other threads stand outside them. The
+    parent gives the interpreter's library and site-packages folders (sysconfig's stdlib,
+    platstdlib, purelib and platlib, and site's site-packages and user site-packages). A folder is
+    compared in the escaped form faulthandler writes a non-ASCII character in (\\xe9)."""
+    def norm(p):   # escaped as faulthandler writes it; a backslash read as a slash, on any host
+        return os.path.normcase(str(p).encode("ascii", "backslashreplace").decode("ascii")).replace("\\", "/")
     roots = [norm(p).rstrip("/") + "/" for p in stdlib]
 
     def own(frames):
-        return next((f for f in frames if not any(norm(f[0]).startswith(r) for r in roots)), None)
+        return next((f for f in frames if not f[0].startswith("<frozen ")
+                     and not any(norm(f[0]).startswith(r) for r in roots)), None)
 
     def shown(f):
         return f"{_frame_name(f[0])}:{f[1]} in {f[2]}"
     if not stacks:
         return "no stack dump"
+    count = "1 thread" if len(stacks) == 1 else f"{len(stacks)} threads"
     frames = next((fr for ident, fr in stacks if ident == thread), None)
     if not frames:
-        return f"no stack for its thread; {len(stacks)} threads"
+        return f"no stack for its thread; {count}"
     mine = own(frames)
     where = shown(mine or frames[0])
     if mine is not None and mine is not frames[0]:
@@ -237,7 +257,6 @@ def _stall_location(stacks, thread, stdlib) -> str:
         o = own(fr)
         if ident != thread and o is not None and shown(o) not in others:
             others.append(shown(o))
-    count = "1 thread" if len(stacks) == 1 else f"{len(stacks)} threads"
     return f"stalled at {where}; {count}" + (f", others at {', '.join(others[:3])}" if others else "")
 
 
@@ -245,25 +264,49 @@ def stall_report(labels, stderr, stdlib=()) -> list:
     """The survivor lines for a chunk whose child went past its limit, from the child's partial
     stderr (bytes or text): the row in progress first, `<label> (worker failed: TimeoutExpired in
     this row; stalled at <file>:<line> in <function>; ...)` (`no stack dump` when the child was
-    stopped before its dump), or `after its last row` when the child
-    had written its done line; every other row `<label> (worker failed: TimeoutExpired)`. With no
-    row line the run stopped before its first row, and every row gets the short reason."""
+    stopped before its dump), `in the unmutated baseline run before this row` when the child was
+    stopped inside the baseline run it makes before a module's first row, or `after its last row`
+    when the child had written its done line; every other row `<label> (worker failed:
+    TimeoutExpired)`. The place is read from the dump (the lines from its `Timeout (h:mm:ss)!` head
+    on, or every line when there is no head); a row that started after the dump reads `started
+    after the stack dump, taken during <earlier row>: stalled at ...`, the place shown being the
+    earlier row's, and a dump faulthandler cut at 100 threads adds `the dump stops at 100 threads`.
+    A marker line is read after text a row left on stderr without a line end. With no row line the
+    run stopped before its first row, and every row gets the short reason."""
+    import re
     text = stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else (stderr or "")
     lines = text.splitlines()
+    dump_at = next((i for i, ln in enumerate(lines) if re.search(r"Timeout \(\d+:\d\d:\d\d\)!", ln)), None)
     started, done = [], False
-    for ln in lines:
-        if ln.startswith(_ROW_STARTED):
-            name, _sep, thread = ln[len(_ROW_STARTED):].rpartition(" (thread ")
+    for i, ln in enumerate(lines):
+        if _ROW_STARTED in ln:
+            name, _sep, thread = ln.split(_ROW_STARTED, 1)[1].rpartition(" (thread ")
             if name in labels and thread.endswith(")") and thread[:-1].isdecimal():
-                started.append((name, int(thread[:-1])))
-        elif ln.strip() == _ROWS_DONE:
+                started.append([name, int(thread[:-1]), i, False])
+        elif ln.rstrip().endswith(_BASELINE_STARTED) and started:
+            started[-1][3] = True
+        elif ln.rstrip().endswith(_BASELINE_DONE) and started:
+            started[-1][3] = False
+        elif ln.rstrip().endswith(_ROWS_DONE):
             done = True
     short = [f"{label} (worker failed: TimeoutExpired)" for label in labels]
     if not started:
         return short
-    label, thread = started[-1]
-    at = "after its last row" if done else "in this row"
-    head = f"{label} (worker failed: TimeoutExpired {at}; {_stall_location(_thread_stacks(lines), thread, stdlib)})"
+    label, thread = started[-1][:2]
+    row_at, in_baseline = started[-1][2:]
+    at = ("after its last row" if done else "in the unmutated baseline run before this row" if in_baseline
+          else "in this row")
+    dump = lines if dump_at is None else lines[dump_at:]
+    if dump_at is not None and row_at > dump_at:
+        before = [s for s in started if s[2] < dump_at]
+        where = "started after the stack dump" + (
+            f", taken during {before[-1][0]}: {_stall_location(_thread_stacks(dump), before[-1][1], stdlib)}"
+            if before else "")
+    else:
+        where = _stall_location(_thread_stacks(dump), thread, stdlib)
+    if dump_at is not None and any(ln.strip() == "..." for ln in dump):
+        where += "; the dump stops at 100 threads"
+    head = f"{label} (worker failed: TimeoutExpired {at}; {where})"
     return [head] + [s for name, s in zip(labels, short) if name != label]
 
 
@@ -294,7 +337,8 @@ def stalled_first(found, order) -> list:
     """Survivors in table order (order maps a label to its row number), a row a stalled child was
     running placed first, so a report cut short still names it."""
     def key(s):
-        stalled = "(worker failed: TimeoutExpired in this row" in s or "TimeoutExpired after its last row" in s
+        stalled = ("(worker failed: TimeoutExpired in this row" in s or "TimeoutExpired after its last row" in s
+                   or "TimeoutExpired in the unmutated baseline run" in s)
         return (0 if stalled else 1, order.get(s.split(" (", 1)[0], len(order)))
     return sorted(found, key=key)
 
@@ -6525,8 +6569,113 @@ _MUTANTS = (
      'float(limit) / 4)',
      'float(limit) / 2)'),
     ('ST-05 the row line is not flushed', 'file_hash.py',
+     '        stream.flush()\n\n\ndef note_baseline',
+     '        pass\n\n\ndef note_baseline'),
+    ('ST-39 the baseline line is not flushed', 'file_hash.py',
      '        stream.flush()\n\n\ndef run_rows_child',
      '        pass\n\n\ndef run_rows_child'),
+    ('ST-40 the baseline lines are swapped', 'file_hash.py',
+     '(_BASELINE_STARTED if started else _BASELINE_DONE)',
+     '(_BASELINE_DONE if started else _BASELINE_STARTED)'),
+    ('ST-41 a row line glued to earlier text is not read', 'file_hash.py',
+     '        if _ROW_STARTED in ln:',
+     '        if ln.startswith(_ROW_STARTED):'),
+    ('ST-42 the row name is read from a fixed offset', 'file_hash.py',
+     'ln.split(_ROW_STARTED, 1)[1].rpartition(" (thread ")',
+     'ln[len(_ROW_STARTED):].rpartition(" (thread ")'),
+    ('ST-43 a done line glued to earlier text is not read', 'file_hash.py',
+     '        elif ln.rstrip().endswith(_ROWS_DONE):',
+     '        elif ln.strip() == _ROWS_DONE:'),
+    ('ST-44 a baseline start is not marked', 'file_hash.py',
+     '            started[-1][3] = True',
+     '            started[-1][3] = False'),
+    ('ST-45 a finished baseline stays marked', 'file_hash.py',
+     '        elif ln.rstrip().endswith(_BASELINE_DONE) and started:\n            started[-1][3] = False',
+     '        elif ln.rstrip().endswith(_BASELINE_DONE) and started:\n            pass'),
+    ('ST-46 a baseline stop reads as in the row', 'file_hash.py',
+     '"in the unmutated baseline run before this row" if in_baseline',
+     '"in this row" if in_baseline'),
+    ('ST-47 the dump is read from every line', 'file_hash.py',
+     '    dump = lines if dump_at is None else lines[dump_at:]',
+     '    dump = lines'),
+    ('ST-48 a row after the dump is shown with the dump place', 'file_hash.py',
+     '    if dump_at is not None and row_at > dump_at:',
+     '    if False:'),
+    ('ST-49 the row the dump was taken during is the first one', 'file_hash.py',
+     '{before[-1][0]}: {_stall_location(_thread_stacks(dump), before[-1][1], stdlib)}',
+     '{before[0][0]}: {_stall_location(_thread_stacks(dump), before[0][1], stdlib)}'),
+    ('ST-50 a dump head without its seconds is not found', 'file_hash.py',
+     r're.search(r"Timeout \(\d+:\d\d:\d\d\)!", ln)',
+     r're.search(r"Timeout \(\d+:\d\d\)!", ln)'),
+    ('ST-51 a cut dump is not reported', 'file_hash.py',
+     '        where += "; the dump stops at 100 threads"',
+     '        pass'),
+    ('ST-52 a frozen frame is the stall place', 'file_hash.py',
+     'not f[0].startswith("<frozen ")\n                     and ',
+     ''),
+    ('ST-53 a non-ASCII folder is not escaped', 'file_hash.py',
+     'str(p).encode("ascii", "backslashreplace").decode("ascii")',
+     'str(p)'),
+    ('ST-54 no stack for its thread counts in the plural', 'file_hash.py',
+     '        return f"no stack for its thread; {count}"',
+     '        return f"no stack for its thread; {len(stacks)} threads"'),
+    ('ST-55 a baseline stop is not placed first', 'file_hash.py',
+     '\n                   or "TimeoutExpired in the unmutated baseline run" in s)',
+     ')'),
+    ('ST-R01 the delay is one second short', 'file_hash.py',
+     '    return float(limit) - min(STALL_MARGIN, float(limit) / 4)\n\n\ndef note_row(',
+     '    return float(limit) - min(STALL_MARGIN, float(limit) / 4) - 1\n\n\ndef note_row('),
+    ('ST-R02 the quarter is floor-divided', 'file_hash.py',
+     '    return float(limit) - min(STALL_MARGIN, float(limit) / 4)\n\n\ndef note_row(',
+     '    return float(limit) - min(STALL_MARGIN, float(limit) // 4)\n\n\ndef note_row('),
+    ('ST-R03 the delay is rounded to a whole second', 'file_hash.py',
+     '    return float(limit) - min(STALL_MARGIN, float(limit) / 4)\n\n\ndef note_row(',
+     '    return round(float(limit) - min(STALL_MARGIN, float(limit) / 4))\n\n\ndef note_row('),
+    ('ST-R04 the dump is armed after the rows', 'file_hash.py',
+     '        arm(stall_dump_delay(spec["timeout"]), exit=False, file=stderr)\n    rows = [tuple(r) for r in spec["rows"]]\n    survivors = run(rows, base=spec["base"], entries=spec["entries"],\n                    posix_only=set(spec["posix_only"]), progress=stderr)\n',
+     '        pass\n    rows = [tuple(r) for r in spec["rows"]]\n    survivors = run(rows, base=spec["base"], entries=spec["entries"],\n                    posix_only=set(spec["posix_only"]), progress=stderr)\n    if stderr is not None:\n        arm(stall_dump_delay(spec["timeout"]), exit=False, file=stderr)\n'),
+    ('ST-R05 the done line ends in a space', 'file_hash.py',
+     '        stderr.write(_ROWS_DONE + "\\n")\n',
+     '        stderr.write(_ROWS_DONE + " \\n")\n'),
+    ('ST-R06 other threads are not deduplicated', 'file_hash.py',
+     '        if ident != thread and o is not None and shown(o) not in others:\n',
+     '        if ident != thread and o is not None:\n'),
+    ('ST-R07 a library-only thread is listed among the others', 'file_hash.py',
+     '        o = own(fr)\n',
+     '        o = own(fr) or (fr[0] if fr else None)\n'),
+    ('ST-R08 a thread with no frames goes on', 'file_hash.py',
+     '    if not frames:\n',
+     '    if frames is None:\n'),
+    ('ST-R09 the thread number is not checked as decimal', 'file_hash.py',
+     '            if name in labels and thread.endswith(")") and thread[:-1].isdecimal():\n',
+     '            if name in labels and thread.endswith(")"):\n'),
+    ('ST-R10 bytes are decoded as latin-1', 'file_hash.py',
+     '    text = stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else (stderr or "")\n',
+     '    text = stderr.decode("latin-1") if isinstance(stderr, bytes) else (stderr or "")\n'),
+    ('ST-R11 the row count is not checked', 'file_hash.py',
+     '            or result.get("rows") != len(chunk) or not isinstance(result.get("survivors"), list)):\n',
+     '            or not isinstance(result.get("survivors"), list)):\n'),
+    ("ST-R12 the child's survivors are dropped", 'file_hash.py',
+     '    return result["survivors"]\n',
+     '    return []\n'),
+    ('ST-R13 exit 1 is accepted', 'file_hash.py',
+     '    if (done.returncode != 0 or not isinstance(result, dict) or result.get("nonce") != spec["nonce"]\n',
+     '    if (done.returncode not in (0, 1) or not isinstance(result, dict) or result.get("nonce") != spec["nonce"]\n'),
+    ('ST-R14 the nonce is not checked', 'file_hash.py',
+     '    if (done.returncode != 0 or not isinstance(result, dict) or result.get("nonce") != spec["nonce"]\n',
+     '    if (done.returncode != 0 or not isinstance(result, dict) or False\n'),
+    ('ST-R15 a label is cut at its first space', 'file_hash.py',
+     '        return (0 if stalled else 1, order.get(s.split(" (", 1)[0], len(order)))\n',
+     '        return (0 if stalled else 1, order.get(s.split(" ", 1)[0], len(order)))\n'),
+    ('ST-R16 a short-reason row is placed first too', 'file_hash.py',
+     '        stalled = ("(worker failed: TimeoutExpired in this row" in s',
+     '        stalled = ("TimeoutExpired" in s'),
+    ('ST-R17 the parent waits a minute past the limit it sends', 'file_hash.py',
+     '        done = run(json.dumps(dict(spec, timeout=timeout, rows=chunk)), timeout)\n',
+     '        done = run(json.dumps(dict(spec, timeout=timeout, rows=chunk)), timeout + 60)\n'),
+    ('ST-R18 the limit is sent in minutes', 'file_hash.py',
+     '        done = run(json.dumps(dict(spec, timeout=timeout, rows=chunk)), timeout)\n',
+     '        done = run(json.dumps(dict(spec, timeout=timeout / 60, rows=chunk)), timeout)\n'),
     ('ST-06 the row line writes the thread in hex', 'file_hash.py',
      '(thread {thread})',
      '(thread {thread:#x})'),
@@ -6778,8 +6927,9 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, p
     each row, so a row that leaks state cannot decide the rows after it. With jobs above 1 the rows
     of each module run in a process of their own, up to jobs at a time (_run_mutants_parallel),
     each given child_timeout seconds (_CHILD_TIMEOUT unless given). With a stream as progress, a
-    line naming each row is written to it before the row runs (note_row; a --run-rows child gives
-    its stderr)."""
+    line naming each row is written to it before the row runs (note_row), and a line before and
+    after each module's unmutated baseline run (note_baseline); a --run-rows child gives its
+    stderr."""
     import threading
     if jobs > 1:
         return _run_mutants_parallel(list(_MUTANTS if table is None else table), base, entries,
@@ -6802,10 +6952,12 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, p
             scope, mark, tail = src, "", ""
         if module not in baseline:
             # A failing baseline names its failing checks, so a log shows which one failed (P102).
+            note_baseline(progress, True)
             printed = []
             verdict = _selftest_verdict(src, path, entry, out=printed)
             named = _fail_lines("".join(printed)) if verdict == "fail" else ""
             baseline[module] = f"{verdict}: {named}" if named else verdict
+            note_baseline(progress, False)
         if baseline[module] != "pass":
             survivors.append(f"{label} (unmutated selftest: {baseline[module]})")
             continue
@@ -6840,7 +6992,7 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, p
 # hosted Windows runner, where a child of 12 wizard rows went past 600 s in one CI run (P103). The
 # limit bounds one child; the selftest sweep's cap for this tool (selftest_sweep._tool_timeout)
 # bounds the whole run. A child past the limit is stopped and fails the run; its report names the
-# row it was running and where its thread stood (run_chunk, stall_report).
+# row it was running and where the child's stack dump shows its thread (run_chunk, stall_report).
 _CHUNK_ROWS = 12
 _CHILD_TIMEOUT = 1500
 
@@ -6860,7 +7012,8 @@ def _run_mutants_parallel(rows, base, entries, posix_only, jobs, child_timeout=_
     child's result counts only when it exits 0 and its last stdout line is the JSON object carrying
     this run's nonce and the number of rows it was sent; otherwise each of its rows is reported as
     a survivor with the reason (run_chunk). A child gets child_timeout seconds, sent to it in the
-    spec so its stack dump lands before the limit; one past it is stopped, with no retry."""
+    spec so it arms its stack dump against that limit (stall_dump_delay); one past it is stopped,
+    with no retry."""
     import concurrent.futures
     import secrets
     import subprocess
@@ -6872,8 +7025,13 @@ def _run_mutants_parallel(rows, base, entries, posix_only, jobs, child_timeout=_
         chunks += [module_rows[i:i + _CHUNK_ROWS] for i in range(0, len(module_rows), _CHUNK_ROWS)]
     spec = dict(_parallel_spec(base, entries, posix_only), nonce=secrets.token_hex(8))
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    import site
     paths = sysconfig.get_paths()
-    stdlib = sorted({paths[k] for k in ("stdlib", "platstdlib") if paths.get(k)})
+    library = {paths[k] for k in ("stdlib", "platstdlib", "purelib", "platlib") if paths.get(k)}
+    for dirs in (getattr(site, "getsitepackages", lambda: [])(),
+                 [getattr(site, "getusersitepackages", lambda: "")()]):
+        library |= {d for d in dirs if d}
+    stdlib = sorted(library)
 
     def start(text, timeout):
         return subprocess.run([sys.executable, str(Path(__file__).resolve()), "--run-rows"],
@@ -6918,12 +7076,26 @@ def _stall_controls() -> list:
             self.flushes += 1
             super().flush()
     out.append(("the stack dump is armed at the limit less min(60 s, a quarter of it)",
-                (stall_dump_delay(1500), stall_dump_delay(100), stall_dump_delay(8)) == (1440.0, 75.0, 6.0)))
+                (stall_dump_delay(1500), stall_dump_delay(100), stall_dump_delay(8), stall_dump_delay(10))
+                == (1440.0, 75.0, 6.0, 7.5)))
+    events = []
+    run_rows_child(json.dumps({"base": None, "entries": {}, "posix_only": [], "nonce": "n0", "timeout": 8,
+                               "rows": []}), io.StringIO(), io.StringIO(),
+                   lambda rows, **kw: events.append("rows") or [],
+                   arm=lambda delay, **kw: events.append("arm"))
+    out.append(("a --run-rows child arms its dump before it runs its rows", events == ["arm", "rows"]))
     rec = _Rec()
     note_row(rec, "WZ01", 77)
     note_row(None, "WZ02", 77)
     out.append(("a row line names the row and its thread and is flushed",
                 rec.getvalue() == "file_hash: row started: WZ01 (thread 77)\n" and rec.flushes == 1))
+    base_rec = _Rec()
+    note_baseline(base_rec, True)
+    note_baseline(base_rec, False)
+    note_baseline(None, True)
+    out.append(("the baseline lines name the start and the end of the baseline run and are flushed",
+                base_rec.getvalue() == "file_hash: baseline started\nfile_hash: baseline done\n"
+                and base_rec.flushes == 2))
     armed, err, res = [], _Rec(), io.StringIO()
     with tempfile.TemporaryDirectory() as td:
         (Path(td) / "good.py").write_text("x = 1\ndef selftest():\n    return 0 if x == 1 else 1\n",
@@ -6938,10 +7110,12 @@ def _stall_controls() -> list:
                                   arm=lambda delay, **kw: armed.append((delay, kw)))
     lines = err.getvalue().splitlines()
     out.append(("a --run-rows child arms the dump from the spec's limit, names each row before it "
-                "runs and writes its done line after the rows, then its result",
+                "runs, marks the module's baseline run, and writes its done line after the rows, "
+                "then its result",
                 rc == 0 and armed == [(6.0, {"exit": False, "file": err})]
                 and [ln.split(" (thread ")[0] for ln in lines]
-                == ["file_hash: row started: c-equivalent", "file_hash: row started: c-caught",
+                == ["file_hash: row started: c-equivalent", "file_hash: baseline started",
+                    "file_hash: baseline done", "file_hash: row started: c-caught",
                     "file_hash: rows done"]
                 and json.loads(res.getvalue()) == {"nonce": "n1", "rows": 2, "survivors": ["c-equivalent"]}
                 and rc_quiet == 0 and quiet.getvalue() == res.getvalue()))
@@ -6994,6 +7168,85 @@ def _stall_controls() -> list:
                 == ["R1 (worker failed: TimeoutExpired in this row; stalled at own.py:4 in work, waiting in "
                     "threading.py:359 in wait; 5 threads, "
                     "others at t32.py:32 in f32, t33.py:33 in f33, t34.py:34 in f34)"]))
+    head = "Timeout (0:24:00)!\n"
+    own_at = ('Thread 0x10 (most recent call first):\n'
+              '  File "/usr/lib/python3.13/threading.py", line 359 in wait\n'
+              '  File "/r/own.py", line 4 in work\n')
+    out.append(("a row line or done line after text a row left without a line end is still read",
+                stall_report(["A", "B"], "file_hash: row started: A (thread 16)\n"
+                             "warning, no line endfile_hash: row started: B (thread 16)\n")
+                == ["B (worker failed: TimeoutExpired in this row; no stack dump)",
+                    "A (worker failed: TimeoutExpired)"]
+                and stall_report(["A"], "file_hash: row started: A (thread 16)\nnoisefile_hash: rows done\n")
+                == ["A (worker failed: TimeoutExpired after its last row; no stack dump)"]))
+    out.append(("a row that started after the dump says so and shows the place for the row the dump "
+                "was taken during; one with no row before the dump says so alone",
+                stall_report(["R1", "R2"], "file_hash: row started: R1 (thread 16)\n" + head + own_at
+                             + "file_hash: row started: R2 (thread 16)\n", ["/usr/lib/python3.13"])
+                == ["R2 (worker failed: TimeoutExpired in this row; started after the stack dump, taken "
+                    "during R1: stalled at own.py:4 in work, waiting in threading.py:359 in wait; 1 thread)",
+                    "R1 (worker failed: TimeoutExpired)"]
+                and stall_report(["R2"], head + own_at + "file_hash: row started: R2 (thread 16)\n")
+                == ["R2 (worker failed: TimeoutExpired in this row; started after the stack dump)"]
+                and stall_report(["R1", "R2", "R3"], "file_hash: row started: R1 (thread 16)\n"
+                                 "file_hash: row started: R2 (thread 16)\n" + head + own_at
+                                 + "file_hash: row started: R3 (thread 16)\n", ["/usr/lib/python3.13"])[0]
+                .startswith("R3 (worker failed: TimeoutExpired in this row; started after the stack dump, "
+                            "taken during R2: stalled at own.py:4")))
+    stray = ('file_hash: row started: R1 (thread 16)\nThread 0x10 (most recent call first):\n'
+             '  File "/r/stray.py", line 1 in old\n')
+    out.append(("the place is read from the dump, not from thread-shaped lines a row wrote before it",
+                stall_report(["R1"], stray + head + own_at, ["/usr/lib/python3.13"])
+                == ["R1 (worker failed: TimeoutExpired in this row; stalled at own.py:4 in work, waiting in "
+                    "threading.py:359 in wait; 1 thread)"]))
+    out.append(("a child stopped in a module's baseline run is reported there, and once the baseline "
+                "is done, in the row",
+                stall_report(["R1"], "file_hash: row started: R1 (thread 16)\nfile_hash: baseline started\n")
+                == ["R1 (worker failed: TimeoutExpired in the unmutated baseline run before this row; "
+                    "no stack dump)"]
+                and stall_report(["R1"], "file_hash: row started: R1 (thread 16)\nfile_hash: baseline started\n"
+                                 "file_hash: baseline done\n")
+                == ["R1 (worker failed: TimeoutExpired in this row; no stack dump)"]))
+    frozen = ('file_hash: row started: R1 (thread 16)\n' + head + 'Thread 0x10 (most recent call first):\n'
+              '  File "<frozen os>", line 1006 in close\n'
+              '  File "C:\\Users\\Jos\\xe9\\py\\Lib\\site-packages\\pkg\\nap.py", line 31 in sleep\n'
+              '  File "<wizard.py mutant>", line 85 in windows_paths\n')
+    out.append(("a frozen module's frame and a frame under a library folder with a non-ASCII name, "
+                "as faulthandler escapes it, are not taken as the stall place",
+                stall_report(["R1"], frozen, ["C:\\Users\\Jos\u00e9\\py\\Lib\\site-packages"])
+                == ["R1 (worker failed: TimeoutExpired in this row; stalled at wizard.py:85 in "
+                    "windows_paths, waiting in <frozen os>:1006 in close; 1 thread)"]))
+    out.append(("a dump cut at 100 threads says so, and a dump without the row's thread counts one "
+                "thread in the singular",
+                stall_report(["R1"], "file_hash: row started: R1 (thread 16)\n" + head + own_at + "...\n",
+                             ["/usr/lib/python3.13"])
+                == ["R1 (worker failed: TimeoutExpired in this row; stalled at own.py:4 in work, waiting in "
+                    "threading.py:359 in wait; 1 thread; the dump stops at 100 threads)"]
+                and stall_report(["R1"], "file_hash: row started: R1 (thread 99)\n" + head + own_at)
+                == ["R1 (worker failed: TimeoutExpired in this row; no stack for its thread; 1 thread)"]))
+    twins = ("file_hash: row started: R1 (thread 16)\n" + head + own_at
+             + 'Thread 0x20 (most recent call first):\n  File "/r/y.py", line 4 in g\n'
+             + 'Thread 0x30 (most recent call first):\n  File "/r/y.py", line 4 in g\n'
+             + 'Thread 0x40 (most recent call first):\n'
+             '  File "/usr/lib/python3.13/threading.py", line 327 in wait\n'
+             + 'Thread 0x50 (most recent call first):\n  <no Python frame>\n')
+    out.append(("two other threads at one place are named once, a thread with only library frames is "
+                "not named, and every thread is counted",
+                stall_report(["R1"], twins, ["/usr/lib/python3.13"])
+                == ["R1 (worker failed: TimeoutExpired in this row; stalled at own.py:4 in work, waiting in "
+                    "threading.py:359 in wait; 5 threads, others at y.py:4 in g)"]))
+    out.append(("a row whose thread shows no frame, a row line with a thread number that is not "
+                "decimal, and a non-ASCII label read from bytes",
+                stall_report(["R1"], "file_hash: row started: R1 (thread 80)\n" + head
+                             + "Thread 0x50 (most recent call first):\n  <no Python frame>\n")
+                == ["R1 (worker failed: TimeoutExpired in this row; no stack for its thread; 1 thread)"]
+                and stall_report(["R1"], "file_hash: row started: R1 (thread 0x10)\n")
+                == ["R1 (worker failed: TimeoutExpired)"]
+                and stall_report(["caf\u00e9 row"], "file_hash: row started: caf\u00e9 row (thread 16)\n".encode("utf-8"))
+                == ["caf\u00e9 row (worker failed: TimeoutExpired in this row; no stack dump)"]))
+    out.append(("survivors are put in table order by their whole label, spaces included",
+                stalled_first(["b x (worker failed: TimeoutExpired)", "a x"], {"a x": 0, "b x": 1})
+                == ["a x", "b x (worker failed: TimeoutExpired)"]))
     out.append(("a child stopped before its first row line reports each row with the short reason",
                 stall_report(["A", "B"], b"Timeout (0:24:00)!\n", [])
                 == ["A (worker failed: TimeoutExpired)", "B (worker failed: TimeoutExpired)"]
@@ -7013,6 +7266,23 @@ def _stall_controls() -> list:
                 and sent == [(8, 8, chunk)]
                 and run_chunk(chunk[:1], {"nonce": "n2"}, 8, cannot_start)
                 == ["WZ01 (worker failed: OSError)"]))
+
+    def finished(code, result):
+        return lambda text, timeout: subprocess.CompletedProcess(["child"], code, stdout="noise\n" + json.dumps(result) + "\n")
+    good = {"nonce": "n2", "rows": 2, "survivors": ["WZ02"]}
+    no_result = ["WZ01 (worker failed: exit 0, no result)", "WZ02 (worker failed: exit 0, no result)"]
+    out.append(("a finished child's survivors count only when it exits 0 and its last line carries this "
+                "run's nonce, the number of rows sent and a survivor list",
+                run_chunk(chunk[:2], {"nonce": "n2"}, 8, finished(0, good)) == ["WZ02"]
+                and run_chunk(chunk[:2], {"nonce": "n2"}, 8, finished(1, good))
+                == ["WZ01 (worker failed: exit 1, no result)", "WZ02 (worker failed: exit 1, no result)"]
+                and run_chunk(chunk[:2], {"nonce": "n2"}, 8, finished(0, dict(good, nonce="old"))) == no_result
+                and run_chunk(chunk[:2], {"nonce": "n2"}, 8, finished(0, dict(good, rows=1))) == no_result
+                and run_chunk(chunk[:2], {"nonce": "n2"}, 8, finished(0, dict(good, survivors="WZ02")))
+                == no_result))
+    out.append(("a row stopped in a baseline run is listed first too",
+                stalled_first(["a", "b (worker failed: TimeoutExpired in the unmutated baseline run before "
+                               "this row; no stack dump)"], {"a": 0, "b": 1})[0].startswith("b (")))
     out.append(("the row a stalled child was running is listed first, the rest in table order",
                 stalled_first(["b (worker failed: TimeoutExpired)", "a",
                                "c (worker failed: TimeoutExpired in this row; stalled at x.py:1 in f)",
