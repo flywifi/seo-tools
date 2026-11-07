@@ -93,3 +93,4 @@ added beyond what those records state. New decisions get the next number via
 | [0082](0082-p103-income-ledger-and-retail-price-provenance.md) | The income ledger records what the content business received, and a retail price only with its source | 2026-10-25 | Accepted |
 | [0083](0083-p103-person-labelled-receipts-in-the-inbox.md) | The person may label an Inbox document a receipt, and its entry is recorded after review | 2026-10-26 | Accepted |
 | [0084](0084-p103-mail-triage-through-the-sessions-gmail-connector.md) | Inbound mail is sorted on this computer, senders are matched by address, and Gmail opens read-only | 2026-11-04 | Accepted |
+| [0085](0085-p103-creator-os-in-codex-and-antigravity.md) | Creator OS runs in Codex and Antigravity through the same local server entry | 2026-11-07 | Accepted |

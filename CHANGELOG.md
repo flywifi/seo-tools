@@ -13,6 +13,21 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (Codex and Antigravity, ADR 0085): the wizard's Install screen gets two optional buttons.
+  `Add to Codex and verify` writes the `creator-os` entry into `~/.codex/config.toml`
+  (`tools/wizard.py::_update_codex_config`: the `[mcp_servers.creator-os]` and
+  `[mcp_servers.creator-os.env]` tables, strings as JSON strings; the file's own `creator-os` table
+  is replaced and its other tables and keys are kept, checked by parsing the text before it is
+  saved; the writer refuses, writing nothing, a file that does not parse as TOML, a `creator-os`
+  entry in a form it does not rewrite, or a result that would change another key or would not read
+  back as the entry). `Add to Antigravity and verify` writes the same entry into
+  `~/.gemini/config/mcp_config.json` (`_update_antigravity_config`: other servers and keys kept; a
+  file that does not parse is backed up beside itself first; an `mcpServers` that is not an object
+  is refused). Each button then runs the Claude Desktop button's handshake probe
+  (`/api/install-creator-os-codex`, `/api/install-creator-os-antigravity`), and the screen says
+  whether the `codex` or `agy` command or the Mac app was found. The `mail-triage` atom and the
+  docs name Codex and Antigravity beside Claude Desktop, with each app's own Gmail tool and its
+  limits.
 - P103 (mail triage, ADR 0084): `tools/accounts.py::resolve_sender` matches an email sender to a CRM
   account by address: a contact's address resolves; an address on the account's website host, when
   the website is a homepage address (nothing but a single "/" after the host and port), or on a

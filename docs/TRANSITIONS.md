@@ -182,11 +182,17 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | ChatGPT desktop | convenience | same as web | Work with Apps is macOS-only and reads a fixed app list; no general file access (help/10119604) |
 | Responses API `mcp` tool | maintainer automation | request card in the connector runbook | approval loop maps the human-confirmation invariant; no fee beyond tokens |
 | Agents SDK | maintainer pipelines | `HostedMCPTool` card | openai.github.io/openai-agents-python/mcp/ |
-| Codex CLI/desktop/IDE | maintainer | `[mcp_servers.creator-os]` in `~/.codex/config.toml` + root `AGENTS.md` | shared config (learn.chatgpt.com/docs/extend/mcp); AGENTS.md 32 KiB budget |
+| Codex CLI/desktop/IDE | maintainer and creator | `[mcp_servers.creator-os]` in `~/.codex/config.toml`, written by the wizard's Add to Codex button (P103, ADR 0085) + root `AGENTS.md` | shared config (learn.chatgpt.com/docs/extend/mcp); AGENTS.md 32 KiB budget; mail triage with OpenAI's Gmail plugin |
+| Antigravity app/CLI/IDE | creator | `mcpServers.creator-os` in `~/.gemini/config/mcp_config.json`, written by the wizard's Add to Antigravity button (P103, ADR 0085) | shared config (antigravity.google/docs/mcp); Gemini CLI stopped serving the personal plans on 2026-06-18 (developers.googleblog.com); Gmail through Google's Workspace extension imported as a plugin, or the Workspace MCP servers with a Cloud project |
 | Plugin directory | public distribution (not us) | none by design | requires verified org; overkill for a single-user install |
 
 ```sources
 [
+  {"id": "antigravity-mcp", "name": "Google Antigravity Docs - Model Context Protocol (MCP)",
+   "url": "https://antigravity.google/docs/mcp/", "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "gemini-cli-to-antigravity", "name": "Google Developers Blog - Transitioning Gemini CLI to Antigravity CLI",
+   "url": "https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli",
+   "category": "ai-surface-spec", "tier": "T1"},
   {"id": "claude-cowork-chat-merge", "name": "Claude Cowork and chat are one Claude (help center)",
    "url": "https://support.claude.com/en/articles/16761823-claude-cowork-and-chat-are-one-claude",
    "category": "ai-surface-spec", "tier": "T1"},

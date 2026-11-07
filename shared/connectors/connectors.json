@@ -562,7 +562,7 @@
         "document_source"
       ],
       "privacy_sensitivity": "high",
-      "auth_note": "Enabled via the wizard (tools/wizard.py) or claude.ai Settings > Integrations > Google Workspace. Claude Desktop: workspace-mcp via uvx, with Gmail read-only (--permissions gmail:readonly) unless the person ticks Gmail sending on the wizard's Google screen (gmail_write_tools). claude.ai Projects: native Google Workspace connector (zero setup). Set google_workspace: true in creator-os-config.local.json after connecting.",
+      "auth_note": "Enabled via the wizard (tools/wizard.py) or claude.ai Settings > Integrations > Google Workspace. Claude Desktop: workspace-mcp via uvx, with Gmail read-only (--permissions gmail:readonly) unless the person ticks Gmail sending on the wizard's Google screen (gmail_write_tools). claude.ai Projects: native Google Workspace connector (zero setup). Set google_workspace: true in creator-os-config.local.json after connecting. Codex: OpenAI's Gmail plugin, with Creator OS added to Codex by the wizard's Install screen. Antigravity: a Gmail tool of its own (Google's Workspace extension imported as a plugin, or Google's Workspace MCP servers with a Cloud project), with Creator OS added by the same screen (ADR 0085).",
       "requires_capability": "google_workspace",
       "deployment_support": [
         "option_a_claude_desktop_mcp",

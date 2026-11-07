@@ -1,5 +1,5 @@
 Packaging version: 0.3.0 (packaged 2026-09-20). Compare with the version shown by your wizard; if lower, re-paste.
-_Data freshness: as of 2026-11-04 (Creator OS baseline 8e62f32c). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-11-07 (Creator OS baseline 5411a5d4). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS: ChatGPT Custom Instructions
 
