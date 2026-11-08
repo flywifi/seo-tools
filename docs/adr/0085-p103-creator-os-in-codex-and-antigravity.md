@@ -18,12 +18,14 @@ desktop app's Codex view, the `codex` command and the IDE extension) reads `[mcp
 tables from `~/.codex/config.toml`, one file for the three; its plugins, the Gmail plugin among
 them, work "in Codex in the ChatGPT desktop app", and "Codex CLI also has a plugin browser"
 (learn.chatgpt.com). OpenAI's Gmail plugin "connects Gmail for searching mail, reading threads,
-drafting and organizing messages, and triaging an inbox". Antigravity (Google's Antigravity app,
-the `agy` command and the IDE) reads `mcpServers` from `~/.gemini/config/mcp_config.json`, one file
-for the three, and runs an unconfigured tool in Ask mode; it replaced Gemini CLI for the free, AI
+drafting and organizing messages, and triaging an inbox". Antigravity's IDE and its `agy` command
+read `mcpServers` from the global file `~/.gemini/config/mcp_config.json`; the Antigravity app shows
+its settings file's path behind a "Copy Config File Path" button, and the docs do not say it is the
+same file. An unconfigured tool runs in Ask mode; Antigravity replaced Gemini CLI for the free, AI
 Pro and AI Ultra plans on 2026-06-18. Gmail in Antigravity is a tool of its own: Google's Workspace
-extension for Gemini CLI (Google's own sign-in; Gmail tools that search, read, modify, send, draft
-and label; no read-only mode; a README that warns against processing mail from unverified sources),
+extension for Gemini CLI (its README asks for a Google sign-in and describes no read-only mode;
+Gmail tools that search, read, modify, send, draft and label; a warning against processing mail
+from unverified sources),
 brought in with `agy plugin import gemini`, or Google's Workspace MCP servers, which need a Google
 Cloud project, the Workspace Developer Preview Program and an OAuth client. The Gemini web and
 mobile app takes a hosted server address, on personal accounts.
@@ -33,17 +35,20 @@ mobile app takes a hosted server address, on personal accounts.
 1. **One entry, three apps.** The wizard's Install screen gets two optional buttons beside the
    Claude Desktop one. "Add to Codex and verify" writes the `creator-os` entry
    (`tools/wizard.py::_update_codex_config`) into `~/.codex/config.toml` as the
-   `[mcp_servers.creator-os]` and `[mcp_servers.creator-os.env]` tables, strings written as JSON
-   strings, which TOML reads as basic strings. The file's own `creator-os` table is replaced and
+   `[mcp_servers.creator-os]` and `[mcp_servers.creator-os.env]` tables, strings written as TOML
+   basic strings (JSON escaping up to U+FFFF, `\UXXXXXXXX` above it). The file's own `creator-os`
+   table is replaced and
    its other tables and keys are kept, which the writer checks by parsing the text before it saves
-   it: it refuses, writing nothing, when the file does not parse as TOML, when a `creator-os` entry
+   it: it refuses, writing nothing, when the file does not parse as TOML, when the entry itself is
+   not valid TOML (a path holding a lone surrogate), when a `creator-os` entry
    is written there in a form it does not rewrite (an inline table or dotted keys), or when the
    result would not parse, would change another key, or would not read back as the entry. "Add to
    Antigravity and verify" writes the same entry (`_update_antigravity_config`) into
    `~/.gemini/config/mcp_config.json`, keeping the file's other servers and keys; a file that does
    not parse is backed up beside itself first, as the Claude Desktop writer does, and an
    `mcpServers` that is not an object is refused. Each button then runs the handshake probe the
-   Claude Desktop button runs and tells the person to restart the app. A missing file is created.
+   Claude Desktop button runs and tells the person to restart the app. A missing file is created;
+   a settings file the system refuses to write shows the reason and runs no probe.
 2. **The same tool, unmasked.** The three apps start the server on stdio, so `mail_triage` shows
    the CRM side of each match (ADR 0084). The `mail-triage` atom names Codex and Antigravity beside
    Claude Desktop.
@@ -63,8 +68,10 @@ mobile app takes a hosted server address, on personal accounts.
   file it cannot keep whole; the person is told to fix or move the file.
 - The Antigravity writer treats a file that does not parse as the Claude Desktop writer does: a
   backup beside the file, then a file holding the entry.
-- Not done: checking on a Mac that the Gmail plugin is on the person's ChatGPT plan, and which
-  Antigravity Gmail route works on a personal account. Both are the owner's live step.
+- Not done: checking on a Mac that the Gmail plugin is on the person's ChatGPT plan, which
+  Antigravity Gmail route works on a personal account, and that the Antigravity app reads
+  `~/.gemini/config/mcp_config.json`, the file its IDE and `agy` command read. These are the
+  owner's live step.
 
 ## Sources
 

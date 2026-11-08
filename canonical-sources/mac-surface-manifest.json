@@ -36,10 +36,10 @@
     "docs/ROADMAP.md": "46712ce34f2f6a4c248d1bb3984e18d730989ae01d358c69932ea549b26ff750",
     "docs/SETUP_MAC.md": "7ad10e0aed36723c4b189ac5bb0420ba47d60c37997bba19af76408c6774e9e4",
     "docs/SETUP_WINDOWS.md": "4a8295bbcb875e09554f7813a64d81f61df474ac73df49194f50b9bddedf50e4",
-    "docs/TRANSITIONS.md": "921b1892ea322d5ce2741eac7057efd0a15d42334c2b7d77c713fcb494a92bf9",
+    "docs/TRANSITIONS.md": "89aa5634048d1d14973c9631f3859842d4abbf9b6a6f97ebdd573c066101255b",
     "docs/VIDEO_EDITING.md": "fc6dcd66a90be29de277aa9a7e21c348a494b1382e5639d857b0619abc701d91",
     "docs/VIDEO_TOOLING_EVAL.md": "845e02231809d709208e7d1f60c36b2774c5bebd154b5ced95fc8bc365b290eb",
-    "docs/WIZARD.md": "3e866fe8de0c58f08284fc86511f56369d8e33df9f2236695d580c036e7ca228",
+    "docs/WIZARD.md": "513bfd5e7a72adc8198074274e5de79b4755db757ba87537e3378c547346b0fd",
     "docs/adr/0013-p29-media-tool-integration.md": "c6daebb703c4e021c85a0ae248acc2cee8d654eebe392d4854ffa0b4f8249171",
     "docs/adr/0030-p45-content-import.md": "202bfac8e19ae00b96a97c39481bb058e0f7bdacdcf43e27e221b93a55ca7ca3",
     "docs/adr/0031-p46-content-import-hardening.md": "84c051ba8d6a2a63cd792b89308f01838e0001de2200ae1473839fd5314933f3",
@@ -116,7 +116,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "1c4cf2a4a935385810884a42f7255a6816c2f5bd55e776095d4f023f294425e4"
+    "tools/wizard.py": "6169df9a6e2d136de692000000ed69960827d5ccd394499116675997f4fe3517"
   },
   "excluded": {}
 }

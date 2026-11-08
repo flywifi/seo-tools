@@ -183,7 +183,7 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | Responses API `mcp` tool | maintainer automation | request card in the connector runbook | approval loop maps the human-confirmation invariant; no fee beyond tokens |
 | Agents SDK | maintainer pipelines | `HostedMCPTool` card | openai.github.io/openai-agents-python/mcp/ |
 | Codex CLI/desktop/IDE | maintainer and creator | `[mcp_servers.creator-os]` in `~/.codex/config.toml`, written by the wizard's Add to Codex button (P103, ADR 0085) + root `AGENTS.md` | shared config (learn.chatgpt.com/docs/extend/mcp); AGENTS.md 32 KiB budget; mail triage with OpenAI's Gmail plugin |
-| Antigravity app/CLI/IDE | creator | `mcpServers.creator-os` in `~/.gemini/config/mcp_config.json`, written by the wizard's Add to Antigravity button (P103, ADR 0085) | shared config (antigravity.google/docs/mcp); Gemini CLI stopped serving the personal plans on 2026-06-18 (developers.googleblog.com); Gmail through Google's Workspace extension imported as a plugin, or the Workspace MCP servers with a Cloud project |
+| Antigravity CLI/IDE (the app shows its own settings file under Copy Config File Path) | creator | `mcpServers.creator-os` in `~/.gemini/config/mcp_config.json`, written by the wizard's Add to Antigravity button (P103, ADR 0085) | the global config of the agy command and the IDE (antigravity.google/docs/mcp); Gemini CLI stopped serving the personal plans on 2026-06-18 (developers.googleblog.com); Gmail through Google's Workspace extension imported as a plugin, or the Workspace MCP servers with a Cloud project |
 | Plugin directory | public distribution (not us) | none by design | requires verified org; overkill for a single-user install |
 
 ```sources

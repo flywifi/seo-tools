@@ -102,15 +102,15 @@ the mail.
 - Pile words are fixed lists: a payment notice that uses none of them lands in `other`.
 - A PDF receipt attached to a message: the connector reads attachment names, not their content;
   save the message as `.eml` and the Inbox flow reads it.
-- The app's own Gmail tool can send or change mail when asked (OpenAI's Gmail plugin drafts,
-  archives and labels; Google's Workspace extension sends, modifies and labels, with no
-  read-only mode, and Google's notes warn against processing mail from unverified sources).
+- The app's own Gmail tool can send or change mail when asked (OpenAI's Gmail plugin drafts and
+  organises mail; Google's Workspace extension sends, modifies and labels, its README describes
+  no read-only mode, and Google's notes warn against processing mail from unverified sources).
   This atom asks it to read, and nothing more.
 
 ## Cross-modality
 Inherits its calling spoke's class (Class C); see `shared/cross-modality-engine.md`. An atom
 carries no independent surface wiring and runs wherever the session that composes it runs. In
-Codex (the ChatGPT desktop app's Codex view and the codex command) and in Antigravity (Google's
-Antigravity app and the agy command) the same tool runs on this computer once the setup wizard's
-Install screen has added Creator OS there (ADR 0085); the ChatGPT and Gemini web chats have no
-tool on this computer.
+Codex (the ChatGPT desktop app's Codex view and the codex command) and in Antigravity (the agy
+command and the IDE; the Antigravity app once its own settings file holds the entry) the same tool
+runs on this computer once the setup wizard's Install screen has added Creator OS there (ADR
+0085); the ChatGPT and Gemini web chats have no tool on this computer.

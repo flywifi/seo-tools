@@ -110,27 +110,31 @@ The wizard:
 The **Install the Creator OS tools** screen ends with two optional buttons (P103, ADR 0085). **Add
 to Codex and verify** writes the same `creator-os` entry into Codex's settings file,
 `~/.codex/config.toml`, which the ChatGPT desktop app's Codex view, the `codex` command and the IDE
-extension share; **Add to Antigravity and verify** writes it into Antigravity's
-`~/.gemini/config/mcp_config.json`, which Google's Antigravity app, the `agy` command and the IDE
-share. Each button keeps the file's other settings (the Codex writer parses the text it is about to
-save and refuses when another setting would change, when the file does not parse, or when a
-`creator-os` entry is written there in a form it does not rewrite; the Antigravity writer backs up a
-file that does not parse beside itself first), runs the same handshake check as the Claude Desktop
-button, and tells you to restart the app. The screen says whether the `codex` or `agy` command, or
-the Mac app, was found; the entry can be written before the app is installed.
+extension share; **Add to Antigravity and verify** writes it into Antigravity's global
+`~/.gemini/config/mcp_config.json`, which the `agy` command and the IDE read (the Antigravity app
+shows its settings file's path behind its Copy Config File Path button; that it is this file is
+checked on the Mac). Each button keeps the file's other settings (the Codex writer parses the text
+it is about to save and refuses when another setting would change, when the file does not parse,
+or when a `creator-os` entry is written there in a form it does not rewrite; the Antigravity writer
+backs up a file that does not parse beside itself first), runs the same handshake check as the
+Claude Desktop button, and tells you to restart the app. A settings file the system refuses to
+write shows the reason instead. The screen says whether the `codex` or `agy` command, or the Mac
+app, was found; the entry can be written before the app is installed.
 
 Sorting brand mail there needs a Gmail tool in that app, which the wizard does not install:
 
 - Codex: OpenAI's Gmail plugin (in Codex, open Plugins and install Gmail). It searches and reads
-  mail and can draft, archive and label when asked; Creator OS asks it to read.
-- Antigravity: Google's Workspace extension for Gemini CLI (Google's own sign-in, no Cloud
-  project), brought into Antigravity with `agy plugin import gemini` after
-  `gemini extensions install https://github.com/gemini-cli-extensions/workspace`; or Google's
-  Workspace MCP servers, which need a Google Cloud project, the Workspace Developer Preview Program
-  and an OAuth client. The extension's Gmail tools can send and modify mail and have no read-only
-  mode, and Google's notes warn against asking it to process mail from unverified sources; the
-  `mail-triage` atom reads mail as data and asks for reads, not sends. Which route works on your
-  account is checked on the Mac, not promised here.
+  mail and can draft and organise mail when asked; Creator OS asks it to read.
+- Antigravity: Google's Workspace extension for Gemini CLI (its README asks for a Google sign-in
+  and names no Cloud project), brought into Antigravity with `agy plugin import gemini` after
+  `gemini extensions install https://github.com/gemini-cli-extensions/workspace` (each command is
+  on its own page; the two as a sequence, and whether Gemini CLI's extension commands still run on
+  your plan, are checked on the Mac); or Google's Workspace MCP servers, which need a Google Cloud
+  project, the Workspace Developer Preview Program and an OAuth client. The extension's Gmail tools
+  can send and modify mail and its README describes no read-only mode; Google's notes warn against
+  asking it to process mail from unverified sources, and the `mail-triage` atom reads mail as data
+  and asks for reads, not sends. Which route works on your account is checked on the Mac, not
+  promised here.
 
 ### Google Workspace (Gmail, Calendar, Drive, Docs, Sheets)
 

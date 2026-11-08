@@ -313,22 +313,30 @@ def _codex_config_path() -> pathlib.Path:
 
 
 def _antigravity_config_path() -> pathlib.Path:
-    """Antigravity's global MCP settings file, shared by the Antigravity app, CLI and IDE
-    (antigravity.google/docs/mcp)."""
+    """Antigravity's global MCP settings file, which its IDE and its agy command read
+    (antigravity.google/docs/mcp). The Antigravity app shows its settings file's path behind a
+    "Copy Config File Path" button; that it is this file is checked on the Mac, not assumed here."""
     return pathlib.Path.home() / ".gemini" / "config" / "mcp_config.json"
 
 
 _CODEX_TABLE_RE = re.compile(
     r'^[ \t]*\[[ \t]*mcp_servers[ \t]*\.[ \t]*(?:creator-os|"creator-os"|\'creator-os\')'
-    r'(?:[ \t]*\.[^\]]*)?\][ \t]*(?:#.*)?$', re.M)
+    r'(?:[ \t]*\.[^\]]*)?[ \t]*\][ \t]*(?:#.*)?$', re.M)
 _TOML_HEADER_RE = re.compile(r'^[ \t]*\[', re.M)
 
 
+def _toml_string(value: str) -> str:
+    """value as a TOML basic string: JSON escaping, which TOML reads the same way for a backslash,
+    a quote, a control character and a code point up to U+FFFF, and \\UXXXXXXXX above that
+    (json.dumps writes such a code point as a surrogate pair, which TOML does not accept)."""
+    return '"' + "".join(f"\\U{ord(ch):08X}" if ord(ch) > 0xFFFF else json.dumps(ch)[1:-1]
+                         for ch in value) + '"'
+
+
 def _codex_entry_text(entry: dict) -> str:
-    """The TOML tables for the creator-os entry. Strings and keys are written as JSON strings,
-    which TOML reads as basic strings (a backslash, a quote and a control character are escaped
-    the same way in both)."""
-    s = json.dumps
+    """The TOML tables for the creator-os entry. Strings and keys are written as TOML basic
+    strings (_toml_string)."""
+    s = _toml_string
     lines = ["[mcp_servers.creator-os]", f"command = {s(entry['command'])}",
              "args = [" + ", ".join(s(a) for a in entry["args"]) + "]"]
     if entry.get("env"):
@@ -367,9 +375,11 @@ def _update_codex_config(entry: dict, path=None) -> tuple[bool, str]:
     """Write the creator-os entry into Codex's config.toml: (ok, detail). The file's own
     [mcp_servers.creator-os] table is replaced and its other tables and keys are kept, which is
     checked by parsing the text before it is saved. Refuses, writing nothing, when the file does
-    not parse as TOML, when a creator-os entry is written there in a form this does not rewrite (an
-    inline table or dotted keys), or when the result would not parse, would change another key, or
-    would not read back as the entry. A missing file is created."""
+    not parse as TOML, when the entry itself is not valid TOML (a path holding a lone surrogate),
+    when a creator-os entry is written there in a form this does not rewrite (an inline table or
+    dotted keys), or when the result would not parse, would change another key, or would not read
+    back as the entry. A missing file is created. The file is saved with LF line ends and no
+    byte-order mark; a comment above the replaced table stays above the table that follows it."""
     import tomllib
     p = _codex_config_path() if path is None else pathlib.Path(path)
     text, before = "", {}
@@ -380,8 +390,14 @@ def _update_codex_config(entry: dict, path=None) -> tuple[bool, str]:
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             return False, (f"{p} could not be read as TOML ({exc}); nothing was written. Fix or move "
                            "the file, then try again.")
+    entry_text = _codex_entry_text(entry)
+    try:
+        tomllib.loads(entry_text)
+    except ValueError as exc:
+        return False, (f"the creator-os entry could not be written as TOML ({exc}): this folder's path "
+                       "holds a character TOML does not accept; nothing was written.")
     kept = _without_codex_table(text).rstrip("\n")
-    new_text = (kept + "\n\n" if kept else "") + _codex_entry_text(entry)
+    new_text = (kept + "\n\n" if kept else "") + entry_text
     try:
         after = tomllib.loads(new_text)
     except ValueError as exc:
@@ -462,7 +478,9 @@ _OTHER_APPS = (
      "To sort mail there, install the Gmail plugin in Codex (Plugins, then Gmail), then ask "
      "\"check my inbox for brands\". The plugin can also draft and organise mail; Creator OS asks "
      "it to read, not to send."),
-    ("antigravity", "Antigravity", "Antigravity (Google's Antigravity app, and the agy command)",
+    ("antigravity", "Antigravity",
+     "Antigravity (the agy command and the IDE; the Antigravity app shows its own settings file "
+     "under Copy Config File Path)",
      "Antigravity needs a Gmail tool of its own: Google's Workspace extension imported as a plugin, "
      "or Google's Workspace MCP servers, which need a Google Cloud project. The setup guide "
      "(docs/WIZARD.md) lists both routes and their limits."),
@@ -4437,11 +4455,15 @@ anything, and closing this window does not stop the work.</p>
 
     def _install_other_app(self, app: str) -> None:
         """P103 WP2b-2 (ADR 0085): the creator-os entry into Codex's or Antigravity's settings file,
-        then the same handshake probe as the Claude Desktop button; a refused write shows its reason
-        and runs no probe."""
+        then the same handshake probe as the Claude Desktop button; a refused write, or one the
+        file system refuses, shows its reason, runs no probe and leaves the recorded state as it
+        was."""
         entry = _creator_os_entry()
         write = _update_codex_config if app == "codex" else _update_antigravity_config
-        ok_w, detail_w = write(entry)
+        try:
+            ok_w, detail_w = write(entry)
+        except OSError as exc:
+            ok_w, detail_w = False, f"could not write the settings file: {exc}"
         if not ok_w:
             self._send(_screen_creator_os_server(other={"app": app, "ok": False, "detail": detail_w}))
             return
@@ -7516,6 +7538,96 @@ def _selftest_p101() -> int:
         if not (_stc["path"] == _cx and _stc["exists"] and _stc["entry"] is True
                 and _sta["path"] == _ag and _sta["exists"] and _sta["entry"] is False):
             _rc_fail.append("the app status did not read the settings files written above")
+        # P103 WP2b-2 review: the forms the writers, the status, the screen and the routes meet.
+        _cx.write_text('\ufeffmodel = "gpt"\n[mcp_servers.other]\ncommand = "x"\n', encoding="utf-8")
+        _okc7, _ = _update_codex_config(_ce, path=_cx)
+        _cfg_c7 = _toml.loads(_cx.read_text(encoding="utf-8"))
+        if not (_okc7 and _cfg_c7["model"] == "gpt" and _cfg_c7["mcp_servers"]["creator-os"] == _ce
+                and not _cx.read_bytes().startswith(b"\xef\xbb\xbf")):
+            _rc_fail.append("the Codex writer did not rewrite a file with a byte-order mark and keep its keys")
+        _c11 = '[mcp_servers.creator-os]\ncommand = "old"\nnotes = """\n[projects."/a"]\ntrust_level = "untrusted" # """\n'
+        _cx.write_text(_c11, encoding="utf-8")
+        _okc8, _detc8 = _update_codex_config(_ce, path=_cx)
+        if not (_okc8 is False and "would change another setting" in _detc8
+                and _cx.read_text(encoding="utf-8") == _c11):
+            _rc_fail.append("the Codex writer did not refuse a cut that changes another setting")
+        _c29 = '[mcp_servers.creator-os]\ncommand = "old"\n[mcp_servers.creator-os."a]b"]\nk = 1\n'
+        _cx.write_text(_c29, encoding="utf-8")
+        _okc9, _detc9 = _update_codex_config(_ce, path=_cx)
+        if not (_okc9 is False and "did not read back" in _detc9 and _cx.read_text(encoding="utf-8") == _c29):
+            _rc_fail.append("the Codex writer did not refuse a result that does not read back as the entry")
+        _ce16 = {"command": "/Users/me/\U0001F600 OS/.venv/bin/python3",
+                 "args": ["/Users/me/\U0001F600 OS/tools/mcp_server.py"],
+                 "env": {"CREATOR_OS_ROOT": "/Users/me/\U0001F600 OS"}}
+        _cx.unlink()
+        _okc10, _ = _update_codex_config(_ce16, path=_cx)
+        _text_c10 = _cx.read_text(encoding="utf-8") if _cx.exists() else ""
+        if not (_okc10 and "\\U0001F600" in _text_c10
+                and _toml.loads(_text_c10)["mcp_servers"]["creator-os"] == _ce16):
+            _rc_fail.append("the Codex writer did not write a path with a character above U+FFFF")
+        _okc11, _detc11 = _update_codex_config(dict(_ce, command="/r/\udcff/python3"), path=_cx)
+        if not (_okc11 is False and "could not be written as TOML" in _detc11
+                and _cx.read_text(encoding="utf-8") == _text_c10):
+            _rc_fail.append("the Codex writer did not refuse an entry that is not valid TOML")
+        _cx.write_text('[ mcp_servers . creator-os ]\ncommand = "old"\n[ mcp_servers . creator-os . env ]\nA = "1"\n'
+                       '[mcp_servers.alpha]\ncommand = "a"\n', encoding="utf-8")
+        _okc12, _ = _update_codex_config(_ce, path=_cx)
+        _cfg_c12 = _toml.loads(_cx.read_text(encoding="utf-8"))
+        if not (_okc12 and _cfg_c12["mcp_servers"]["creator-os"] == _ce
+                and _cfg_c12["mcp_servers"]["alpha"] == {"command": "a"}
+                and _cx.read_text(encoding="utf-8").count("creator-os") == 2):
+            _rc_fail.append("the Codex writer did not replace a creator-os header written with spaces")
+        _ag.write_text("[1, 2]", encoding="utf-8")
+        _oka4, _deta4 = _update_antigravity_config(_ce, path=_ag)
+        if not (_oka4 and "backed up" in _deta4
+                and json.loads(_ag.read_text(encoding="utf-8"))["mcpServers"]["creator-os"] == _ce):
+            _rc_fail.append("the Antigravity writer did not back up a file holding a JSON list")
+        _ag.write_text('\ufeff{"mcpServers": {"gmail": {}}, "y": 2}', encoding="utf-8")
+        _oka5, _deta5 = _update_antigravity_config(_ce, path=_ag)
+        _cfg_a5 = json.loads(_ag.read_text(encoding="utf-8"))
+        if not (_oka5 and "backed up" not in _deta5 and _cfg_a5["y"] == 2 and _cfg_a5["mcpServers"]["gmail"] == {}
+                and _cfg_a5["mcpServers"]["creator-os"] == _ce):
+            _rc_fail.append("the Antigravity writer did not keep a file with a byte-order mark whole")
+        _real_which_oa = shutil.which
+        try:
+            shutil.which = lambda name, *a, **k: "/usr/local/bin/codex" if name == "codex" else None
+            _stc2 = _other_app_status("codex")
+            _ag.unlink()
+            _sta2 = _other_app_status("antigravity")
+        finally:
+            shutil.which = _real_which_oa
+        if not ("the codex command" in _stc2["found"] and "the agy command" not in _sta2["found"]
+                and _sta2["exists"] is False and _sta2["entry"] is False):
+            _rc_fail.append("the app status did not report the command found, or a missing file")
+        _pg_ok = _screen_creator_os_server(other={"app": "codex", "ok": True, "written": "/p", "detail": "",
+                                                  "count": 64, "expected": 64})
+        _pg_wf = _screen_creator_os_server(other={"app": "antigravity", "ok": False, "written": "/p",
+                                                  "detail": "probe failed <x>"})
+        _h3_ag = _pg_ok.index("<h3>Antigravity")
+        if not ("Now restart Codex so it reads the file." in _pg_ok and "Added to" not in _pg_ok[_h3_ag:]
+                and 'action="/api/install-creator-os-codex"' in _pg_ok
+                and 'action="/api/install-creator-os-antigravity"' in _pg_ok
+                and "The entry was written, but the check did not pass: probe failed &lt;x&gt;" in _pg_wf
+                and "\u2014" not in _pg_ok + _pg_wf):
+            _rc_fail.append("the install screen did not show the other apps' result, forms and restart line as designed")
+        del _probes_rc[:]
+        _g_rc["_probe_mcp_server"] = lambda py, server, timeout=90: _probes_rc.append((py, server)) or (False, "no answer", 0)
+        _post_rc("/api/install-creator-os-antigravity", {})
+        _e_rc = _creator_os_entry()
+        if not (_probes_rc == [(_e_rc["command"], _e_rc["args"][0])]
+                and "The entry was written, but the check did not pass: no answer" in _sent_rc[-1][1]
+                and _get("antigravity_installed") is False and _get("antigravity_probe") == 0):
+            _rc_fail.append("a failed probe was not run against the server, shown as written but failed, or recorded")
+        _g_rc["_antigravity_config_path"] = lambda: _cx / "mcp_config.json"   # the parent is a file
+        _post_rc("/api/install-creator-os-antigravity", {})
+        if not ("could not write the settings file" in _sent_rc[-1][1] and len(_probes_rc) == 1
+                and _get("antigravity_installed") is False):
+            _rc_fail.append("a settings file the system refuses to write did not show its reason, or ran the probe")
+        _g_rc["_antigravity_config_path"] = lambda: _rc_root / "ag" / "mcp_config.json"
+        _clear_persisted_state()
+        if any(_get(k) is not None for k in ("codex_installed", "codex_probe", "antigravity_installed",
+                                              "antigravity_probe")):
+            _rc_fail.append("Start over did not drop the Codex and Antigravity keys")
         os.environ["CREATOR_OS_ROOT"] = str(_rc_root / "repo")
         _inbox_t.approve.__defaults__ = (_rc_root / "inbox-ledger.json", None)
         _inbox_t.LEDGER_PATH = _rc_root / "inbox-ledger.json"
