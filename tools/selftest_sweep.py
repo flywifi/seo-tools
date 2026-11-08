@@ -40,11 +40,13 @@ PER_TOOL_TIMEOUT = 300
 # computer (P102), close to the default cap, and a hosted Windows runner can be slower.
 # tools/file_hash.py --selftest runs the committed mutation rows, which grow with each change:
 # on a 4-CPU Linux computer it took 165 s alone at 482 rows and 415 s at 1,022 rows (P102,
-# Push 4b), where a GitHub Windows runner went past 900 s. 1800 s stays inside the Windows CI
-# job's 45 minutes with the other gates.
+# Push 4b), where a GitHub Windows runner went past 900 s. At 2,188 rows the Windows CI job's
+# battery step took 34 minutes on one commit and 36 minutes on the next, where this tool went
+# past 1800 s in one of two runs of the same commit (P103). 2400 s stays inside the Windows CI
+# job's 55 minutes with the other gates, which took about 6 minutes in those runs.
 TOOL_TIMEOUTS = {"tools/surface_workflow_check.py": 900,
-                 "tools/file_hash.py": 1800}
-# file_hash's 1800 s were set from runs with four of its children at a time (GitHub's Windows and
+                 "tools/file_hash.py": 2400}
+# file_hash's 2400 s were set from runs with four of its children at a time (GitHub's Windows and
 # Linux runners have four CPUs for a public repository). Where file_hash.mutant_jobs() is lower (a
 # computer whose os.cpu_count() is below four, or CREATOR_OS_FILE_HASH_JOBS set lower for a
 # computer with little memory) the same rows take longer in proportion, so its cap grows in that
@@ -314,15 +316,15 @@ def selftest():
             os.environ.pop("CREATOR_OS_FILE_HASH_JOBS", None)
         else:
             os.environ["CREATOR_OS_FILE_HASH_JOBS"] = saved_jobs
-    check("the sweep runs each target with its own cap (the suite 900 s, file_hash 1800 s with four "
-          "workers and 3600 s with two, another tool the default)",
-          runs == {"4": [("tools/file_hash.py", 1800), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
+    check("the sweep runs each target with its own cap (the suite 900 s, file_hash 2400 s with four "
+          "workers and 4800 s with two, another tool the default)",
+          runs == {"4": [("tools/file_hash.py", 2400), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
                          ("tools/surface_workflow_check.py", 900)],
-                   "2": [("tools/file_hash.py", 3600), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
+                   "2": [("tools/file_hash.py", 4800), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
                          ("tools/surface_workflow_check.py", 900)]})
     caps = {j: _tool_timeout("tools/file_hash.py", jobs=j) for j in (1, 2, 3, 4, 8)}
-    check("file_hash's cap is 1800 s with four or more workers and grows in proportion with fewer",
-          caps == {1: 7200, 2: 3600, 3: 2400, 4: 1800, 8: 1800})
+    check("file_hash's cap is 2400 s with four or more workers and grows in proportion with fewer",
+          caps == {1: 9600, 2: 4800, 3: 3200, 4: 2400, 8: 2400})
     check("another tool's cap does not follow file_hash's worker count",
           _tool_timeout("tools/surface_workflow_check.py", jobs=1) == 900
           and _tool_timeout("tools/secret_scan.py", jobs=1) == PER_TOOL_TIMEOUT)
@@ -374,7 +376,7 @@ def selftest():
             os.environ["CREATOR_OS_FILE_HASH_JOBS"] = saved_jobs
     check("file_hash's worker count follows os.cpu_count() with no override, a file_hash that does not "
           "import or parse gives the four-worker cap, and the lookup imports it by path",
-          got == {"two CPUs": 3600, "no import": FILE_HASH_REF_JOBS, "no parse": FILE_HASH_REF_JOBS,
+          got == {"two CPUs": 4800, "no import": FILE_HASH_REF_JOBS, "no parse": FILE_HASH_REF_JOBS,
                   "by path": 2})
     n = ran[0]
     print(f"selftest: {'PASS' if not failures else 'FAIL'} ({n - len(failures)} of {n} checks)")

@@ -84,9 +84,11 @@ jobs:
   windows:
     # P102: the whole battery on GitHub's Windows image, whose TEMP is an 8.3 short path
     # (RUNNER~1). The guard job above runs each gate as its own step on Linux; this job runs
-    # tools/battery.py once, under Git for Windows' bash, so the battery reports every gate.
+    # tools/battery.py once, under Git for Windows' bash, so the battery reports every gate. The
+    # limit holds the selftest sweep's 2400 s cap for tools/file_hash.py (selftest_sweep.TOOL_TIMEOUTS)
+    # with the other gates, which took about 6 minutes on the hosted runner (P103).
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:

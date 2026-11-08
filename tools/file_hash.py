@@ -1866,13 +1866,13 @@ _MUTANTS = (
      'command = python_command("posix") if osname is None and which is None else python_command(osname, which)'),
     # P102 push 2: the sweep cap for file_hash.
     ('SW5 file_hash keeps the default cap', 'selftest_sweep.py',
-     '                 "tools/file_hash.py": 1800}\n',
+     '                 "tools/file_hash.py": 2400}\n',
      '                 "tools/file_hash.py": 300}\n'),
     ('SW6 the file_hash cap names another tool', 'selftest_sweep.py',
-     '                 "tools/file_hash.py": 1800}\n',
-     '                 "tools/file_hashes.py": 1800}\n'),
+     '                 "tools/file_hash.py": 2400}\n',
+     '                 "tools/file_hashes.py": 2400}\n'),
     ('SW7 the file_hash cap is back at 900 s', 'selftest_sweep.py',
-     '                 "tools/file_hash.py": 1800}\n',
+     '                 "tools/file_hash.py": 2400}\n',
      '                 "tools/file_hash.py": 900}\n'),
     # P102 push 2: UTF-8 output from the repo's tools.
     ('U1 tool_env drops PYTHONIOENCODING', 'env_paths.py',

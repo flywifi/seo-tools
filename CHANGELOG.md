@@ -13,6 +13,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 2400 s, up from
+  1800 s (`selftest_sweep.TOOL_TIMEOUTS`), so its cap is 9600 s with one worker, 4800 s with
+  two, 3200 s with three and 2400 s with four or more. At 2,188 rows the Windows CI job's
+  battery step took 34 minutes on one commit and 36 minutes on the next, where the tool went
+  past 1800 s in one of two runs of the same commit. The Windows CI job's limit is 55 minutes,
+  up from 45, holding the cap with the other gates (about 6 minutes in those runs).
 - P103 (Codex and Antigravity, ADR 0085): the wizard's Install screen gets two optional buttons.
   `Add to Codex and verify` writes the `creator-os` entry into `~/.codex/config.toml`
   (`tools/wizard.py::_update_codex_config`: the `[mcp_servers.creator-os]` and
