@@ -378,8 +378,9 @@ def _update_codex_config(entry: dict, path=None) -> tuple[bool, str]:
     not parse as TOML, when the entry itself is not valid TOML (a path holding a lone surrogate),
     when a creator-os entry is written there in a form this does not rewrite (an inline table or
     dotted keys), or when the result would not parse, would change another key, or would not read
-    back as the entry. A missing file is created. The file is saved with LF line ends and no
-    byte-order mark; a comment above the replaced table stays above the table that follows it."""
+    back as the entry. A missing file is created. The file is saved without a byte-order mark, in
+    text mode (atomic_io.atomic_write_text), so its line ends are the platform's, whichever the
+    file had; a comment above the replaced table stays above the table that follows it."""
     import tomllib
     p = _codex_config_path() if path is None else pathlib.Path(path)
     text, before = "", {}
@@ -7475,8 +7476,9 @@ def _selftest_p101() -> int:
         (_rc_root / "codex" / "config.toml").write_text("model = \n", encoding="utf-8")
         _post_rc("/api/install-creator-os-codex", {})
         if not ("could not be read as TOML" in _sent_rc[-1][1] and "Added to Codex" not in _sent_rc[-1][1]
-                and len(_probes_rc) == 2):
-            _rc_fail.append("a refused Codex write did not show its reason, or ran the probe")
+                and len(_probes_rc) == 2 and _get("codex_installed") is True):
+            _rc_fail.append("a refused Codex write did not show its reason, ran the probe, or changed "
+                            "the recorded state")
         # P103 WP2b-2 (ADR 0085): the writers keep the file's other settings; the status reads them.
         import tomllib as _toml
         _cx = _rc_root / "codex" / "config.toml"
@@ -7569,7 +7571,7 @@ def _selftest_p101() -> int:
         if not (_okc11 is False and "could not be written as TOML" in _detc11
                 and _cx.read_text(encoding="utf-8") == _text_c10):
             _rc_fail.append("the Codex writer did not refuse an entry that is not valid TOML")
-        _cx.write_text('[ mcp_servers . creator-os ]\ncommand = "old"\n[ mcp_servers . creator-os . env ]\nA = "1"\n'
+        _cx.write_text('[ mcp_servers . creator-os \t ]\ncommand = "old"\n[ mcp_servers . creator-os . env ]\nA = "1"\n'
                        '[mcp_servers.alpha]\ncommand = "a"\n', encoding="utf-8")
         _okc12, _ = _update_codex_config(_ce, path=_cx)
         _cfg_c12 = _toml.loads(_cx.read_text(encoding="utf-8"))
@@ -7577,6 +7579,20 @@ def _selftest_p101() -> int:
                 and _cfg_c12["mcp_servers"]["alpha"] == {"command": "a"}
                 and _cx.read_text(encoding="utf-8").count("creator-os") == 2):
             _rc_fail.append("the Codex writer did not replace a creator-os header written with spaces")
+        _ce17 = dict(_ce, command="/Users/me/\U00010000/python3")
+        _okc13, _ = _update_codex_config(_ce17, path=_cx)
+        _text_c13 = _cx.read_text(encoding="utf-8")
+        if not (_okc13 and "\\U00010000" in _text_c13
+                and _toml.loads(_text_c13)["mcp_servers"]["creator-os"] == _ce17):
+            _rc_fail.append("the Codex writer did not write a path holding U+10000")
+        _cx.write_bytes(b'model = "gpt"\r\n[mcp_servers.other]\r\ncommand = "x"\r\n')
+        _okc14, _ = _update_codex_config(_ce, path=_cx)
+        _raw_c14 = _cx.read_bytes()
+        _cfg_c14 = _toml.loads(_raw_c14.decode("utf-8"))
+        if not (_okc14 and _cfg_c14["model"] == "gpt" and _cfg_c14["mcp_servers"]["other"] == {"command": "x"}
+                and _raw_c14.count(b"\r") == _raw_c14.count(b"\r\n")
+                and _raw_c14.count(b"\r\n") == (_raw_c14.count(b"\n") if os.linesep == "\r\n" else 0)):
+            _rc_fail.append("the Codex writer did not save a CRLF file with the platform's line ends and its keys")
         _ag.write_text("[1, 2]", encoding="utf-8")
         _oka4, _deta4 = _update_antigravity_config(_ce, path=_ag)
         if not (_oka4 and "backed up" in _deta4
@@ -7618,11 +7634,13 @@ def _selftest_p101() -> int:
                 and "The entry was written, but the check did not pass: no answer" in _sent_rc[-1][1]
                 and _get("antigravity_installed") is False and _get("antigravity_probe") == 0):
             _rc_fail.append("a failed probe was not run against the server, shown as written but failed, or recorded")
+        _set(antigravity_installed=True, antigravity_probe=7)
         _g_rc["_antigravity_config_path"] = lambda: _cx / "mcp_config.json"   # the parent is a file
         _post_rc("/api/install-creator-os-antigravity", {})
         if not ("could not write the settings file" in _sent_rc[-1][1] and len(_probes_rc) == 1
-                and _get("antigravity_installed") is False):
-            _rc_fail.append("a settings file the system refuses to write did not show its reason, or ran the probe")
+                and _get("antigravity_installed") is True and _get("antigravity_probe") == 7):
+            _rc_fail.append("a settings file the system refuses to write did not show its reason, ran the "
+                            "probe, or changed the recorded state")
         _g_rc["_antigravity_config_path"] = lambda: _rc_root / "ag" / "mcp_config.json"
         _clear_persisted_state()
         if any(_get(k) is not None for k in ("codex_installed", "codex_probe", "antigravity_installed",

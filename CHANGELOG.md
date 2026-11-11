@@ -31,7 +31,7 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `~/.gemini/config/mcp_config.json` (`_update_antigravity_config`: other servers and keys kept; a
   file that does not parse is backed up beside itself first; an `mcpServers` that is not an object
   is refused; a settings file the system refuses to write shows the reason and runs no probe; the
-  Codex file is saved with LF line ends and no byte-order mark). Each button then runs the Claude Desktop button's handshake probe
+  Codex file is saved without a byte-order mark and with the platform's line ends). Each button then runs the Claude Desktop button's handshake probe
   (`/api/install-creator-os-codex`, `/api/install-creator-os-antigravity`), and the screen says
   whether the `codex` or `agy` command or the Mac app was found. The `mail-triage` atom and the
   docs name Codex and Antigravity beside Claude Desktop, with each app's own Gmail tool and its
