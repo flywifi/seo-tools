@@ -696,3 +696,15 @@ main {
   .calendar-day { min-height: 70px; }
   nav { flex-wrap: wrap; justify-content: center; }
 }
+
+/* Books view (P103) */
+.books-year { margin: 12px 0; }
+.books-note {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-hover);
+}
+.books-boundary { margin-top: 20px; font-size: 12px; }
+.books-year ~ h3 { margin: 22px 0 8px; }
