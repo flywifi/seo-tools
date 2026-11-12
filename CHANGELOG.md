@@ -14,14 +14,15 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ### Added
 - P103 (Books tab, ADR 0086): the Scheduling Dashboard gets a Books tab. `GET /api/books?year=YYYY`
-  (`tools/dashboard/server.py::_books_payload`) returns one tax year of the income ledger read
-  through `tools/books.py`: the payer summary, the entries awaiting confirmation, the gift
-  register, the form check, that year's spending, the boundary line and whether recording is on.
+  (`tools/dashboard/server.py::_books_payload`) returns one tax year: the payer summary, the gift
+  register and the form check as `tools/books.py` computes them, the ledger's entries of that year
+  still proposed, the entries of the cost-actuals file dated in that year (read by the dashboard
+  at the path `books.py` names), the boundary line and whether recording is on.
   `POST /api/books-status` (`_books_status`) passes a Confirm or Void click to `books.set_status`:
   the entry id must have the ledger's id form and the status must be `confirmed` or `void`; with
   `finance_management` off the reply is 409 with the reason and the tab offers no buttons, an id
-  the ledger does not hold is 404, and a ledger that does not parse is 500 with its bytes left as
-  they are. The dashboard selftest runs its ledger under a temporary `CREATOR_OS_ROOT`.
+  the ledger does not hold is 404, and a ledger that does not parse, or an error the ledger
+  raises, is 500 with the ledger's bytes left as they are. The dashboard selftest runs its ledger under a temporary `CREATOR_OS_ROOT`.
   `docs/ARCHITECTURE.md` lists the dashboard's AR, tasks and wizard-address routes and its AR view,
   which it had left out.
 - P103 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 2400 s, up from

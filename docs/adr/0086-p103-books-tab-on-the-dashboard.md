@@ -17,20 +17,30 @@ carries another site's Origin.
 
 1. **A Books tab on the dashboard.** `GET /api/books?year=YYYY`
    (`tools/dashboard/server.py::_books_payload`) returns, for one tax year, the payer summary, the
-   entries awaiting confirmation, the gift register, the form check and that year's spending,
-   each read through `tools/books.py`, with the ledger's boundary line and whether recording is
-   on. The year is four digits from 2000 to next year, else this year
-   (`_books_year`). The route writes nothing.
+   gift register and the form check as `tools/books.py` computes them, the ledger's entries of
+   that year still proposed, and the entries of the cost-actuals file dated in that year, which
+   the dashboard reads itself at the path `books.py` names, with the ledger's boundary line and
+   whether recording is on. The year is four digits from 2000 to next year, else this year
+   (`_books_year`), and the tab's heading shows the year answered. The selftest compares the
+   files under its root before and after a read (names, bytes, inodes, modification times) and
+   finds them the same.
 2. **Confirm and Void are the dashboard's first finance write.** `POST /api/books-status`
    (`_books_status`) takes an entry id in the ledger's id form and the status `confirmed` or
    `void`, and calls `books.set_status`, which writes behind the `finance_management` switch under
    the ledger's lock. With the switch off the reply is 409 with the reason and the tab offers no
-   buttons; an id the ledger does not hold is 404; a ledger that does not parse is 500 and its
-   bytes are left as they are. The ledger's rules stay in `tools/books.py`; the dashboard holds
-   none of them.
-3. **The click is the person's own.** The route sits in `POST_ROUTES`, behind the Origin check
-   and the JSON-only body reader `do_POST` already applies. No MCP tool confirms or voids an
-   entry.
+   buttons; an id the ledger does not hold is 404; a ledger that does not parse, or an error
+   the ledger raises, is 500 and the ledger's bytes are left as they are. The dashboard checks
+   two things before the call, the id's form (lower-case hex; an id written by hand in another
+   form is listed and its click answers 400) and the status; what makes an entry valid, how
+   totals are computed and how the file is written stay in `tools/books.py`. A click that
+   changes an entry also sets the ledger's `last_updated` and re-serialises the file, and a
+   click made with the switch on takes the ledger's lock, which leaves an empty
+   `income-ledger.local.json.lock` beside it.
+3. **Another site's request is refused; a program on this computer is not.** The route sits
+   in `POST_ROUTES`, behind the Origin check and the JSON-only body reader `do_POST` already
+   applies, so a page on another site cannot send the click. A request with no Origin header, as
+   a local script sends, is accepted, as it is on the scheduling routes. `books.set_status` has
+   two callers, this route and the `books.py` command line; the books MCP tools do not call it.
 4. **The selftest's ledger is a temporary one.** `tools/books.py` reads its root at each call, so
    the dashboard selftest sets `CREATOR_OS_ROOT` to a temporary folder for its run: the GET and
    POST pins, which drive every route, read and write a ledger there.

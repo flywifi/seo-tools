@@ -548,7 +548,7 @@ wizard's block is 8765, 8775, 8785). Exposes a JSON API:
 |--------|------|-------------|
 | GET | `/api/queue` | Return the scheduling queue |
 | GET | `/api/ar` | Accounts receivable from the local invoice records (read-only) |
-| GET | `/api/books?year=YYYY` | The income ledger for one tax year: payer summary, entries awaiting confirmation, gift register, form check, spending (read-only) |
+| GET | `/api/books?year=YYYY` | One tax year of the books: the income ledger's payer summary, entries awaiting confirmation, gift register and form check, and the cost-actuals file's spending |
 | GET | `/api/tasks` | The task register's waiting and owed split (read-only) |
 | GET | `/api/wizard-url` | The setup wizard's address on the port it bound |
 | GET | `/api/publishing-plan` | Which platforms have a direct-API publishing flag enabled |
@@ -582,9 +582,9 @@ the next save leaves that copy in place <!-- verify: tools/dashboard/server.py::
 2. **Calendar** — monthly grid with posts color-coded by platform.
 3. **Status** — table of all posts with current status, scheduled time, permalink, and error.
 4. **AR** — money owed on the local invoice records, by age, with the chase queue. Read-only.
-5. **Books** — one tax year of the income ledger: cash per payer and per month, entries awaiting
-   confirmation with Confirm and Void buttons, gifted products with their price source, forms
-   checked against the ledger, and spending (ADR 0086). The buttons are offered while
+5. **Books** — one tax year: from the income ledger, cash per payer and per month, entries awaiting
+   confirmation with Confirm and Void buttons, gifted products with their price source and forms
+   checked against the ledger; from the cost-actuals file, spending (ADR 0086). The buttons are offered while
    `finance_management` is on; the click goes to `tools/books.py`, which holds the ledger's rules
    <!-- verify: tools/dashboard/server.py::_books_status -->.
 6. **Credentials** — traffic-light indicators per platform linking to the setup wizard's

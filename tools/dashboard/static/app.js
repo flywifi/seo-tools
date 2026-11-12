@@ -489,6 +489,9 @@ const App = (function () {
   function loadBooks() {
     return api("GET", "/api/books?year=" + encodeURIComponent(state.booksYear)).then(function (data) {
       state.books = data;
+      // The heading shows the year the server answered for, which is this year when the year
+      // asked for is outside the range it serves.
+      if (data && typeof data.tax_year === "number") state.booksYear = data.tax_year;
     });
   }
 
@@ -510,12 +513,17 @@ const App = (function () {
     var html = '<div class="card"><h2>Books</h2>';
     html += '<p class="muted">Real money data from your local records. Localhost only; ' +
             "nothing here is sent anywhere.</p>";
-    html += '<p class="books-year">Tax year <strong>' + escapeHtml(String(state.booksYear)) + "</strong> " +
-            '<button class="btn btn-sm" data-action="books-year" data-year="' +
-            escapeHtml(String(state.booksYear - 1)) + '">Earlier year</button> ' +
-            '<button class="btn btn-sm" data-action="books-year" data-year="' +
-            escapeHtml(String(state.booksYear + 1)) + '">Later year</button></p>';
-    if (!b || b.error || b.ok === false) {
+    html += '<p class="books-year">Tax year <strong>' + escapeHtml(String(state.booksYear)) + "</strong> ";
+    if (state.booksYear > 2000) {
+      html += '<button class="btn btn-sm" data-action="books-year" data-year="' +
+              escapeHtml(String(state.booksYear - 1)) + '">Earlier year</button> ';
+    }
+    if (state.booksYear <= new Date().getFullYear()) {
+      html += '<button class="btn btn-sm" data-action="books-year" data-year="' +
+              escapeHtml(String(state.booksYear + 1)) + '">Later year</button>';
+    }
+    html += "</p>";
+    if (!b || b.error || b.ok === false || typeof b.tax_year !== "number") {
       html += '<p class="queue-empty">' + escapeHtml((b && b.error) || "Could not load the Books view.") +
               "</p></div>";
       container.innerHTML = html;
@@ -523,8 +531,7 @@ const App = (function () {
     }
     if (!b.recording_on) {
       html += '<p class="books-note">Recording is off, so Confirm and Void are not offered. ' +
-              "Turn on finance records in the setup wizard to use them. " +
-              escapeHtml(b.recording_off_reason || "") + "</p>";
+              "Turn on finance records in the setup wizard to use them.</p>";
     }
 
     var totals = (b.summary && b.summary.totals) || {};
@@ -540,11 +547,13 @@ const App = (function () {
     } else {
       html += booksTable(["Date", "Payer", "Kind", "Amount or item", "Source", "To check", ""],
         proposed.map(function (e) {
+          var qty = e.product && e.product.quantity;
           var what = e.kind === "product"
-            ? ((e.product && e.product.item) || "") + " x " + ((e.product && e.product.quantity) || 1)
-            : (e.amount || "");
+            ? ((e.product && e.product.item) || "") + " x " + (qty === null || qty === undefined ? 1 : qty)
+            : (e.amount === null || e.amount === undefined ? "" : e.amount);
+          var gaps = Array.isArray(e.gaps) ? e.gaps.join("; ") : (e.gaps || "");
           var row = "<tr>" + booksCell(e.date) + booksCell(e.payer) + booksCell(e.kind) + booksCell(what) +
-                    booksCell(e.source) + booksCell((e.gaps || []).join("; ")) + "<td>";
+                    booksCell(e.source) + booksCell(gaps) + "<td>";
           if (b.recording_on) {
             row += '<button class="btn btn-sm btn-primary" data-action="books-confirm" data-entry-id="' +
                    escapeHtml(e.entry_id) + '">Confirm</button> ' +
@@ -635,7 +644,7 @@ const App = (function () {
     if (res && res.updated) {
       toast(status === "confirmed" ? "Entry confirmed" : "Entry voided");
     } else {
-      toast((res && res.error) || "The entry was not changed");
+      toast((res && res.error) || "The entry was not changed", "error");
     }
   }
 
