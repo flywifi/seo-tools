@@ -13,6 +13,23 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 3000 s, up from
+  2400 s (`selftest_sweep.TOOL_TIMEOUTS`), so its cap is 12000 s with one worker, 6000 s with
+  two, 4000 s with three and 3000 s with four or more. At 2,304 rows the four Windows CI jobs
+  of one commit took 34 to 38.5 minutes, the other gates about 6 of them, and the photo
+  receipts rows bring the table to 2,397. The Windows CI job's limit is 65 minutes, up from 55.
+- P103 (photo receipts, ADR 0087): behind the new `photo_receipts` switch (off by default), a photo
+  (png, jpg, jpeg, webp, tif, tiff, bmp) in the hub Inbox can be labelled a receipt
+  (`tools/handoff/inbox.py::label_formats`, `person_labelled`), and `tools/receipt_extract.py::extract`
+  reads it with the new `tools/photo_text.py` (`read_image`: the optional `rapidocr` reader on
+  `onnxruntime`, from the new `requirements-photo.txt`, in a process of its own with a 120 second
+  limit, files up to 20 MB). The text goes through the injection screen and the receipt rules; a
+  result that would be exact is proposed as probable with a gap asking for a check of each figure.
+  With no reader installed the photo is accepted for a typed entry and the note says why. The new
+  read-only MCP tool `receipt_from_text` takes the text a chat session copied from a photo and
+  returns `receipt_extract.extract_text`'s proposal under the same screen, rules and cap.
+  `tools/setup.py --install-deps` installs the new set with the others; the source registry gains
+  `dep-rapidocr` and `dep-onnxruntime`.
 - P103 (Books tab, ADR 0086): the Scheduling Dashboard gets a Books tab. `GET /api/books?year=YYYY`
   (`tools/dashboard/server.py::_books_payload`) returns one tax year: the payer summary, the gift
   register and the form check as `tools/books.py` computes them, the ledger's entries of that year

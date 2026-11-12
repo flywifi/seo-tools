@@ -5,7 +5,7 @@ description: "manages brand account records in pipeline/accounts/: health-check,
 load: always
 ---
 
-_Data freshness: as of 2026-11-08 (Creator OS baseline 5411a5d4). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-11-12 (Creator OS baseline fc18d68a). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # account-manager
 

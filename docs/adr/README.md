@@ -95,3 +95,4 @@ added beyond what those records state. New decisions get the next number via
 | [0084](0084-p103-mail-triage-through-the-sessions-gmail-connector.md) | Inbound mail is sorted on this computer, senders are matched by address, and Gmail opens read-only | 2026-11-04 | Accepted |
 | [0085](0085-p103-creator-os-in-codex-and-antigravity.md) | Creator OS runs in Codex and Antigravity through the same local server entry | 2026-11-07 | Accepted |
 | [0086](0086-p103-books-tab-on-the-dashboard.md) | The dashboard's Books tab reads the ledger and passes the person's Confirm or Void to it | 2026-11-12 | Accepted |
+| [0087](0087-p103-photo-receipts.md) | A photo of a receipt is read on this computer, or by the chat session, and proposed at probable at most | 2026-11-12 | Accepted |

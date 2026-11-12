@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-11-07",
+  "last_registry_update": "2026-11-12",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -7776,7 +7776,59 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "dep-rapidocr",
+      "name": "rapidocr (text recognition for photographed receipts)",
+      "url": "https://pypi.org/project/rapidocr/",
+      "category": "software-dependency",
+      "tier": "T2",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "RapidOCR() call result fields (boxes, txts, scores); bundled model files; default backend",
+      "used_by": [
+        "requirements-photo.txt",
+        "tools/photo_text.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "package": "rapidocr",
+      "upstream_api": "pypi",
+      "check_url": "https://pypi.org/pypi/rapidocr/json",
+      "pinned_constraint": ">=3.10",
+      "validated_version": "3.10.0",
+      "_why": "optional local reader for photo receipts (P103); a changed result shape or a model that stops shipping in the package leaves photos unread, and tools/photo_text.py --engine-check shows it"
+    },
+    {
+      "id": "dep-onnxruntime",
+      "name": "onnxruntime (model runtime for the photo reader)",
+      "url": "https://pypi.org/project/onnxruntime/",
+      "category": "software-dependency",
+      "tier": "T2",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 60,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "supported Python versions and platform wheels; Windows Visual C++ runtime requirement",
+      "used_by": [
+        "requirements-photo.txt",
+        "tools/photo_text.py"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": [],
+      "package": "onnxruntime",
+      "upstream_api": "pypi",
+      "check_url": "https://pypi.org/pypi/onnxruntime/json",
+      "pinned_constraint": ">=1.31",
+      "validated_version": "1.31.1",
+      "_why": "rapidocr runs its models on this runtime and does not install it; without a wheel for the interpreter the photo reader does not load and photos are typed in"
     }
   ],
-  "_content_digest": "2a319294a6b9710ab6af299d85fbd18b9aa538bccb3d6785fed5cfb792164c2b"
+  "_content_digest": "db03a74a142bbdba6b384a0426177a11c2f509f988c083e1ff5a32bb95025ec9"
 }

@@ -29,6 +29,13 @@ ARITHMETIC AND RESEARCH NOTES. NOT TAX, ACCOUNTING, OR INVESTMENT ADVICE. REVIEW
   the Inbox", "the brand sent a remittance advice", "log the payout statement".
 - On the wizard's Inbox screen the person ticks "This is a receipt or payment notice" beside a
   document; the work-order screen then shows this atom's proposal (the wizard runs the tool).
+- A photo of a receipt, while the `photo_receipts` switch is on (ADR 0087): the tool reads it
+  with the optional local reader (`tools/photo_text.py`). When the reader is not installed or
+  returned no text, look at the photo yourself, copy its text line by line as printed, and call
+  the `receipt_from_text` MCP tool with that text, the photo's hub path and its fingerprint from
+  the inbox ledger <!-- verify: tools/receipt_extract.py::extract_text -->. Either way the
+  proposal is probable at most and its gap asks the person to check each figure against the
+  receipt: show the figures, and wait for their yes.
 
 Do NOT use for:
 - Matching a bank or PayPal export to open invoices (`payment-reconcile`).

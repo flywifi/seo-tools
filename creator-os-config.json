@@ -245,6 +245,11 @@
       "description": "Master gate for the finance bucket (P30). Activates finance record writes: invoice records, cost estimates, cost actuals, the income ledger (P103), and the finance register under pipeline/finance/. Read-only scans (AR aging, invoice status, income ledger reports) are always available without this flag. See shared/finance-engine.md.",
       "requires": "Nothing external. tools/finance.py runs offline (stdlib, no network)."
     },
+    "photo_receipts": {
+      "enabled": false,
+      "description": "Photo receipts (P103, ADR 0087). While on, a photo (png, jpg, jpeg, webp, tif, tiff, bmp) in the hub Inbox can be labelled a receipt on the wizard's Inbox screen, tools/receipt_extract.py reads its text with the optional local reader (tools/photo_text.py: rapidocr on onnxruntime, from requirements-photo.txt), and the receipt_from_text tool takes the text a chat session read from a photo. What is read from a photo is proposed at probable confidence at most, with a note to check each figure against the receipt. The photo stays on this computer.",
+      "requires": "Nothing external. The local reader is optional: python3 tools/setup.py --install-deps installs it into the repo .venv. Without it the person types the entry, or a chat session reads the photo."
+    },
     "invoice_generation": {
       "enabled": false,
       "description": "Invoice drafting (P30). Activates the invoice-generate atom and tools/finance.py --build-invoice --write. Invoices are DRAFTED only and never sent by the system; the human reviews and sends (consequential-action gate, shared/finance-engine.md).",
@@ -345,6 +350,7 @@
     "legal_requirement_checks_disabled": "legal_requirement_checks is off. The system does not run the creator-relevant legal-requirement scan (FTC disclosure obligation, usage/exclusivity conflicts, missing payment/kill-fee, perpetual-usage-for-flat-fee flag). FTC disclosure is still required on every sponsored deliverable per protocols/safety.md and remains a gate on entering the signed stage.",
     "mlt_timeline_export_disabled": "mlt_timeline_export is off. Timelines still export as FCPXML (fcpxml_timeline_export) or as the neutral edit-package JSON; Shotcut/Kdenlive users convert manually or enable this flag.",
     "media_render_disabled": "media_render is off (or the video_editing_enabled master gate is). No local render runs; the .mlt or FCPXML file is handed to the human editor to render, which is the shipped default behavior.",
+    "photo_receipts_disabled": "photo_receipts is off (default). A photo in the hub Inbox is not offered the receipt label, tools/receipt_extract.py reads no text from a photo, and the receipt_from_text tool returns this note in place of a proposal. Receipts in PDF, Word, HTML, text and .eml form are read as before.",
     "finance_management_disabled": "finance_management is off. AR aging and invoice status remain fully readable (tools/finance.py --ar-scan and the invoice-status atom need no flag), and all money math still runs offline on request, but no invoice record, cost estimate, cost actual, or income-ledger entry is written to pipeline/finance/. Turn the flag on to persist records.",
     "invoice_generation_disabled": "invoice_generation is off. The system still computes what an invoice WOULD contain (line items, due date from structured terms, totals) and reports it for manual invoicing, but writes no invoice record and produces no invoice document.",
     "cost_research_disabled": "cost_research is off. Cost estimates use only vendor quotes you provide, the local cost library, and labeled assumptions; no web research for prices is dispatched. Estimates remain honest: unknown costs are null and flagged, never guessed.",

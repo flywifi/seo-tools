@@ -33,6 +33,8 @@ Maintainer detail: `docs/MACOS-MAINTENANCE.md`.
 | `playwright` | requirements-render.txt | tools/acquire.py, fetch_resilient.py | headless Chromium render | static fetch only |
 | `faster-whisper` | requirements-transcribe.txt | tools/transcribe.py | local STT (Win/Linux/Intel Mac) | run_local_stt gap |
 | `jiwer` | requirements-transcribe.txt | accuracy | WER/MER/WIL | shared/docintel/wer.py |
+| `rapidocr` | requirements-photo.txt | tools/photo_text.py | reads the text of a photographed receipt (`photo_receipts`) | a gap; the entry is typed, or a chat session reads the photo |
+| `onnxruntime` | requirements-photo.txt | rapidocr's model runtime | runs the reader's models | the same gap |
 | `scenedetect` | requirements-videoedit.txt | tools/videoedit/mediaprobe.py | scene/chapter cuts | ffmpeg scdet / none |
 | `opencv-python-headless` | requirements-videoedit.txt | scenedetect dep | frame analysis | none |
 | `av` (PyAV) | requirements-videoedit.txt | tools/videoedit/mediaprobe.py | in-process silence detect | ffmpeg binary |

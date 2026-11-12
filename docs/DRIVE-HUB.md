@@ -169,7 +169,7 @@ parsed or executed. A document waiting for a Claude session that is a receipt or
 exposes: an email's headers and text parts, a document's headers, footers and notes, with the parsed
 text), runs the offline pattern tier on it, and approves it with the batch unless the tier flags it
 QUARANTINE or BLOCK, or a part of the file cannot be read whole (that file stays in the Inbox, never
-routed; a REVIEW verdict is shown on the receipt row). The work order then shows the entry `tools/receipt_extract.py` reads from it
+routed; a REVIEW verdict is shown on the receipt row). While the `photo_receipts` switch is on a photo (png, jpg, jpeg, webp, tif, tiff, bmp, up to 20 MB) can be labelled the same way (ADR 0087): `tools/photo_text.py` reads its text on this computer when the optional reader is installed, the tier checks that text, and what the work order proposes from a photo is marked probable at most, to be checked against the receipt <!-- verify: tools/handoff/inbox.py::label_formats -->; with no reader installed the photo is filed for a typed entry. The work order then shows the entry `tools/receipt_extract.py` reads from it
 (money in or out, date, name, amount, confidence and gaps), with each field editable and its own
 tick, off until you turn it on; a tick records money received in the income ledger and money paid
 in `pipeline/finance/cost-actuals.local.json` through `tools/books.py`, when `finance_management`

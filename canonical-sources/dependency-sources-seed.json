@@ -664,5 +664,45 @@
       "shared/compute-engine.md"
     ],
     "_why": "ML prediction lane for audience segmentation and trend prediction; API drift drops it to guidance-only"
-  }
+  },
+    {
+      "id": "dep-rapidocr",
+      "name": "rapidocr (text recognition for photographed receipts)",
+      "url": "https://pypi.org/project/rapidocr/",
+      "category": "software-dependency",
+      "tier": "T2",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 90,
+      "package": "rapidocr",
+      "upstream_api": "pypi",
+      "check_url": "https://pypi.org/pypi/rapidocr/json",
+      "pinned_constraint": ">=3.10",
+      "validated_version": "3.10.0",
+      "extraction_hint": "RapidOCR() call result fields (boxes, txts, scores); bundled model files; default backend",
+      "used_by": [
+        "requirements-photo.txt",
+        "tools/photo_text.py"
+      ],
+      "_why": "optional local reader for photo receipts (P103); a changed result shape or a model that stops shipping in the package leaves photos unread, and tools/photo_text.py --engine-check shows it"
+    },
+    {
+      "id": "dep-onnxruntime",
+      "name": "onnxruntime (model runtime for the photo reader)",
+      "url": "https://pypi.org/project/onnxruntime/",
+      "category": "software-dependency",
+      "tier": "T2",
+      "check_interval_days": 60,
+      "staleness_threshold_days": 90,
+      "package": "onnxruntime",
+      "upstream_api": "pypi",
+      "check_url": "https://pypi.org/pypi/onnxruntime/json",
+      "pinned_constraint": ">=1.31",
+      "validated_version": "1.31.1",
+      "extraction_hint": "supported Python versions and platform wheels; Windows Visual C++ runtime requirement",
+      "used_by": [
+        "requirements-photo.txt",
+        "tools/photo_text.py"
+      ],
+      "_why": "rapidocr runs its models on this runtime and does not install it; without a wheel for the interpreter the photo reader does not load and photos are typed in"
+    }
 ]

@@ -54,6 +54,7 @@ REQUIREMENTS_SETS = [
     ("requirements-mcp.txt", "Claude Desktop tool surface (mcp)"),
     ("requirements-videoedit.txt", "Video analysis (scenedetect, av, moviepy, numpy)"),
     ("requirements-transcribe.txt", "Local transcription (faster-whisper, jiwer)"),
+    ("requirements-photo.txt", "Photo receipts reader (rapidocr, onnxruntime)"),
     ("requirements-tools.txt", "Tooling accelerators (python-dateutil, sqlite-vec, PyYAML)"),
 ]
 
@@ -637,6 +638,10 @@ def _selftest() -> int:
         install_dependencies()
     finally:
         globals()["subprocess"], env_paths.venv_python, env_paths.which = _saved
+    _photo_req = (ROOT / "requirements-photo.txt").read_text(encoding="utf-8")
+    ok("requirements-photo.txt" in [f for f, _ in REQUIREMENTS_SETS]
+       and "\nrapidocr>=" in _photo_req and "\nonnxruntime>=" in _photo_req,
+       "the photo reader's requirements set is in the list setup installs and names rapidocr and onnxruntime")
     _expected_pips = sum(1 for f, _ in REQUIREMENTS_SETS if (ROOT / f).exists()) + 1
     _venv_pips = [c for c in _rec_venv.calls if c[1:3] == _pip_words]
     ok(len(_venv_pips) == _expected_pips

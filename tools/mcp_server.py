@@ -131,6 +131,7 @@ _READ_DESPITE_NAME = {
 _VERIFIED_READS = {
     "books_summary",  # P103: reads the income ledger and adds; writes nothing
     "mail_triage",    # P103 WP2b: sorts the messages it is given; writes nothing, reads no mail
+    "receipt_from_text",  # P103: reads the text it is given and proposes; writes nothing, opens no file
     "cache_query", "cashflow_view", "chapter_map", "code_lookup", "competitor_scan",
     "construction_lookup", "contact_lookup", "cost_rollup", "coverage_verify", "currency_scan",
     "deal_status", "drift_check", "edit_captions", "edit_parse_fcpxml", "edit_preflight",
@@ -358,6 +359,18 @@ def _mail_triage_reply(messages, masked, accounts=None) -> dict:
     result = _mt.triage(messages, accounts=accounts, masked=use_mask)
     result["masked"] = use_mask
     return result
+
+
+def _receipt_from_text_reply(text, ref, sha256, config=None) -> dict:
+    """The receipt_from_text tool's reply (P103, ADR 0087): receipt_extract.extract_text's proposal
+    while the photo_receipts switch is on, else the switch's degraded_behavior note and no
+    proposal."""
+    sys.path.insert(0, str(HERE))
+    import receipt_extract as _rx  # type: ignore
+    if not _rx.photo_receipts_on(config):
+        return {"available": False, "proposed_record": None, "human_review_required": True,
+                "note": "photo_receipts is off; nothing was read (see degraded_behavior.photo_receipts_disabled)"}
+    return _rx.extract_text(text, ref, sha256 or None)
 
 
 _CORRUPT_DB_MARKERS = ("file is not a database", "database disk image is malformed",
@@ -1264,6 +1277,35 @@ def _selftest_static() -> tuple:
        and "Hearthline Home" in json.dumps(_rep_local["messages"][0]["account"])
        and src.count("_mail_triage" + "_masked(masked)") == 1
        and src.count("_mail_triage" + "_reply(messages, masked)") == 1)
+    # P103 (ADR 0087): receipt_from_text proposes from supplied text while photo_receipts is on.
+    import receipt_extract as _rx_st  # type: ignore
+    _ph_on, _ph_off = {"capabilities": {"photo_receipts": True}}, {"capabilities": {"photo_receipts": False}}
+    _rft = _receipt_from_text_reply(_rx_st.RECEIPT_TXT, "Inbox/Processed/2026-05-03/till.jpg", "c" * 64, config=_ph_on)
+    _rft_off = _receipt_from_text_reply(_rx_st.RECEIPT_TXT, "Inbox/Processed/2026-05-03/till.jpg", "c" * 64, config=_ph_off)
+    _rft_bare = _receipt_from_text_reply(_rx_st.RECEIPT_TXT, "", "", config=_ph_on)
+    _rx_saved = _rx_st.photo_receipts_on
+    _rft_seen = []
+    try:
+        _rx_st.photo_receipts_on = lambda config=None: _rft_seen.append(config) or False
+        _rft_default = _receipt_from_text_reply("Order total  $5.00", "r.jpg", "c" * 64)
+    finally:
+        _rx_st.photo_receipts_on = _rx_saved
+    ok("receipt_from_text proposes from the text it is given while photo_receipts is on, capped at probable "
+       "with the check gap; with the switch off it reads nothing and says so; the tool hands the switch "
+       "no config of its own",
+       _rft["total"] == "239.61" and _rft["confidence"] == "probable" and _rft["gaps"] == [_rx_st.PHOTO_GAP]
+       and _rft["proposed_record"]["entry"]["receipt_ref"] == "Inbox/Processed/2026-05-03/till.jpg"
+       and _rft["proposed_record"]["entry"]["receipt_sha256"] == "c" * 64
+       and _rft["human_review_required"] is True
+       and _rft_off == {"available": False, "proposed_record": None, "human_review_required": True,
+                        "note": "photo_receipts is off; nothing was read (see degraded_behavior."
+                                "photo_receipts_disabled)"}
+       and _rft_bare["file"] is None and _rft_bare["sha256"] is None and len(_rft_bare["gaps"]) == 3
+       and _rft_seen == [None] and _rft_default["available"] is False
+       and "photo_receipts_disabled" in json.loads((ROOT / "creator-os-config.json").read_text(
+           encoding="utf-8"))["degraded_behavior"]
+       and src.count("_receipt_from_text" + "_reply(text, ref, sha256)") == 1
+       and "receipt_from_text" in _VERIFIED_READS)
     # Read by AST from the file (see above), so a comment cannot stand in for code. The tool returns
     # the reply helper's result and calls nothing else that triages. Outside this selftest the flag
     # is bound twice, by its default False and by `_STDIO_BOUND = True` as the statement before
@@ -2813,6 +2855,25 @@ def mail_triage(messages: list[dict], masked: bool = False) -> str:
     ids included."""
     try:
         return json.dumps(_mail_triage_reply(messages, masked), indent=2, ensure_ascii=False)
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"error": str(exc)})
+
+
+@mcp.tool()
+def receipt_from_text(text: str, ref: str = "", sha256: str = "") -> str:
+    """Propose a money-book entry from the text of a photographed receipt (P103). Read-only,
+    offline, proposal-only; needs photo_receipts on. Use it for a photo of a receipt in the hub
+    that the local reader did not read: look at the photo, copy its text line by line as printed
+    (each amount at the end of its line; add, correct and total nothing), and pass that text with
+    the photo's hub path (ref) and its fingerprint from the inbox ledger (sha256, 64 hex digits).
+    The text is screened with the offline pattern tier (pass 1: a QUARANTINE or BLOCK verdict
+    withholds the record) and read with the receipt rules. The result is capped at probable
+    confidence and its gaps ask the person to check each figure against the receipt: show them
+    the figures and the photo's name, and wait for their yes. This tool writes nothing and opens
+    no file. Money received is then recorded with books_add; money paid is recorded by the person
+    on the setup wizard's work order."""
+    try:
+        return json.dumps(_receipt_from_text_reply(text, ref, sha256), indent=2, ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001
         return json.dumps({"error": str(exc)})
 
