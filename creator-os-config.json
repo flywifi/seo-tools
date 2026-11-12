@@ -250,6 +250,11 @@
       "description": "Photo receipts (P103, ADR 0087). While on, a photo (png, jpg, jpeg, webp, tif, tiff, bmp) in the hub Inbox can be labelled a receipt on the wizard's Inbox screen, tools/receipt_extract.py reads its text with the optional local reader (tools/photo_text.py: rapidocr on onnxruntime, from requirements-photo.txt), and the receipt_from_text tool takes the text a chat session read from a photo. What is read from a photo is proposed at probable confidence at most, with a note to check each figure against the receipt. The photo stays on this computer.",
       "requires": "Nothing external. The local reader is optional: python3 tools/setup.py --install-deps installs it into the repo .venv. Without it the person types the entry, or a chat session reads the photo."
     },
+    "price_capture": {
+      "enabled": false,
+      "description": "Price capture for gifted products (P103, ADR 0088). While on, tools/price_capture.py (the price_capture tool, or the command line) fetches the one public page the person names and reads the price that page states in its product data, to propose it with the page and the date. One request per link, to http or https on a public host; a redirect is followed on the same host; the page's text is not sent anywhere else. Recording the price is a separate step (the Books tab's price form, the price_confirm tool or tools/books.py --set-price), after the person's yes, behind finance_management.",
+      "requires": "Network access to the page the person names. Nothing is installed."
+    },
     "invoice_generation": {
       "enabled": false,
       "description": "Invoice drafting (P30). Activates the invoice-generate atom and tools/finance.py --build-invoice --write. Invoices are DRAFTED only and never sent by the system; the human reviews and sends (consequential-action gate, shared/finance-engine.md).",
@@ -351,6 +356,7 @@
     "mlt_timeline_export_disabled": "mlt_timeline_export is off. Timelines still export as FCPXML (fcpxml_timeline_export) or as the neutral edit-package JSON; Shotcut/Kdenlive users convert manually or enable this flag.",
     "media_render_disabled": "media_render is off (or the video_editing_enabled master gate is). No local render runs; the .mlt or FCPXML file is handed to the human editor to render, which is the shipped default behavior.",
     "photo_receipts_disabled": "photo_receipts is off (default). A photo in the hub Inbox is not offered the receipt label, tools/receipt_extract.py reads no text from a photo, and the receipt_from_text tool returns a note naming this entry in place of a proposal. Receipts in PDF, Word, HTML, text and .eml form are read as before.",
+    "price_capture_disabled": "price_capture is off (default). tools/price_capture.py and the price_capture tool fetch nothing and return this note. A product's price can still be recorded by stating it, or by entering a price and its page by hand, on the Books tab's price form.",
     "finance_management_disabled": "finance_management is off. AR aging and invoice status remain fully readable (tools/finance.py --ar-scan and the invoice-status atom need no flag), and all money math still runs offline on request, but no invoice record, cost estimate, cost actual, or income-ledger entry is written to pipeline/finance/. Turn the flag on to persist records.",
     "invoice_generation_disabled": "invoice_generation is off. The system still computes what an invoice WOULD contain (line items, due date from structured terms, totals) and reports it for manual invoicing, but writes no invoice record and produces no invoice document.",
     "cost_research_disabled": "cost_research is off. Cost estimates use only vendor quotes you provide, the local cost library, and labeled assumptions; no web research for prices is dispatched. Estimates remain honest: unknown costs are null and flagged, never guessed.",

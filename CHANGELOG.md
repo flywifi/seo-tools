@@ -13,6 +13,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (price capture, ADR 0088): behind the new `price_capture` switch (off by default), the new
+  `tools/price_capture.py` (`capture`, the `price_capture` MCP tool, or the command line) makes one
+  request to the public page the person names and reads the price that page states in its product
+  data (a JSON-LD Product's offers, else price meta tags), following a redirect on the same host and
+  refusing a link to this computer or a private network; one price in USD is proposed with the
+  page and the date, anything else is a gap. `tools/books.py::set_price` records a price with its
+  source, page and date on a product entry behind `finance_management`, from the Books tab's new
+  price form (`POST /api/books-price`, `tools/dashboard/server.py::_books_price`, which fetches no
+  page), the new `price_confirm` MCP tool (a write only with `write` true) or
+  `tools/books.py --set-price`.
 - P103 (photo receipts, content check and bounded spacing): `photo_text.looks_like_photo` reads a
   file's opening bytes; `inbox.person_labelled` refuses a file with a photo suffix whose opening
   bytes do not match a png, jpeg, webp, tiff or bmp signature, and one the reader could not

@@ -24,6 +24,7 @@ CLI (a relative --out path is read from the repository root):
   python3 tools/books.py --add entry.json [--write]
   python3 tools/books.py --add-cost entry.json [--write]   # a spending entry (cost actuals)
   python3 tools/books.py --confirm <entry_id> | --void <entry_id>
+  python3 tools/books.py --set-price <entry_id> --price 24.50 [--price-source brand_page --price-page <link>]
   python3 tools/books.py --export --year 2026 [--out pipeline/finance/exports/2026-books.local.csv]
   python3 tools/books.py --set-aside --year 2026 --percent 27.5
   python3 tools/books.py --selftest
@@ -335,6 +336,48 @@ def set_status(entry_id, status, config=None, path=None):
                 _save(data, p)
                 return {"updated": True, "entry_id": entry_id, "status": status,
                         "computed_by": f"{TOOL} set_status"}
+    return {"updated": False, "reason": f"no entry {entry_id}"}
+
+
+def set_price(entry_id, price, price_source, price_source_ref=None, price_captured_at=None, config=None,
+              path=None):
+    """Record a product entry's retail price with where it came from (the human's confirmation;
+    ADR 0088). The entry must be a product that is not void. The price and its provenance go
+    through validate_entry's rule (ADR 0082): a source from PRICE_SOURCES, the page for a brand or
+    retailer price, and a capture date written YYYY-MM-DD that is not after today. A refusal
+    changes nothing and lists the problems. The entry keeps its id, its status and its other
+    fields; its retail_price gap is dropped; `replaced` is the price it held before. Gated like
+    every write."""
+    allowed, why_not = _write_allowed(config)
+    if not allowed:
+        return {"updated": False, "reason": why_not}
+    p = Path(path) if path else ledger_path()
+    with _locked(p):
+        data = load_ledger(p)
+        for e in data["entries"]:
+            if not isinstance(e, dict) or e.get("entry_id") != entry_id:
+                continue
+            if e.get("kind") != "product" or e.get("status") == "void" or not isinstance(e.get("product"), dict):
+                return {"updated": False, "reason": "a price is recorded on a product entry that is not void"}
+            try:
+                cents = _fin.money(_num(price, "product.retail_price"))
+            except ValueError as exc:
+                return {"updated": False, "problems": [str(exc)]}
+            trial = json.loads(json.dumps(e))
+            before = trial["product"].get("retail_price")
+            trial["product"].update(retail_price=price, price_source=price_source,
+                                    price_source_ref=price_source_ref or None,
+                                    price_captured_at=price_captured_at)
+            problems = validate_entry(trial)
+            if problems:
+                return {"updated": False, "problems": problems}
+            trial["product"]["retail_price"] = str(cents)
+            trial["gaps"] = [g for g in trial.get("gaps") or [] if not str(g).startswith("retail_price:")]
+            e.clear()
+            e.update(trial)
+            _save(data, p)
+            return {"updated": True, "entry_id": entry_id, "product": e["product"], "replaced": before,
+                    "computed_by": f"{TOOL} set_price"}
     return {"updated": False, "reason": f"no entry {entry_id}"}
 
 
@@ -984,6 +1027,59 @@ def selftest():
             _c("a void entry leaves the summary", payer_summary(2026)["totals"]["unpriced_items"] == 0, f)
             _c("an unknown status is refused", not set_status(pid, "maybe", config=on)["updated"], f)
             _c("an unknown id is refused", not set_status("BK-nope", "confirmed", config=on)["updated"], f)
+            # set_price (ADR 0088): a price lands on a product entry with its source, page and date
+            bare = product(date="2026-08-01")
+            bare["product"] = {"item": "shop apron", "quantity": 2}
+            added = add_entry(bare, write=True, config=on)
+            aid = added["entry"]["entry_id"]
+            before_bytes = ledger_path().read_bytes()
+            page = "https://example.com/apron"
+            refused = [set_price(aid, "24.50", "brand_page", page, "2026-08-02", config=off),
+                       set_price(aid, "24.50", "brand_page", None, "2026-08-02", config=on),
+                       set_price(aid, "24.50", "retailer_page", "", "2026-08-02", config=on),
+                       set_price(aid, "24.50", "a guess", page, "2026-08-02", config=on),
+                       set_price(aid, "24.50", "brand_page", page, "2099-01-01", config=on),
+                       set_price(aid, "24.50", "brand_page", page, None, config=on),
+                       set_price(aid, "24.50", "brand_page", page, "20260802", config=on),
+                       set_price(aid, "0", "brand_page", page, "2026-08-02", config=on),
+                       set_price(aid, "-3", "user_stated", None, "2026-08-02", config=on),
+                       set_price(aid, "about 20", "user_stated", None, "2026-08-02", config=on),
+                       set_price(aid, None, "user_stated", None, "2026-08-02", config=on),
+                       set_price(pid, "24.50", "brand_page", page, "2026-08-02", config=on),
+                       set_price(next(x["entry_id"] for x in load_ledger()["entries"] if x["kind"] == "cash"),
+                                 "24.50", "brand_page", page, "2026-08-02", config=on),
+                       set_price("BK-nope", "24.50", "brand_page", page, "2026-08-02", config=on)]
+            _c("set_price is refused with the gate off, without the page for a brand or retailer price, for an "
+               "unknown source, a capture date after today, missing or not YYYY-MM-DD, a price that is not a "
+               "positive number, a void entry, a cash entry and an unknown id, and the ledger's bytes stay",
+               not any(r["updated"] for r in refused) and ledger_path().read_bytes() == before_bytes
+               and "finance_management is off" in refused[0]["reason"]
+               and all(r.get("problems") for r in refused[1:11])
+               and refused[11]["reason"] == refused[12]["reason"] == "a price is recorded on a product entry that is not void"
+               and refused[13]["reason"] == "no entry BK-nope", f)
+            was = next(x for x in load_ledger()["entries"] if x["entry_id"] == aid)
+            done = set_price(aid, "24.505", "brand_page", page, "2026-08-02", config=on)
+            now = next(x for x in load_ledger()["entries"] if x["entry_id"] == aid)
+            _c("set_price stores the price in cents with its source, page and date, drops the retail_price gap, "
+               "and keeps the entry's id, status and other fields",
+               done["updated"] and done["replaced"] is None and done["entry_id"] == aid
+               and now["product"] == {"item": "shop apron", "quantity": 2, "retail_price": str(_fin.money(Decimal("24.505"))),
+                                      "price_source": "brand_page", "price_source_ref": page,
+                                      "price_captured_at": "2026-08-02", **{
+                                          k: v for k, v in was["product"].items()
+                                          if k not in ("item", "quantity", "retail_price", "price_source",
+                                                       "price_source_ref", "price_captured_at")}}
+               and any(str(g).startswith("retail_price:") for g in was["gaps"])
+               and not any(str(g).startswith("retail_price:") for g in now["gaps"])
+               and {k: v for k, v in now.items() if k not in ("product", "gaps")}
+               == {k: v for k, v in was.items() if k not in ("product", "gaps")}, f)
+            stated = set_price(aid, "30", "user_stated", None, "2026-08-03", config=on)
+            row = next(r for r in gift_register(2026)["items"] if r["entry_id"] == aid)
+            _c("a stated price replaces the page price, needs no page, and the gift register values the item",
+               stated["updated"] and stated["replaced"] == now["product"]["retail_price"]
+               and stated["product"]["price_source"] == "user_stated" and stated["product"]["price_source_ref"] is None
+               and row["value"] == "60.00" and row["price_source"] == "user_stated", f)
+            set_status(aid, "void", config=on)
             g = gift_register(2026)
             _c("gift register lists the priced item with its source",
                [r["item"] for r in g["items"]] == ["cordless brad nailer"] and g["items"][0]["price_source"] == "brand_page", f)
@@ -1288,6 +1384,11 @@ def main(argv=None):
     ap.add_argument("--add-cost", metavar="ENTRY_JSON")
     ap.add_argument("--confirm", metavar="ENTRY_ID")
     ap.add_argument("--void", metavar="ENTRY_ID")
+    ap.add_argument("--set-price", metavar="ENTRY_ID")
+    ap.add_argument("--price")
+    ap.add_argument("--price-source", choices=PRICE_SOURCES, default="user_stated")
+    ap.add_argument("--price-page")
+    ap.add_argument("--price-date", metavar="YYYY-MM-DD")
     ap.add_argument("--year", type=int, default=date.today().year)
     ap.add_argument("--percent")
     ap.add_argument("--out")
@@ -1323,6 +1424,8 @@ def main(argv=None):
             out = set_status(a.confirm, "confirmed")
         elif a.void:
             out = set_status(a.void, "void")
+        elif a.set_price:
+            out = set_price(a.set_price, a.price, a.price_source, a.price_page, a.price_date or date.today().isoformat())
         else:
             ap.print_help()
             return 2

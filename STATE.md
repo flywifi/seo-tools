@@ -14,7 +14,9 @@ Branch: `claude/blissful-cannon-ggivl7`.
   Install screen (ADR 0085); the dashboard's Books tab, which shows one tax year of the ledger and
   passes a Confirm or Void click to `tools/books.py` (ADR 0086); photo receipts behind the
   `photo_receipts` switch (`tools/photo_text.py`, the optional `requirements-photo.txt` reader, the
-  `receipt_from_text` MCP tool; ADR 0087). Next: price capture, and the Windows acceptance run.
+  `receipt_from_text` MCP tool; ADR 0087); price capture behind the `price_capture` switch
+  (`tools/price_capture.py`, `books.set_price`, the Books tab's price form, the `price_capture` and
+  `price_confirm` MCP tools; ADR 0088). Next: the Windows acceptance run.
 
 - P101 (started 2026-10-02, in progress): Windows support, from the first live run of the suite on
   a Windows PC. Landed: `tools/file_hash.py` hashes a tracked text file over LF-normalised bytes
