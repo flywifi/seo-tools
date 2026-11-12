@@ -20,6 +20,8 @@ const App = (function () {
     calendarYear: new Date().getFullYear(),
     editingItemId: null,
     editingPlatform: null,
+    books: null,
+    booksYear: new Date().getFullYear(),
   };
 
   // ── API helpers ────────────────────────────────────────────────
@@ -100,6 +102,9 @@ const App = (function () {
         break;
       case "ar":
         renderAr(main);
+        break;
+      case "books":
+        renderBooks(main);
         break;
       case "credentials":
         renderCredentials(main);
@@ -477,6 +482,169 @@ const App = (function () {
     }
     html += "</div>";
     container.innerHTML = html;
+  }
+
+  // ── Books view (P103) ──────────────────────────────────────────
+
+  function loadBooks() {
+    return api("GET", "/api/books?year=" + encodeURIComponent(state.booksYear)).then(function (data) {
+      state.books = data;
+    });
+  }
+
+  function booksCell(value) {
+    return "<td>" + escapeHtml(value === null || value === undefined ? "" : String(value)) + "</td>";
+  }
+
+  function booksTable(headers, rows) {
+    var html = '<div class="status-table-wrap"><table class="status-table"><thead><tr>';
+    headers.forEach(function (h) {
+      html += "<th>" + escapeHtml(h) + "</th>";
+    });
+    html += "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div>";
+    return html;
+  }
+
+  function renderBooks(container) {
+    var b = state.books;
+    var html = '<div class="card"><h2>Books</h2>';
+    html += '<p class="muted">Real money data from your local records. Localhost only; ' +
+            "nothing here is sent anywhere.</p>";
+    html += '<p class="books-year">Tax year <strong>' + escapeHtml(String(state.booksYear)) + "</strong> " +
+            '<button class="btn btn-sm" data-action="books-year" data-year="' +
+            escapeHtml(String(state.booksYear - 1)) + '">Earlier year</button> ' +
+            '<button class="btn btn-sm" data-action="books-year" data-year="' +
+            escapeHtml(String(state.booksYear + 1)) + '">Later year</button></p>';
+    if (!b || b.error || b.ok === false) {
+      html += '<p class="queue-empty">' + escapeHtml((b && b.error) || "Could not load the Books view.") +
+              "</p></div>";
+      container.innerHTML = html;
+      return;
+    }
+    if (!b.recording_on) {
+      html += '<p class="books-note">Recording is off, so Confirm and Void are not offered. ' +
+              "Turn on finance records in the setup wizard to use them. " +
+              escapeHtml(b.recording_off_reason || "") + "</p>";
+    }
+
+    var totals = (b.summary && b.summary.totals) || {};
+    html += "<p>Cash received: <strong>" + escapeHtml(totals.cash || "0.00") + "</strong> &middot; " +
+            "priced product value: <strong>" + escapeHtml(totals.product_value || "0.00") + "</strong> &middot; " +
+            "items with no price: <strong>" + escapeHtml(String(totals.unpriced_items || 0)) + "</strong> &middot; " +
+            "awaiting confirmation: <strong>" + escapeHtml(String(totals.proposed || 0)) + "</strong></p>";
+
+    html += "<h3>Awaiting your confirmation</h3>";
+    var proposed = b.proposed || [];
+    if (!proposed.length) {
+      html += '<p class="queue-empty">Nothing is waiting.</p>';
+    } else {
+      html += booksTable(["Date", "Payer", "Kind", "Amount or item", "Source", "To check", ""],
+        proposed.map(function (e) {
+          var what = e.kind === "product"
+            ? ((e.product && e.product.item) || "") + " x " + ((e.product && e.product.quantity) || 1)
+            : (e.amount || "");
+          var row = "<tr>" + booksCell(e.date) + booksCell(e.payer) + booksCell(e.kind) + booksCell(what) +
+                    booksCell(e.source) + booksCell((e.gaps || []).join("; ")) + "<td>";
+          if (b.recording_on) {
+            row += '<button class="btn btn-sm btn-primary" data-action="books-confirm" data-entry-id="' +
+                   escapeHtml(e.entry_id) + '">Confirm</button> ' +
+                   '<button class="btn btn-sm btn-danger" data-action="books-void" data-entry-id="' +
+                   escapeHtml(e.entry_id) + '">Void</button>';
+          }
+          return row + "</td></tr>";
+        }));
+    }
+
+    html += "<h3>Income by payer</h3>";
+    var payers = (b.summary && b.summary.payers) || {};
+    var names = Object.keys(payers);
+    if (!names.length) {
+      html += '<p class="queue-empty">No income is recorded for this year.</p>';
+    } else {
+      html += booksTable(["Payer", "Type", "Cash", "Product value", "Items with no price", "Awaiting", "Entries"],
+        names.map(function (name) {
+          var r = payers[name];
+          return "<tr>" + booksCell(name) + booksCell(r.payer_type) + booksCell(r.cash) +
+                 booksCell(r.product_value) + booksCell(r.unpriced_items) + booksCell(r.proposed) +
+                 booksCell(r.entries) + "</tr>";
+        }));
+      var months = (b.summary && b.summary.by_month) || {};
+      html += booksTable(["Month", "Cash"], Object.keys(months).map(function (m) {
+        return "<tr>" + booksCell(m) + booksCell(months[m]) + "</tr>";
+      }));
+    }
+
+    html += "<h3>Gifted and loaned products</h3>";
+    var gifts = (b.gifts && b.gifts.items) || [];
+    if (!gifts.length) {
+      html += '<p class="queue-empty">No products are recorded for this year.</p>';
+    } else {
+      html += booksTable(["Date", "From", "Item", "Quantity", "Value", "Price source", "Page", "Status"],
+        gifts.map(function (g) {
+          return "<tr>" + booksCell(g.date) + booksCell(g.payer) + booksCell(g.item) + booksCell(g.quantity) +
+                 booksCell(g.value === null ? "no price yet" : g.value) + booksCell(g.price_source) +
+                 booksCell(g.price_source_ref) + booksCell(g.status) + "</tr>";
+        }));
+    }
+
+    html += "<h3>Forms received, checked against the ledger</h3>";
+    var forms = (b.form_check && b.form_check.forms) || [];
+    var missing = (b.form_check && b.form_check.payers_without_form) || [];
+    if (!forms.length && !missing.length) {
+      html += '<p class="queue-empty">No forms are entered and no payer has cash for this year.</p>';
+    } else {
+      if (forms.length) {
+        html += booksTable(["Payer", "Form", "Form amount", "Ledger cash", "Difference", "Matches"],
+          forms.map(function (f) {
+            var matches = f.matches === true ? "yes" : f.matches === false ? "no" : (f.problem || "");
+            return "<tr>" + booksCell(f.payer) + booksCell(f.form) + booksCell(f.form_amount) +
+                   booksCell(f.ledger_cash) + booksCell(f.difference) + booksCell(matches) + "</tr>";
+          }));
+      }
+      if (missing.length) {
+        html += "<p>Payers with cash and no form entered:</p>" + booksTable(["Payer", "Ledger cash"],
+          missing.map(function (m) {
+            return "<tr>" + booksCell(m.payer) + booksCell(m.ledger_cash) + "</tr>";
+          }));
+      }
+    }
+
+    html += "<h3>Spending</h3>";
+    var spending = b.spending || [];
+    if (!spending.length) {
+      html += '<p class="queue-empty">No spending is recorded for this year.</p>';
+    } else {
+      html += booksTable(["Date", "Vendor", "Description", "Category", "Amount"],
+        spending.map(function (s) {
+          return "<tr>" + booksCell(s.date) + booksCell(s.vendor) + booksCell(s.description) +
+                 booksCell(s.category) + booksCell(s.amount) + "</tr>";
+        }));
+    }
+
+    html += '<p class="muted books-boundary">' + escapeHtml(b.boundary || "") + "</p></div>";
+    container.innerHTML = html;
+  }
+
+  async function booksSetStatus(entryId, status) {
+    if (status === "void" && !window.confirm("Void this entry? It leaves this year's lists and totals.")) {
+      return;
+    }
+    var res = await api("POST", "/api/books-status", { entry_id: entryId, status: status });
+    await loadBooks();
+    render();
+    if (res && res.updated) {
+      toast(status === "confirmed" ? "Entry confirmed" : "Entry voided");
+    } else {
+      toast((res && res.error) || "The entry was not changed");
+    }
+  }
+
+  async function booksSetYear(year) {
+    var y = parseInt(year, 10);
+    if (!y) return;
+    state.booksYear = y;
+    await loadBooks();
+    render();
   }
 
   function renderCredentials(container) {
@@ -859,6 +1027,9 @@ const App = (function () {
       if (action === "delete") deleteItem(id);
       else if (action === "edit") openEdit(id, plat);
       else if (action === "schedule-all") scheduleAll(id);
+      else if (action === "books-confirm") booksSetStatus(el.dataset.entryId, "confirmed");
+      else if (action === "books-void") booksSetStatus(el.dataset.entryId, "void");
+      else if (action === "books-year") booksSetYear(el.dataset.year);
     });
     main.addEventListener("change", function (e) {
       var el = e.target.closest('[data-action="toggle"]');
@@ -876,7 +1047,7 @@ const App = (function () {
         if (e.target === this) closeModal();
       });
 
-    await Promise.all([loadQueue(), loadPublishingPlan(), loadCredentials(), loadAr()]);
+    await Promise.all([loadQueue(), loadPublishingPlan(), loadCredentials(), loadAr(), loadBooks()]);
     render();
   }
 

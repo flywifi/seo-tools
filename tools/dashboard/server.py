@@ -37,6 +37,7 @@ import publishing  # noqa: E402
 import atomic_io  # noqa: E402  (the one atomic writer, P81)
 import finance  # noqa: E402  (P31: read-only AR view)
 import tasks as _tasks  # noqa: E402  (P35: read-only task view)
+import books  # noqa: E402  (P103: the Books tab reads the income ledger and confirms entries)
 import loopback_server  # noqa: E402  (P101: port block and exclusive bind)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -212,6 +213,65 @@ def _new_platform_entry():
     }
 
 
+# P103 (ADR 0086): the Books tab. The ledger's rules stay in tools/books.py; these read it for
+# one tax year and pass the person's Confirm or Void click to books.set_status.
+_BOOKS_ID_RE = re.compile(r"BK-\d{8}-[0-9a-f]{8}\Z")
+
+
+def _books_year(query, today=None):
+    """The tax year a /api/books request names: ?year=YYYY when it is four digits from 2000 to
+    next year, else this year."""
+    from datetime import date as _date
+    today = today or _date.today()
+    m = re.search(r"(?:^|&)year=(\d{4})(?:&|$)", query or "")
+    year = int(m.group(1)) if m else today.year
+    return year if 2000 <= year <= today.year + 1 else today.year
+
+
+def _books_payload(year, config=None):
+    """What the Books tab shows for one tax year: the payer summary, the entries awaiting
+    confirmation, the gift register, the form check and the year's spending, each read through
+    tools/books.py, plus whether recording is on. Writes nothing. A ledger or a cost-actuals file
+    that does not parse raises ValueError, which the route answers with its message."""
+    ledger = books.load_ledger()
+    recording, why = books._write_allowed(config)
+    costs_path = books.cost_actuals_path()
+    costs = json.loads(costs_path.read_text(encoding="utf-8")) if costs_path.exists() else {}
+    entries = costs.get("entries") if isinstance(costs, dict) else None
+    spending = [e for e in (entries or [])
+                if isinstance(e, dict) and str(e.get("date") or "")[:4] == str(year)]
+    proposed = [e for e in ledger["entries"]
+                if isinstance(e, dict) and e.get("tax_year") == year and e.get("status") == "proposed"]
+    return {"boundary": books.BOUNDARY, "tax_year": year,
+            "recording_on": recording, "recording_off_reason": None if recording else why,
+            "summary": books.payer_summary(year, ledger),
+            "proposed": proposed,
+            "gifts": books.gift_register(year, ledger),
+            "form_check": books.form_check(year, ledger),
+            "spending": spending, "human_review_required": True}
+
+
+def _books_status(body, config=None):
+    """(reply, HTTP status) for a Confirm or Void click: the entry id must have the ledger's id
+    form and the status must be confirmed or void. books.set_status writes behind the
+    finance_management switch; with it off the reply is 409 and carries its reason, an id the
+    ledger does not hold is 404, and a ledger that does not parse is 500."""
+    body = body if isinstance(body, dict) else {}
+    entry_id, status = body.get("entry_id"), body.get("status")
+    if not isinstance(entry_id, str) or not _BOOKS_ID_RE.match(entry_id):
+        return {"error": "entry_id must be a ledger entry id"}, 400
+    if status not in ("confirmed", "void"):
+        return {"error": "status must be confirmed or void"}, 400
+    try:
+        result = books.set_status(entry_id, status, config=config)
+    except ValueError as exc:
+        return {"error": str(exc)}, 500
+    if result.get("updated"):
+        return result, 200
+    reason = str(result.get("reason") or "")
+    return {"error": reason}, (404 if reason.startswith("no entry") else 409)
+
+
 class DashboardHandler(SimpleHTTPRequestHandler):
     # P101: the server answers one request at a time; a connection that sends nothing (a browser's
     # spare connection) is closed after this many seconds instead of holding it.
@@ -303,6 +363,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             except Exception as exc:  # noqa: BLE001
                 return self._json_response({"error": str(exc)}, status=500)
 
+        if path == "/api/books":
+            # P103: the income ledger for one tax year, read through tools/books.py. Real money
+            # data; the server binds localhost only and this route never writes.
+            try:
+                return self._json_response(_books_payload(_books_year(parsed.query)))
+            except Exception as exc:  # noqa: BLE001
+                return self._json_response({"error": str(exc)}, status=500)
+
         if path == "/api/tasks":
             # P35: read-only task view over pipeline/user-context/task-register.local.json.
             # Waiting-on-counterparty vs I-owe split + due-soon/overdue bands. Never writes; localhost only.
@@ -344,6 +412,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         "/api/update-caption": "_handle_update_caption",
         "/api/update-schedule": "_handle_update_schedule",
         "/api/delete-item": "_handle_delete_item",
+        "/api/books-status": "_handle_books_status",
     }
 
     def do_POST(self):
@@ -598,6 +667,11 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 return self._json_response({"error": "item not found"}, status=404)
             _save_queue(queue)
         self._json_response({"ok": True})
+
+    def _handle_books_status(self, body):
+        """P103: the person's Confirm or Void click on one ledger entry (the Books tab)."""
+        reply, status = _books_status(body)
+        self._json_response(reply, status=status)
 
 
 def _save_publish_creds(platform, updated):
@@ -939,12 +1013,20 @@ def _selftest() -> int:
     writes it (P101)."""
     import tempfile
     saved = loopback_server.DASHBOARD_PORT_FILE
+    saved_root = os.environ.get("CREATOR_OS_ROOT")
     with tempfile.TemporaryDirectory() as td:
         loopback_server.DASHBOARD_PORT_FILE = Path(td) / "dashboard-port.local.json"
+        # P103: tools/books.py reads its root at each call, so the Books routes the pins below
+        # drive read and write a ledger under this folder, not the person's own.
+        os.environ["CREATOR_OS_ROOT"] = str(Path(td) / "books-root")
         try:
             return _selftest_checks()
         finally:
             loopback_server.DASHBOARD_PORT_FILE = saved
+            if saved_root is None:
+                os.environ.pop("CREATOR_OS_ROOT", None)
+            else:
+                os.environ["CREATOR_OS_ROOT"] = saved_root
 
 
 def _selftest_checks() -> int:
@@ -1179,6 +1261,11 @@ def _selftest_checks() -> int:
             "            return self._json_response(finance.ar_scan(None, None))\n"
             "        except Exception as exc:\n"
             "            return self._json_response({'error': str(exc)}, status=500)\n"
+            "    if path == '/api/books':\n"
+            "        try:\n"
+            "            return self._json_response(_books_payload(_books_year(parsed.query)))\n"
+            "        except Exception as exc:\n"
+            "            return self._json_response({'error': str(exc)}, status=500)\n"
             "    if path == '/api/tasks':\n"
             "        try:\n"
             "            from datetime import date as _date\n"
@@ -1245,7 +1332,7 @@ def _selftest_checks() -> int:
         ok("every GET route, driven through do_GET with every flag on, never calls dispatch(), "
            "reaches the network or changes a queued post",
            get_handed == [] and get_net.calls == [] and get_changed == [] and get_crashed == []
-           and len(get_paths) == 11
+           and len(get_paths) == 12
            and _ast_get.dump(do_get) == _ast_get.dump(_ast_get.parse(get_shape).body[0]))
     finally:
         g.update(saved)
@@ -1584,6 +1671,114 @@ def _selftest_checks() -> int:
        "read as empty; two copies made in the same second are both kept",
        bom_q == {"queue": [{"id": "bom-post"}]} and bad_utf8_q["queue"] == [] and "load_note" in bad_utf8_q
        and same_second == [b'{"queue": [\xff\xfe]}', b"{oops"])
+
+    # P103 (ADR 0086): the Books tab. A ledger under the selftest's temporary root holds one cash
+    # entry, one gifted product with no price, one entry of another year and one spending entry;
+    # the payload reads them, a Confirm and a Void write through books.set_status, and each
+    # refusal leaves the ledger's bytes as they were.
+    from datetime import date as _bdate
+    books_on = {"capabilities": {"finance_management": True}}
+    cash = books.add_entry({"date": "2026-03-04", "payer": "Hearthline Example Co", "payer_type": "brand",
+                            "kind": "cash", "amount": "1200.00", "source": "user_entry",
+                            "confidence": "exact"}, write=True, config=books_on)
+    gift = books.add_entry({"date": "2026-04-10", "payer": "Northstar Example Tools", "payer_type": "brand",
+                            "kind": "product", "product": {"item": "brad nailer kit", "quantity": 1},
+                            "source": "user_entry", "confidence": "exact"}, write=True, config=books_on)
+    books.add_entry({"date": "2025-12-30", "payer": "Hearthline Example Co", "payer_type": "brand",
+                     "kind": "cash", "amount": "75.00", "source": "user_entry", "confidence": "exact"},
+                    write=True, config=books_on)
+    books.add_cost_actual({"date": "2026-02-01", "vendor": "Northstar Example Tools", "amount": "40.00",
+                           "description": "sandpaper"}, write=True, config=books_on,
+                          today=_bdate(2026, 12, 31))
+    books.add_cost_actual({"date": "2025-02-01", "vendor": "Northstar Example Tools", "amount": "9.00",
+                           "description": "glue"}, write=True, config=books_on, today=_bdate(2026, 12, 31))
+    cash_id, gift_id = cash["entry"]["entry_id"], gift["entry"]["entry_id"]
+    view = _books_payload(2026, config=books_on)
+    ok("the Books payload for a year holds that year's entries awaiting confirmation, the cash total, the "
+       "unpriced gift, that year's spending and the boundary line, and says recording is on",
+       cash.get("written") and gift.get("written") and view["recording_on"] is True
+       and view["recording_off_reason"] is None
+       and sorted(e["entry_id"] for e in view["proposed"]) == sorted([cash_id, gift_id])
+       and view["summary"]["totals"]["cash"] == "1200.00" and view["gifts"]["unpriced"] == 1
+       and [e["description"] for e in view["spending"]] == ["sandpaper"]
+       and view["boundary"] == books.BOUNDARY and view["tax_year"] == 2026
+       and view["form_check"]["tax_year"] == 2026 and bool(json.dumps(view)))
+    off_view = _books_payload(2026, config={})
+    ok("with finance_management off the Books payload still reads and says recording is off with the reason",
+       off_view["recording_on"] is False and "finance_management is off" in off_view["recording_off_reason"]
+       and len(off_view["proposed"]) == 2)
+    ok("the Books year is the four-digit year asked for, from 2000 to next year, else this year",
+       [_books_year(q, today=_bdate(2026, 6, 1)) for q in
+        ("year=2025", "x=1&year=2027", "year=1999", "year=2028", "year=20260", "ayear=2025", "")]
+       == [2025, 2027, 2026, 2026, 2026, 2026, 2026])
+    ledger_file = books.ledger_path()
+    before_refusals = ledger_file.read_bytes()
+    refusals = [_books_status({"entry_id": "../" + cash_id, "status": "void"}, books_on),
+                _books_status({"entry_id": cash_id + "x", "status": "void"}, books_on),
+                _books_status({"entry_id": cash_id, "status": "proposed"}, books_on),
+                _books_status({"entry_id": "BK-20260101-deadbeef", "status": "void"}, books_on),
+                _books_status({"entry_id": cash_id, "status": "confirmed"}, {}),
+                _books_status(["not", "an", "object"], books_on),
+                _books_status({"entry_id": 7, "status": "void"}, books_on)]
+    ok("a Books click with an id that is not a ledger id or a status other than confirmed or void is "
+       "400, an id the ledger does not hold is 404, and one made with finance_management off is 409 "
+       "with the reason; none of them changes the ledger",
+       [s for _r, s in refusals] == [400, 400, 400, 404, 409, 400, 400]
+       and "finance_management is off" in refusals[4][0]["error"]
+       and ledger_file.read_bytes() == before_refusals)
+    confirmed = _books_status({"entry_id": cash_id, "status": "confirmed"}, books_on)
+    after_confirm = _books_payload(2026, config=books_on)
+    voided = _books_status({"entry_id": gift_id, "status": "void"}, books_on)
+    after_void = _books_payload(2026, config=books_on)
+    ok("Confirm marks the entry confirmed and it leaves the awaiting list; Void takes the entry out of the "
+       "year's lists and totals",
+       confirmed[1] == 200 and confirmed[0]["status"] == "confirmed"
+       and [e["entry_id"] for e in after_confirm["proposed"]] == [gift_id]
+       and after_confirm["summary"]["totals"]["cash"] == "1200.00"
+       and voided[1] == 200 and after_void["proposed"] == [] and after_void["gifts"]["items"] == []
+       and after_void["summary"]["totals"]["confirmed"] == 1)
+    # The route: the handler passes the click to _books_status and answers with its reply and status.
+    saved_gate = books._write_allowed
+    route_replies = []
+
+    class _BooksRequest:
+        def _json_response(self, data, status=200):
+            route_replies.append((status, data))
+    try:
+        books._write_allowed = lambda config=None: (True, "ok")
+        DashboardHandler._handle_books_status(_BooksRequest(), {"entry_id": cash_id, "status": "void"})
+        DashboardHandler._handle_books_status(_BooksRequest(), {"entry_id": cash_id, "status": "paid"})
+    finally:
+        books._write_allowed = saved_gate
+    ok("the /api/books-status route answers with the status and reply of the click it was sent",
+       DashboardHandler.POST_ROUTES.get("/api/books-status") == "_handle_books_status"
+       and [s for s, _d in route_replies] == [200, 400] and route_replies[0][1].get("status") == "void"
+       and _books_payload(2026, config=books_on)["summary"]["totals"]["cash"] == "0.00")
+    # The read route, through do_GET: the year in the query is the year answered.
+    read_replies = []
+    read = DashboardHandler.__new__(DashboardHandler)
+    read.path = "/api/books?year=2025"
+    read._json_response = lambda data, status=200: read_replies.append((status, data))
+    read.do_GET()
+    ok("the /api/books route answers for the tax year named in its query",
+       len(read_replies) == 1 and read_replies[0][0] == 200 and read_replies[0][1]["tax_year"] == 2025
+       and [e["amount"] for e in read_replies[0][1]["proposed"]] == ["75.00"]
+       and [e["description"] for e in read_replies[0][1]["spending"]] == ["glue"])
+    ledger_file.write_text("{not json", encoding="utf-8")
+    read.do_GET()
+    ok("the /api/books route answers 500 with the reason when the ledger does not parse",
+       len(read_replies) == 2 and read_replies[1][0] == 500 and "does not parse" in read_replies[1][1]["error"])
+    try:
+        _books_payload(2026, config=books_on)
+        broken_read = None
+    except ValueError as exc:
+        broken_read = str(exc)
+    broken_click = _books_status({"entry_id": cash_id, "status": "void"}, books_on)
+    ok("a ledger that does not parse is reported by the Books read and answers a click with 500, and its "
+       "bytes are left as they are",
+       broken_read is not None and "does not parse" in broken_read and broken_click[1] == 500
+       and ledger_file.read_text(encoding="utf-8") == "{not json")
+    ledger_file.unlink()
 
     failed = [n for n, c in checks if not c]
     for n, c in checks:

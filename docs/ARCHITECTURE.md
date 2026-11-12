@@ -547,6 +547,10 @@ wizard's block is 8765, 8775, 8785). Exposes a JSON API:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/queue` | Return the scheduling queue |
+| GET | `/api/ar` | Accounts receivable from the local invoice records (read-only) |
+| GET | `/api/books?year=YYYY` | The income ledger for one tax year: payer summary, entries awaiting confirmation, gift register, form check, spending (read-only) |
+| GET | `/api/tasks` | The task register's waiting and owed split (read-only) |
+| GET | `/api/wizard-url` | The setup wizard's address on the port it bound |
 | GET | `/api/publishing-plan` | Which platforms have a direct-API publishing flag enabled |
 | GET | `/api/credentials-status` | Which platform API credentials are configured |
 | GET | `/api/status/:item_id` | Return one queue item by its queue-item `id` |
@@ -557,6 +561,7 @@ wizard's block is 8765, 8775, 8785). Exposes a JSON API:
 | POST | `/api/update-caption` | Update caption or hashtags for a platform-specific post |
 | POST | `/api/update-schedule` | Update scheduled datetime for a platform-specific post |
 | POST | `/api/delete-item` | Remove an item from the queue |
+| POST | `/api/books-status` | Confirm or void one ledger entry (`{entry_id, status}`), written by `tools/books.py` behind `finance_management` |
 
 **Security:** the server binds to `127.0.0.1` only, emits no wildcard CORS header, requires
 `Content-Type: application/json` on POSTs, rejects mutating requests carrying a foreign `Origin`
@@ -571,14 +576,20 @@ permalink, and error. A file that does not parse, or is not `{"queue": [...]}`, 
 `<name>.corrupt.<UTC stamp>.bak` and read as an empty schedule with a note the dashboard shows, so
 the next save leaves that copy in place <!-- verify: tools/dashboard/server.py::_load_queue -->.
 
-**Five views:**
+**Seven views:**
 1. **Queue** (default) — cards per content item with platform toggle switches, status dots, and
    per-platform date/time pickers.
 2. **Calendar** — monthly grid with posts color-coded by platform.
 3. **Status** — table of all posts with current status, scheduled time, permalink, and error.
-4. **Credentials** — traffic-light indicators per platform linking to the setup wizard's
+4. **AR** — money owed on the local invoice records, by age, with the chase queue. Read-only.
+5. **Books** — one tax year of the income ledger: cash per payer and per month, entries awaiting
+   confirmation with Confirm and Void buttons, gifted products with their price source, forms
+   checked against the ledger, and spending (ADR 0086). The buttons are offered while
+   `finance_management` is on; the click goes to `tools/books.py`, which holds the ledger's rules
+   <!-- verify: tools/dashboard/server.py::_books_status -->.
+6. **Credentials** — traffic-light indicators per platform linking to the setup wizard's
    `/publishing-setup` screens for OAuth credential configuration.
-5. **Edit** (modal) — caption textarea with character count, hashtag editor, content type selector,
+7. **Edit** (modal) — caption textarea with character count, hashtag editor, content type selector,
    media URL field, FTC disclosure dropdown, AIGC flag toggle (TikTok only).
 
 **Compliance on confirm:** when the creator clicks "Confirm and Schedule," `/api/schedule` runs the
