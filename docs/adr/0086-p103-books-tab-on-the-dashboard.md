@@ -30,17 +30,20 @@ carries another site's Origin.
    the ledger's lock. With the switch off the reply is 409 with the reason and the tab offers no
    buttons; an id the ledger does not hold is 404; a ledger that does not parse, or an error
    the ledger raises, is 500 and the ledger's bytes are left as they are. The dashboard checks
-   two things before the call, the id's form (lower-case hex; an id written by hand in another
-   form is listed and its click answers 400) and the status; what makes an entry valid, how
+   two things before the call, the id's form (`BK-`, eight ASCII digits, a hyphen and eight
+   lower-case hex digits; an id written by hand in another form is listed and its click answers
+   400) and the status; what makes an entry valid, how
    totals are computed and how the file is written stay in `tools/books.py`. A click that
    changes an entry also sets the ledger's `last_updated` and re-serialises the file, and a
    click made with the switch on takes the ledger's lock, which leaves an empty
    `income-ledger.local.json.lock` beside it.
 3. **Another site's request is refused; a program on this computer is not.** The route sits
    in `POST_ROUTES`, behind the Origin check and the JSON-only body reader `do_POST` already
-   applies, so a page on another site cannot send the click. A request with no Origin header, as
-   a local script sends, is accepted, as it is on the scheduling routes. `books.set_status` has
-   two callers, this route and the `books.py` command line; the books MCP tools do not call it.
+   applies: a request that carries another site's Origin is refused with 403 before the route
+   runs (`_origin_ok`, whose cases cover another host, another port, another scheme and the value
+   `null`). A request with no Origin header, as a local script sends, is accepted, as it is on
+   the scheduling routes. `books.set_status` has two callers outside the selftests, this route
+   and the `books.py` command line; the books MCP tools do not call it.
 4. **The selftest's ledger is a temporary one.** `tools/books.py` reads its root at each call, so
    the dashboard selftest sets `CREATOR_OS_ROOT` to a temporary folder for its run: the GET and
    POST pins, which drive every route, read and write a ledger there.

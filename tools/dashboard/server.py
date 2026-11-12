@@ -215,7 +215,7 @@ def _new_platform_entry():
 
 # P103 (ADR 0086): the Books tab. The ledger's rules stay in tools/books.py; these read it for
 # one tax year and pass the person's Confirm or Void click to books.set_status.
-_BOOKS_ID_RE = re.compile(r"BK-\d{8}-[0-9a-f]{8}\Z")
+_BOOKS_ID_RE = re.compile(r"BK-[0-9]{8}-[0-9a-f]{8}\Z")
 
 
 def _books_year(query, today=None):
@@ -223,7 +223,7 @@ def _books_year(query, today=None):
     next year, else this year."""
     from datetime import date as _date
     today = today or _date.today()
-    m = re.search(r"(?:^|&)year=(\d{4})(?:&|$)", query or "")
+    m = re.search(r"(?:^|&)year=([0-9]{4})(?:&|$)", query or "")
     year = int(m.group(1)) if m else today.year
     return year if 2000 <= year <= today.year + 1 else today.year
 
@@ -243,7 +243,7 @@ def _books_payload(year, config=None):
     except ValueError as exc:
         raise ValueError(f"{costs_path.name} does not parse as JSON ({exc}); it was left as it is") from None
     entries = costs.get("entries") if isinstance(costs, dict) else None
-    spending = [e for e in (entries or [])
+    spending = [e for e in (entries if isinstance(entries, list) else [])
                 if isinstance(e, dict) and str(e.get("date") or "")[:4] == str(year)]
     proposed = [e for e in ledger["entries"]
                 if isinstance(e, dict) and e.get("tax_year") == year and e.get("status") == "proposed"]
@@ -254,7 +254,11 @@ def _books_payload(year, config=None):
             "gifts": books.gift_register(year, ledger),
             "form_check": books.form_check(year, ledger),
             "spending": spending, "human_review_required": True}
-    json.dumps(view, allow_nan=False)  # a NaN or Infinity in a hand-edited file is an error here
+    try:
+        json.dumps(view, allow_nan=False)  # a NaN or Infinity that would reach the reply is an error
+    except ValueError:
+        raise ValueError(f"{books.ledger_path().name} or {costs_path.name} holds a number JSON cannot carry "
+                         "(NaN or Infinity) among this year's figures; correct it in the file") from None
     return view
 
 
@@ -371,8 +375,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 return self._json_response({"error": str(exc)}, status=500)
 
         if path == "/api/books":
-            # P103: the income ledger for one tax year, read through tools/books.py. Real money
-            # data; the server binds localhost only and this route never writes.
+            # P103: one tax year of the books (the income ledger through tools/books.py, spending
+            # from the cost-actuals file). Real money data; the server binds localhost only. The
+            # selftest compares the files under its root around this read.
             try:
                 return self._json_response(_books_payload(_books_year(parsed.query)))
             except Exception as exc:  # noqa: BLE001
@@ -680,7 +685,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         try:
             reply, status = _books_status(body)
         except Exception as exc:  # noqa: BLE001 - a click gets a reply, whatever the ledger raises
-            reply, status = {"error": str(exc)}, 500
+            reply, status = {"error": str(exc) or type(exc).__name__}, 500
         self._json_response(reply, status=status)
 
 
@@ -1560,11 +1565,14 @@ def _selftest_checks() -> int:
         origin = DashboardHandler.__new__(DashboardHandler)
         answers = []
         for sent in ("http://127.0.0.1:8776", "http://localhost:8776",
-                     "http://127.0.0.1:8766", "http://localhost:8766"):
+                     "http://127.0.0.1:8766", "http://localhost:8766",
+                     "http://other-site.example", "null", "https://127.0.0.1:8776",
+                     "http://127.0.0.1.other-site.example:8776", ""):
             origin.headers = {"Origin": sent}
             answers.append(origin._origin_ok())
-        ok("the same-origin check follows the port main() bound, for 127.0.0.1 and localhost",
-           answers == [True, True, False, False])
+        ok("the same-origin check follows the port main() bound, for 127.0.0.1 and localhost, and refuses "
+           "another host, the value null, another scheme, a host that starts with 127.0.0.1 and an empty value",
+           answers == [True, True, False, False, False, False, False, False, False])
         bound.clear()
         refuse.clear()
         refuse[8766] = _errno_port.EADDRINUSE
@@ -1735,8 +1743,8 @@ def _selftest_checks() -> int:
     ok("the Books year is the four-digit year asked for, from 2000 to next year, else this year",
        [_books_year(q, today=_bdate(2026, 6, 1)) for q in
         ("year=2025", "x=1&year=2027", "year=1999", "year=2028", "year=20260", "ayear=2025", "",
-         "year=2000", "year=20250", "year=02025")]
-       == [2025, 2027, 2026, 2026, 2026, 2026, 2026, 2000, 2026, 2026])
+         "year=2000", "year=20250", "year=02025", "year=\u0662\u0660\u0662\u0665")]
+       == [2025, 2027, 2026, 2026, 2026, 2026, 2026, 2000, 2026, 2026, 2026])
     ledger_file = books.ledger_path()
     before_refusals = ledger_file.read_bytes()
     refusals = [_books_status({"entry_id": "../" + cash_id, "status": "void"}, books_on),
@@ -1747,11 +1755,14 @@ def _selftest_checks() -> int:
                 _books_status(["not", "an", "object"], books_on),
                 _books_status({"entry_id": 7, "status": "void"}, books_on),
                 _books_status({"entry_id": cash_id[:-8] + "ABCDEF12", "status": "void"}, books_on),
-                _books_status({"entry_id": cash_id + "\n", "status": "void"}, books_on)]
+                _books_status({"entry_id": cash_id + "\n", "status": "void"}, books_on),
+                # the id's date in Arabic-Indic digits, which \d would take
+                _books_status({"entry_id": "BK-\u0662\u0660\u0662\u0666\u0660\u0663\u0660\u0664" + cash_id[11:],
+                               "status": "void"}, books_on)]
     ok("a Books click with an id that is not a ledger id or a status other than confirmed or void is "
        "400, an id the ledger does not hold is 404, and one made with finance_management off is 409 "
        "with the reason; none of them changes the ledger",
-       [s for _r, s in refusals] == [400, 400, 400, 404, 409, 400, 400, 400, 400]
+       [s for _r, s in refusals] == [400, 400, 400, 404, 409, 400, 400, 400, 400, 400]
        and "finance_management is off" in refusals[4][0]["error"]
        and ledger_file.read_bytes() == before_refusals)
     confirmed = _books_status({"entry_id": cash_id, "status": "confirmed"}, books_on)
@@ -1820,6 +1831,35 @@ def _selftest_checks() -> int:
        "date are left out, and one that does not parse is reported by name",
        list_costs == [] and mixed_costs == [{"date": "2025-03-01", "vendor": "v"}]
        and "cost-actuals.local.json does not parse" in broken_costs)
+    odd_entries = []
+    for body in ('{"entries": 5}', '{"entries": true}', '{"entries": "2025-01-01"}',
+                 '{"entries": {"k": {"date": "2025-01-01"}}}'):
+        costs_file.write_text(body, encoding="utf-8")
+        odd_entries.append(_books_payload(2025, config=books_on)["spending"])
+    costs_file.write_bytes(b'{"entries": "\xff\xfe"}')
+    try:
+        _books_payload(2025, config=books_on)
+        bad_bytes = ""
+    except ValueError as exc:
+        bad_bytes = str(exc)
+    costs_file.unlink()
+    costs_file.mkdir()
+    try:
+        _books_payload(2025, config=books_on)
+        folder_read = "read"
+    except OSError:
+        folder_read = "OSError"
+    except ValueError:
+        folder_read = "ValueError"
+    costs_file.rmdir()
+    ok("an entries value in the cost-actuals file that is not a list reads as no spending; a file that is "
+       "not UTF-8, or does not parse, is reported by its name without its folder and with the parser's "
+       "reason; a folder at its path is the system's error",
+       odd_entries == [[], [], [], []]
+       and bad_bytes.startswith("cost-actuals.local.json does not parse as JSON (") and "utf-8" in bad_bytes
+       and broken_costs.startswith("cost-actuals.local.json does not parse as JSON (Expecting")
+       and folder_read == "OSError")
+    good_ledger_text = ledger_file.read_text(encoding="utf-8")
     nan_ledger = json.loads(ledger_file.read_text(encoding="utf-8"))
     for entry in nan_ledger["entries"]:
         if entry.get("tax_year") == 2025 and entry.get("status") == "proposed":
@@ -1830,6 +1870,53 @@ def _selftest_checks() -> int:
         nan_read = ""
     except ValueError as exc:
         nan_read = str(exc)
+
+    def _number_read(year, config):
+        try:
+            _books_payload(year, config=config)
+            return ""
+        except ValueError as exc:
+            return str(exc)
+    nan_reason = ("income-ledger.local.json or cost-actuals.local.json holds a number JSON cannot carry "
+                  "(NaN or Infinity) among this year's figures; correct it in the file")
+    nan_off = _number_read(2025, {"capabilities": {"finance_management": False}})
+    nan_other_year = _number_read(2026, books_on)
+    for entry in nan_ledger["entries"]:
+        if entry.get("tax_year") == 2025 and entry.get("status") == "proposed":
+            entry["notes"] = float("inf")
+    ledger_file.write_text(json.dumps(nan_ledger), encoding="utf-8")
+    inf_read = _number_read(2025, books_on)
+    ledger_file.write_text(good_ledger_text, encoding="utf-8")
+    costs_file.write_text('{"entries": [{"date": "2025-01-01", "amount": NaN}]}', encoding="utf-8")
+    nan_cost = _number_read(2025, books_on)
+    costs_file.unlink()
+    with_nan_form = json.loads(good_ledger_text)
+    with_nan_form["forms_received"] = [{"tax_year": 2025, "payer": "Hearthline Example Co", "form": float("nan"),
+                                        "amount": "75.00"}]
+    ledger_file.write_text(json.dumps(with_nan_form), encoding="utf-8")
+    nan_form = _number_read(2025, books_on)
+    ok("a NaN or an Infinity that would reach the reply, from a ledger entry, a form on file or the "
+       "cost-actuals file, with recording on or off, is an error that names the two files; one in another "
+       "year's entry is not",
+       nan_read == nan_reason and nan_off == nan_reason and inf_read == nan_reason and nan_cost == nan_reason
+       and nan_form == nan_reason and nan_other_year == "")
+    saved_set, raised = books.set_status, []
+
+    def _raiser(exc):
+        def raise_it(*_a, **_k):
+            raise exc
+        return raise_it
+    try:
+        for exc in (OSError("disk full"), AssertionError()):
+            books.set_status = _raiser(exc)
+            DashboardHandler._handle_books_status(
+                type("_R", (), {"_json_response": lambda self, data, status=200: raised.append((status, data))})(),
+                {"entry_id": cash_id, "status": "void"})
+    finally:
+        books.set_status = saved_set
+    ok("a click answers 500 with the reason of an error of another type, and with the error's type when "
+       "its reason is empty",
+       raised == [(500, {"error": "disk full"}), (500, {"error": "AssertionError"})])
     ledger_file.write_text(json.dumps({"entries": ["not an object"], "forms_received": []}), encoding="utf-8")
     read.do_GET()
     odd_click = []
@@ -1842,8 +1929,9 @@ def _selftest_checks() -> int:
         books._write_allowed = saved_gate
     ok("a ledger value JSON cannot carry is an error of the Books read, and a ledger whose entries are not "
        "objects answers 500 on the read route and on a click",
-       "JSON compliant" in nan_read and len(read_replies) == 2 and read_replies[1][0] == 500
-       and [s for s, _d in odd_click] == [500] and bool(odd_click[0][1].get("error"))
+       nan_read == nan_reason and len(read_replies) == 2 and read_replies[1][0] == 500
+       and [s for s, _d in odd_click] == [500]
+       and odd_click[0][1].get("error") == "'str' object has no attribute 'get'"
        and json.loads(ledger_file.read_text(encoding="utf-8"))["entries"] == ["not an object"])
     ledger_file.write_text("{not json", encoding="utf-8")
     read.do_GET()
