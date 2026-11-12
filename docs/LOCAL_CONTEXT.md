@@ -139,7 +139,8 @@ account by address: a contact's address resolves, an address on the account's we
 homepage address) or a subdomain of it is a candidate for the human to confirm, a domain on
 `FREE_MAIL_DOMAINS` is not matched by domain, and a display name that names one account (as
 `accounts.resolve` reads it) that the address does not belong to is flagged. `tools/mail_triage.py` uses it to sort inbound mail a session read through its own Gmail
-connector into piles (the `mail_triage` MCP tool; ADR 0084); it writes nothing. It is READ-ONLY (no write modes at all), CREATOR_OS_ROOT-sandboxed, carries `computed_by`
+connector into piles (the `mail_triage` MCP tool, which Claude Desktop, Codex and Antigravity start on
+stdio; ADR 0084 and ADR 0085); it writes nothing. It is READ-ONLY (no write modes at all), CREATOR_OS_ROOT-sandboxed, carries `computed_by`
 and `gaps[]`, and degrades to an empty result plus a gap on a fresh clone. Contacts are PII, so the
 `contact_lookup` and `deal_status` MCP tools (and the `--redacted` CLI flag) mask names to initials <!-- verify: tools/accounts.py::deal_status -->
 and emails to a stub for anything quoted off this machine; the raw result is for the human operator

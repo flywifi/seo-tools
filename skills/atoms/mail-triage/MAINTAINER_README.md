@@ -7,7 +7,8 @@ purpose: preserve the non-negotiable operating rules for mail-triage so it stays
 
 ## Purpose
 Sorting inbound mail the session read through its own Gmail connector, realized by
-`tools/mail_triage.py` (the `mail_triage` MCP tool on Claude Desktop). It ends at the pile and the
+`tools/mail_triage.py` (the `mail_triage` MCP tool on Claude Desktop, Codex and Antigravity, each of
+which starts the server on stdio; ADR 0085). It ends at the pile and the
 next step: pitches go to `pitch_triage`, receipts to the hub Inbox as `.eml` files, and the person
 replies in Gmail.
 

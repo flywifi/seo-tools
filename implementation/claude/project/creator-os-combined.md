@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-11-04 (Creator OS baseline 8e62f32c). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-11-08 (Creator OS baseline 5411a5d4). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS - combined knowledge (single-file upload)
 
@@ -3618,6 +3618,13 @@ setup wizard connected Google locally, a connection it set up from this version 
 read-only until you tick Gmail sending on the wizard's Google screen; a connection an older
 version set up keeps every Gmail tool until you save that box or set Google up again, and the
 screen says which you have. The built-in connector asks before each send.
+
+The same sorting runs in Codex (the ChatGPT desktop app's Codex view, and the codex command) and
+in Antigravity (the agy command and the IDE; the Antigravity app once its own settings file holds
+the entry) once the setup wizard's Install screen has added Creator OS there with its Add to Codex
+or Add to Antigravity button. Codex reads mail with OpenAI's Gmail plugin (install it in Codex
+under Plugins); Antigravity needs a Gmail tool of its own, which the setup guide describes. Both
+can also draft or change mail when asked; Creator OS asks them to read.
 
 ## Switching between Claude, ChatGPT, and Gemini
 

@@ -223,6 +223,10 @@ args = ["/ABSOLUTE/PATH/seo-tools/tools/mcp_server.py"]
 ```
 Or: `codex mcp add creator-os -- /ABSOLUTE/PATH/.venv/bin/python3 /ABSOLUTE/PATH/tools/mcp_server.py`
 
+The setup wizard writes this entry for you: on its Install the Creator OS tools screen, press
+**Add to Codex and verify** (P103, ADR 0085). It keeps the file's other settings and runs the same
+handshake check as the Claude Desktop button.
+
 ```sources
 [
   {"id": "openai-connector-contract", "name": "Connect ChatGPT to MCP servers (search/fetch contract)",

@@ -3102,7 +3102,8 @@ def _apply_annotations() -> tuple:
 # ---------------------------------------------------------------------------
 #
 # Transport (P35 cross-surface / cross-AI):
-#   default (no args)  -> stdio, for a local Claude Desktop MCP server (claude_desktop_config.json).
+#   default (no args)  -> stdio, for a local MCP server entry (Claude Desktop's
+#                         claude_desktop_config.json, Codex's config.toml, Antigravity's mcp_config.json).
 #   --serve-remote     -> a remote streamable-HTTP MCP endpoint. Deploy it behind an HTTPS reverse
 #                         proxy that terminates TLS + auth (the documented model). The server adds
 #                         two in-process protections that fire for ANY network transport -- both

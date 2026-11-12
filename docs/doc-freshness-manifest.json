@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "4b2b96a8fd1a78e8f1d5ed4fae655b08bb1b97b4478cf2d77fdf5c429f0b5bbe",
+        "tools/wizard.py": "163912745ce6af4b61bd0f1779d74c507e3dca2fad878afe9873c5d0680df1ce",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "ec2bd07cec9882aac2ba9d17dac241c9932036257b1821eb907890b7404b8fbe"
+        "tools/mcp_server.py": "dc7c58ba5cf5550a093e5fa190ec8370678fa308d882080ddbbc162dd62e9ef9"
       }
     },
     "docs/TRANSITIONS.md": {

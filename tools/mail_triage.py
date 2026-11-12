@@ -2,7 +2,8 @@
 """Mail triage for inbound brand mail (P103 WP2b). Offline, read-only, proposal-only.
 
 A chat session reads the creator's inbound mail through its own Gmail connector and hands the
-messages here (the mail_triage MCP tool on Claude Desktop, or a JSON file on the command line).
+messages here (the mail_triage MCP tool on Claude Desktop, Codex or Antigravity, or a JSON file on the
+command line).
 For each message this module:
   - screens the sender's display name and From header, the subject, the body, the Message-ID, the
     date and the link with the offline pattern tier (tools/injection_scan.py, pass 1); a QUARANTINE
