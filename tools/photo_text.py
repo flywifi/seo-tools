@@ -48,17 +48,29 @@ class PhotoRefused(Exception):
     """A photo the reader does not take; its message is the gap shown to the person."""
 
 
+_BMP_HEADER_SIZES = frozenset({12, 40, 52, 56, 64, 108, 124})  # the sizes a bmp's info header takes
+NOT_A_PICTURE = "the photo could not be read as a picture"   # opens the gap for a file the reader could not decode
+
+
+def _open_photo(path, image_open):
+    """The picture, opened with the PHOTO_FORMATS decoders alone (image_open is PIL.Image.open)."""
+    return image_open(path, formats=PHOTO_FORMATS)
+
+
 def looks_like_photo(path):
-    """True when the file's opening bytes are those of a png, jpeg, webp, tiff or bmp picture. The
-    suffix is a name; this is the content. A file that cannot be opened is not a photo."""
+    """True when the file's opening bytes match a png, jpeg, webp, tiff (BigTIFF too) or bmp
+    signature; for bmp that is "BM" and a header size the format defines. The suffix is a name;
+    this is the first 18 bytes of the content, and what follows them is not looked at. A file that
+    cannot be opened is not a photo."""
     try:
         with open(path, "rb") as fh:
-            head = fh.read(12)
+            head = fh.read(18)
     except OSError:
         return False
     return (head.startswith(b"\x89PNG\r\n\x1a\n") or head.startswith(b"\xff\xd8\xff")
-            or (head[:4] == b"RIFF" and head[8:12] == b"WEBP") or head[:4] in (b"II*\x00", b"MM\x00*")
-            or (head[:2] == b"BM" and head[6:10] == b"\x00\x00\x00\x00"))
+            or (head[:4] == b"RIFF" and head[8:12] == b"WEBP")
+            or head[:4] in (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")
+            or (head[:2] == b"BM" and len(head) == 18 and int.from_bytes(head[14:18], "little") in _BMP_HEADER_SIZES))
 
 
 def _blank():
@@ -121,7 +133,7 @@ def _rapidocr_reader(path):
     import numpy as np
     from PIL import Image, ImageOps
     from rapidocr import RapidOCR
-    with Image.open(path, formats=PHOTO_FORMATS) as im:
+    with _open_photo(path, Image.open) as im:
         width, height = im.size
         if width * height > MAX_PIXELS:
             raise PhotoRefused(f"the photo is {width} by {height} pixels, over the {MAX_PIXELS} the reader takes; "
@@ -148,7 +160,7 @@ def read_here(path, reader=None):
         out["gaps"].append(str(exc))
         return out
     except Exception as exc:  # noqa: BLE001 - a picture the reader cannot open or read is a gap
-        out["gaps"].append(f"the photo could not be read as a picture ({type(exc).__name__}); type the entry in")
+        out["gaps"].append(f"{NOT_A_PICTURE} ({type(exc).__name__}); type the entry in")
         return out
     out["engine"] = engine
     if not txts:
@@ -269,7 +281,10 @@ def selftest():
     ok("an amount written with USD at a line's end is set off too, and a run of over 40 blanks is left alone",
        space_amounts("Kit 1 USD 7.25\nFee USD7.25\n") == "Kit  1  USD 7.25\nFee  USD7.25\n"
        and space_amounts("Kit" + " " * 41 + "$5.00\n") == "Kit" + " " * 41 + "$5.00\n"
-       and space_amounts("Kit" + " " * 40 + "$5.00\n") == "Kit  $5.00\n")
+       and space_amounts("Kit" + " " * 40 + "$5.00\n") == "Kit  $5.00\n"
+       and space_amounts("Kit $5.00" + " " * 41 + "\n") == "Kit $5.00" + " " * 41 + "\n"
+       and space_amounts("Kit $5.00" + " " * 40 + "\n") == "Kit  $5.00\n"
+       and space_amounts("Kit 2" + " " * 41 + "$5.00\n") == "Kit 2" + " " * 41 + "$5.00\n")
     import time
     t0 = time.monotonic()
     blanks = space_amounts("Order total" + " " * TEXT_MAX + "x\n" + "\t" * TEXT_MAX + "$1.00\n")
@@ -313,7 +328,7 @@ def selftest():
        and "no text was found" in none["gaps"][0] and none["engine"] == "stub 1.0"
        and missing["gaps"] == [f"{SETUP_HINT} (ImportError)"] and missing["engine"] is None
        and refused["gaps"] == ["the photo is too large"]
-       and "could not be read as a picture (OSError)" in broken["gaps"][0])
+       and broken["gaps"][0] == f"{NOT_A_PICTURE} (OSError); type the entry in")
     long_text = read_here("x.jpg", reader_of(([_box(0, 0, 9000, 30)], ["x" * (TEXT_MAX + 50)], [0.9], "stub 1.0")))
     ok("the text kept is cut at TEXT_MAX characters", len(long_text["text"]) == TEXT_MAX)
 
@@ -377,8 +392,11 @@ def selftest():
         ok("a file of exactly MAX_BYTES reaches the reader", len(calls) == n + 1)
         n = len(calls)
         heads = {"a.png": b"\x89PNG\r\n\x1a\n", "b.jpg": b"\xff\xd8\xff\xe0", "c.webp": b"RIFF\x10\x00\x00\x00WEBP",
-                 "d.tif": b"II*\x00", "e.tiff": b"MM\x00*", "f.bmp": b"BM\x10\x00\x00\x00\x00\x00\x00\x00"}
+                 "d.tif": b"II*\x00", "e.tiff": b"MM\x00*", "f.bmp": b"BM" + b"\x07" * 12 + b"\x28\x00\x00\x00",
+                 "m.tif": b"II+\x00", "n.tiff": b"MM\x00+", "o.bmp": b"BM" + b"\x00" * 12 + b"\x7c\x00\x00\x00"}
         fakes = {"g.jpg": b"Order total $5.00\n", "h.jpg": b"%!PS-Adobe-3.0 EPSF-3.0\n", "i.png": b"",
+                 "p.jpg": b"\xff\xd8 Order total $5.00\n", "q.tif": b"IIxx Order total $5.00\n",
+                 "r.bmp": b"BM" + b"\x00" * 12 + b"\x29\x00\x00\x00", "s.bmp": b"BM" + b"\x00" * 12 + b"\x28\x00\x00",
                  "j.webp": b"RIFF\x10\x00\x00\x00WAVE", "k.bmp": b"BMW sells cars\n", "l.png": b"\x89PNG"}
         for name, head in {**heads, **fakes}.items():
             (Path(td) / name).write_bytes(head)
@@ -390,7 +408,8 @@ def selftest():
            and all(looks_like_photo(Path(td) / name) for name in heads)
            and not any(looks_like_photo(Path(td) / name) for name in fakes)
            and looks_like_photo(Path(td) / "absent.png") is False
-           and PHOTO_FORMATS == ("PNG", "JPEG", "WEBP", "TIFF", "BMP"))
+           and PHOTO_FORMATS == ("PNG", "JPEG", "WEBP", "TIFF", "BMP")
+           and _open_photo("x.png", lambda path, **kw: (path, kw)) == ("x.png", {"formats": PHOTO_FORMATS}))
         saved = env_paths.app_python
         try:
             env_paths.app_python = lambda *a, **k: "py-app"

@@ -95,8 +95,10 @@ extracts; a flagged text, a changed file, a file over 2 MB, a format the label d
 missing screener refuses the file, and `pass2_pending` stays true. While `photo_receipts` is on,
 `label_formats` adds the photo formats (`PHOTO_LABELS`, up to the photo reader's 20 MB) <!-- verify: tools/handoff/inbox.py::label_formats -->:
 the text screened is what `tools/photo_text.py::read_image` returns, the record's `read` is
-`photo_text`, and a photo the reader returned no text for is accepted with no screen record and
-the reader's reasons in its note. The switch is read only for a file in a photo format. `plan_followups` gives an
+`photo_text`, a file with a photo suffix whose opening bytes do not match a picture's signature
+(`photo_text.looks_like_photo`) or that the reader could not decode is refused, and a photo the
+reader returned no text for otherwise is accepted with no screen record and the reader's reasons
+in its note. The switch is read only for a file in a photo format. `plan_followups` gives an
 approved receipt a `review: "receipt"` follow-up with no job. There are TWO sanctioned
 writers, and both move by REALPATH containment (never a raw `hub / rel`: `approve` resolves the
 file a proposal names, so a symlink is judged by its target, and the sweep resolves the folder of

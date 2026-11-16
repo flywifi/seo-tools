@@ -34,13 +34,14 @@ stdlib-only tools do not have, and text a model read can carry a wrong digit tha
    added. A lowest reader score under 0.80 adds a gap naming it.
 5. **The label.** While the switch is on, `inbox.label_formats` adds the photo formats to the
    receipt label on the wizard's Inbox screen, and `person_labelled` screens the text the reader
-   returns before the file is routed. A file with a photo suffix whose opening bytes are not a
-   png, jpeg, webp, tiff or bmp picture's (`photo_text.looks_like_photo`) is refused and left in
-   the Inbox, and `read_image` returns a gap for it without starting the reader; the reader opens a
-   picture with those five Pillow decoders. A picture the reader returns no text for (no reader
-   installed, a picture it could not decode, a read that did not finish, a photo on its side or
-   over the pixel limit, or no text found) is accepted with no screen record, as a PDF with no
-   readable text is, and the note carries the reader's reasons.
+   returns before the file is routed. A file with a photo suffix whose opening bytes do not
+   match a png, jpeg, webp, tiff or bmp signature (`photo_text.looks_like_photo`) is refused and
+   left in the Inbox, and `read_image` returns a gap for it without starting the reader; the
+   reader opens a picture with those five Pillow decoders (`_open_photo`), and a file it could not
+   decode is refused too. A photo the reader returns no text for otherwise (no reader installed, a
+   read that did not finish, a photo on its side or over the pixel limit, or no text found) is
+   accepted with no screen record, as a PDF with no readable text is, and the note carries the
+   reader's reasons.
 6. **The chat session as the other reader.** The read-only MCP tool `receipt_from_text` takes the
    text a session copied from a photo, with the photo's hub path and its fingerprint from the
    inbox ledger, and returns `receipt_extract.extract_text`'s proposal under decisions 3 and 4.
@@ -54,7 +55,11 @@ stdlib-only tools do not have, and text a model read can carry a wrong digit tha
 - The wizard reads a labelled photo twice in one approval (once to screen it at the label step,
   once for the work order), and the work order screen reads each pending photo again when it is
   opened; each read has the reader's 120 second limit.
-- `space_amounts` leaves a run of over 40 blanks before an amount as it is.
+- `space_amounts` leaves a line as it is when a run of over 40 blanks sits before its amount,
+  between a quantity and the amount, or after the amount.
+- `looks_like_photo` reads a file's first 18 bytes. A file that opens with a picture's signature
+  and holds something else is refused when the installed reader fails to decode it; with no
+  reader installed it is accepted with no screen record, as any photo is then.
 - heic and gif are not taken: the reader's decoder was not run on them. A phone that saves HEIC
   photos needs them converted, or the session path.
 - A photo turned a quarter is reported and not read; a photo turned upside down gives rows in
