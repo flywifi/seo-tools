@@ -50,7 +50,7 @@
     },
     "docs/WIZARD.md": {
       "sources": {
-        "tools/wizard.py": "163912745ce6af4b61bd0f1779d74c507e3dca2fad878afe9873c5d0680df1ce",
+        "tools/wizard.py": "31a35faa6a18a0770d64404e543aae268ea36afeba1e6ffab02bf5060fe21985",
         "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a"
       }
     },
@@ -65,7 +65,7 @@
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "dc7c58ba5cf5550a093e5fa190ec8370678fa308d882080ddbbc162dd62e9ef9"
+        "tools/mcp_server.py": "76ebda704cd4785ac30a67e0c6cd0a6add0f337ec15a5df0bc73b607adbf7e08"
       }
     },
     "docs/TRANSITIONS.md": {
@@ -136,7 +136,7 @@
         "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
         "tools/handoff/watcher.py": "5430e3462ba9b39418064c289de5d1fc7533b3c6de657f4f33209447a92bc87f",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "71e30d53ac18dbde25b77d16a537f345da1dab81a6e3d851d1ee53b5531a9991",
+        "tools/handoff/inbox.py": "39892da38745e5f0d0ebf1555638421c4f8d58cb7f26603a439a8140cbe17d44",
         "shared/docintel/inbox_rules.json": "62ad9d928bbdeefe9ec98a04e57d46e964fdad6dcd695507a67031907e5a67df",
         "tools/project_docs.py": "4225fa31df2132aa73de9a117972b2f8994badd47764d43b43f830ce69bfff47"
       }
@@ -147,7 +147,7 @@
         "tools/handoff/runner.py": "ea6b622bdf827747eb366c4e18c368de81f44f4de68605f35384bde0e612de2f",
         "tools/handoff/watcher.py": "5430e3462ba9b39418064c289de5d1fc7533b3c6de657f4f33209447a92bc87f",
         "tools/handoff/drive_api.py": "8c6d2b7f22898c0799e617f92e098a83b82b331361525249bc14994e37aa8e1a",
-        "tools/handoff/inbox.py": "71e30d53ac18dbde25b77d16a537f345da1dab81a6e3d851d1ee53b5531a9991",
+        "tools/handoff/inbox.py": "39892da38745e5f0d0ebf1555638421c4f8d58cb7f26603a439a8140cbe17d44",
         "shared/docintel/inbox_rules.json": "62ad9d928bbdeefe9ec98a04e57d46e964fdad6dcd695507a67031907e5a67df"
       }
     }

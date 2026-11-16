@@ -224,7 +224,8 @@ a **two-step work order** (P61): the first click files the batch and records it 
 a second screen lists the exact follow-up jobs with a checkbox each and an "Anything to change?"
 note, and a second click queues only the checked jobs. The note is attached to the work for review
 (the ticket `consent_note`); it never changes what runs. A document waiting for a session can be
-ticked as a receipt or payment notice (P103): its text is checked by the offline pattern tier, and
+ticked as a receipt or payment notice (P103; a photo too while the `photo_receipts` switch is on,
+read by the optional local reader, ADR 0087): its text is checked by the offline pattern tier, and
 the work order shows the entry the receipt reader proposes, with editable fields and a tick, off by
 default, that records it in the books (`tools/books.py`, gated on `finance_management`). A receipt
 filed but not recorded waits on `/inbox-receipts`. A **Background work: ON/OFF** banner on

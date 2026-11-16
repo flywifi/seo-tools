@@ -39,6 +39,7 @@ sys.path.insert(0, str(ROOT))
 
 from shared.docintel import classify as _classify  # noqa: E402
 from atomic_io import locked as _locked  # noqa: E402
+import photo_text as _photo  # noqa: E402
 
 RULES_PATH = ROOT / "shared" / "docintel" / "inbox_rules.json"
 LEDGER_PATH = ROOT / "pipeline" / "inbox" / "inbox-ledger.local.json"
@@ -513,9 +514,27 @@ def plan_followups(moved_entries) -> list:
 # (P103, ADR 0083), and the formats each may be assigned to.
 PERSON_LABELS = {"invoice_receipt": frozenset({"pdf", "docx", "txt", "md", "html", "htm", "eml"})}
 _LABEL_MAX_BYTES = 2_000_000
+# Photo formats the same label is offered for while the photo_receipts switch is on (ADR 0087).
+# tools/photo_text.py reads their text when its reader is installed; without it nothing is read
+# and the person types the entry, or a chat session reads the photo.
+PHOTO_LABELS = {"invoice_receipt": _photo.PHOTO_SUFFIXES}
+_PHOTO_LABEL_MAX_BYTES = _photo.MAX_BYTES
 
 
-def person_labelled(hub_root, entries, category, rules=None) -> dict:
+def label_formats(category, config=None) -> frozenset:
+    """The formats the person may label `category` on the Inbox screen: PERSON_LABELS, and
+    PHOTO_LABELS while the photo_receipts switch is on (config, else the person's config). Empty
+    for a category the screen does not offer."""
+    import obligations as _ob
+    base = PERSON_LABELS.get(category)
+    if base is None:
+        return frozenset()
+    cfg = config if config is not None else _ob.load_config()
+    return base | (PHOTO_LABELS.get(category, frozenset()) if _ob.flag_enabled(cfg, "photo_receipts")
+                   else frozenset())
+
+
+def person_labelled(hub_root, entries, category, rules=None, config=None, read_photo=None) -> dict:
     """{"proposals", "refused"}: needs_review entries the person labelled `category` on the Inbox
     screen, made into proposal entries approve() accepts. A category outside PERSON_LABELS, a format
     it does not cover, a file that moved, changed since the scan, is over 2 MB or resolves outside
@@ -527,7 +546,15 @@ def person_labelled(hub_root, entries, category, rules=None) -> dict:
     (a damaged member, text inflating past parse_text.INFLATE_MAX) is refused. A file with no
     readable text (a PDF whose text parse_text does not decode) is accepted with no screen record:
     nothing is read from it, and the person types the entry. A REVIEW verdict is accepted with a
-    note. pass2_pending stays True. Reads files, writes nothing."""
+    note. pass2_pending stays True. Reads files, writes nothing. While the photo_receipts switch is
+    on (config, else the person's config) a photo in PHOTO_LABELS is taken too, up to the photo
+    reader's size limit: its text is what tools/photo_text.py reads (read_photo stands in for
+    photo_text.read_image) and goes through the same tier. A file with a photo suffix whose opening
+    bytes do not match a picture's signature (photo_text.looks_like_photo) is refused before it is
+    read, and one the reader could not decode (its gap opens with photo_text.NOT_A_PICTURE) is
+    refused after. A photo the reader returns no text for otherwise (no reader installed, a read
+    that did not finish, a photo on its side or over the pixel limit, or no text found) is accepted
+    with no screen record and the reader's reasons in the note: nothing was read from it."""
     from shared.docintel import parse_text as _pt
     hub = Path(hub_root)
     rule = (load_rules() if rules is None else rules).get(category) or {}
@@ -538,21 +565,38 @@ def person_labelled(hub_root, entries, category, rules=None) -> dict:
         rel = e.get("file", "")
         src, refusal = _confined_inbox_file(hub, rel)
         ext = Path(rel).suffix.lower().lstrip(".")
-        if not refusal and (allowed is None or ext not in allowed):
+        # the switch is read only for a file in a photo format, so a document's label reads no config
+        photo = (allowed is not None and ext in PHOTO_LABELS.get(category, frozenset())
+                 and ext in label_formats(category, config))
+        if not refusal and (allowed is None or (ext not in allowed and not photo)):
             refusal = f"a {category} label is not offered for .{ext} files"
         if not refusal and scr is None:
             refusal = "the offline screener is unavailable, so the text cannot be checked; not routed"
-        if not refusal and src.stat().st_size > _LABEL_MAX_BYTES:
+        if not refusal and photo and src.stat().st_size > _PHOTO_LABEL_MAX_BYTES:
+            refusal = "over 20 MB; type the entry in"
+        if not refusal and not photo and src.stat().st_size > _LABEL_MAX_BYTES:
             refusal = "over 2 MB; type the entry in, or ask a Claude session to read it"
         if not refusal and _sha256(src) != e.get("sha256"):
             refusal = "file changed since the scan; re-scan first"
+        if not refusal and photo and not _photo.looks_like_photo(src):
+            refusal = "its content is not a png, jpg, webp, tiff or bmp picture; left in the Inbox, never routed"
         if refusal:
             out["refused"].append({"file": rel, "why": refusal})
             continue
         # the text parts parse_text.screen_text exposes (an email's headers and parts, a document's
         # headers, footers and notes) with the parsed text; a part that could not be read whole (a
         # damaged member, the inflation budget reached) refuses the file
-        text, whole = _pt.screen_input(str(src))
+        read_as, unread = "extracted_text", "no text could be read, so the entry is typed in"
+        if photo:
+            got = (_photo.read_image if read_photo is None else read_photo)(src)
+            text, whole, read_as = got.get("text") or "", True, "photo_text"
+            unread = "; ".join(got.get("gaps") or []) or unread
+            if not text.strip() and any(str(g).startswith(_photo.NOT_A_PICTURE) for g in got.get("gaps") or []):
+                out["refused"].append({"file": rel, "why": (
+                    "the photo reader could not open it as a picture; left in the Inbox, never routed")})
+                continue
+        else:
+            text, whole = _pt.screen_input(str(src))
         if not whole:
             out["refused"].append({"file": rel, "why": (
                 "the screen could not read every part of this file (a damaged part, an email header past the "
@@ -562,7 +606,7 @@ def person_labelled(hub_root, entries, category, rules=None) -> dict:
         if text.strip():
             rec = scr.scan_text(text, artifact_id=src.name)
             record = {"risk_level": rec["risk_level"], "total_score": rec["total_score"],
-                      "patterns_detected": rec["patterns_detected"], "read": "extracted_text"}
+                      "patterns_detected": rec["patterns_detected"], "read": read_as}
             if rec["risk_level"] in ("QUARANTINE", "BLOCK"):
                 out["refused"].append({"file": rel, "why": (
                     f"the offline injection tier flagged its text ({rec['risk_level']}); left in the "
@@ -573,7 +617,7 @@ def person_labelled(hub_root, entries, category, rules=None) -> dict:
             "route_to": {"handler": rule.get("handler"), "store": rule.get("store")},
             "offline_pattern_scan": record, "pass2_pending": True,
             "note": "labelled by the person on the Inbox screen" + (
-                "; no text could be read, so the entry is typed in" if not record else
+                f"; {unread}" if not record else
                 f"; the offline tier marked its text {record['risk_level']}, so check it against the document"
                 if record["risk_level"] != "CLEAN" else "")})
     return out
@@ -1910,6 +1954,101 @@ def _selftest_checks() -> int:
     ok("a category the person may not assign, or no screener, refuses every file",
        not other["proposals"] and "not offered" in other["refused"][0]["why"]
        and not blind["proposals"] and "unavailable" in blind["refused"][0]["why"])
+    # P103 (ADR 0087): a photo takes the receipt label while photo_receipts is on. The reader is a
+    # stand-in here, so no optional package is needed.
+    ph_on, ph_off = {"capabilities": {"photo_receipts": True}}, {"capabilities": {"photo_receipts": False}}
+    for n in ("till.JPG", "till.png", "evil.jpeg", "bare.webp", "pic.heic", "late.jpg", "husk.jpg"):
+        (pl / "Inbox" / n).write_bytes(b"\xff\xd8\xff photo " + n.encode())
+    (pl / "Inbox" / "renamed.jpg").write_bytes(poison.encode("utf-8"))
+    with open(pl / "Inbox" / "huge.tiff", "wb") as fh:
+        fh.truncate(_PHOTO_LABEL_MAX_BYTES + 1)
+    with open(pl / "Inbox" / "large.bmp", "wb") as fh:
+        fh.write(b"BM" + b"\x00" * 12 + b"\x28\x00\x00\x00")
+        fh.truncate(_PHOTO_LABEL_MAX_BYTES)  # past the documents' 2 MB, at the photos' limit
+    ph = {n: {"file": f"Inbox/{n}", "sha256": _sha256(pl / "Inbox" / n)}
+          for n in ("till.JPG", "till.png", "evil.jpeg", "bare.webp", "pic.heic", "huge.tiff", "large.bmp",
+                    "late.jpg", "renamed.jpg", "husk.jpg")}
+    read_calls, read_paths = [], []
+
+    def _reader(path):
+        name = Path(path).name
+        read_calls.append(name)
+        read_paths.append(Path(path))
+        if name.startswith("late"):
+            return {"text": "Your receipt\nTotal  $4.00\n" + "Thank you for your order.\n" * 400 + poison,
+                    "engine": "stub 1.0", "lowest_score": 0.9, "gaps": []}
+        if name.startswith("husk"):
+            return {"text": "", "engine": None, "lowest_score": None,
+                    "gaps": [f"{_photo.NOT_A_PICTURE} (UnidentifiedImageError); type the entry in"]}
+        if name.startswith("evil"):
+            return {"text": poison, "engine": "stub 1.0", "lowest_score": 0.9, "gaps": []}
+        if name.startswith("bare"):
+            return {"text": "", "engine": None, "lowest_score": None,
+                    "gaps": ["the photo reader is not installed", "ask a chat session"]}
+        return {"text": "Your receipt\nTotal  $4.00\n", "engine": "stub 1.0", "lowest_score": 0.9, "gaps": []}
+    pho = person_labelled(pl, list(ph.values()), "invoice_receipt", config=ph_on, read_photo=_reader)
+    pprops = {e["file"]: e for e in pho["proposals"]}
+    pwhy = {r["file"]: r["why"] for r in pho["refused"]}
+    ok("with photo_receipts on a labelled photo becomes a proposal once the reader's text passes the tier, "
+       "a photo at the reader's size limit included",
+       sorted(pprops) == ["Inbox/bare.webp", "Inbox/large.bmp", "Inbox/till.JPG", "Inbox/till.png"]
+       and pprops["Inbox/till.JPG"]["offline_pattern_scan"]["read"] == "photo_text"
+       and pprops["Inbox/till.JPG"]["offline_pattern_scan"]["risk_level"] == "CLEAN"
+       and pprops["Inbox/till.JPG"]["category_source"] == "person"
+       and pprops["Inbox/till.JPG"]["route_to"]["handler"] == "receipt-extract"
+       and pprops["Inbox/till.JPG"]["note"] == "labelled by the person on the Inbox screen")
+    ok("a photo whose text the tier flags is refused and left in the Inbox, one over the reader's limit is "
+       "refused unread, and a format outside the photo list is not offered",
+       "flagged its text" in pwhy["Inbox/evil.jpeg"] and (pl / "Inbox" / "evil.jpeg").exists()
+       and pwhy["Inbox/huge.tiff"] == "over 20 MB; type the entry in" and "huge.tiff" not in read_calls
+       and pwhy["Inbox/pic.heic"] == "a invoice_receipt label is not offered for .heic files"
+       and "pic.heic" not in read_calls
+       and sorted(pwhy) == ["Inbox/evil.jpeg", "Inbox/huge.tiff", "Inbox/husk.jpg", "Inbox/late.jpg",
+                            "Inbox/pic.heic", "Inbox/renamed.jpg"]
+       and pwhy["Inbox/husk.jpg"] == "the photo reader could not open it as a picture; left in the Inbox, never routed"
+       and (pl / "Inbox" / "husk.jpg").exists())
+    ok("a text file renamed with a photo suffix is refused unread and left in the Inbox; a flagged line after "
+       "10,000 characters of a photo's text refuses it; the reader is handed each file's resolved path",
+       pwhy["Inbox/renamed.jpg"] == ("its content is not a png, jpg, webp, tiff or bmp picture; left in the "
+                                     "Inbox, never routed")
+       and "renamed.jpg" not in read_calls and (pl / "Inbox" / "renamed.jpg").exists()
+       and "flagged its text" in pwhy["Inbox/late.jpg"]
+       and read_paths and all(p.is_absolute() and p.is_file() and p.parent.name == "Inbox" for p in read_paths))
+    ok("a photo the reader returned no text for is proposed with no screen record and the reader's reasons "
+       "in its note",
+       pprops["Inbox/bare.webp"]["offline_pattern_scan"] is None
+       and pprops["Inbox/bare.webp"]["note"] == ("labelled by the person on the Inbox screen; the photo reader "
+                                                 "is not installed; ask a chat session"))
+    n_calls = len(read_calls)
+    pho_off = person_labelled(pl, [ph["till.JPG"]], "invoice_receipt", config=ph_off, read_photo=_reader)
+    doc_on = person_labelled(pl, [ent["order.txt"]], "invoice_receipt", config=ph_on, read_photo=_reader)
+    ok("with photo_receipts off a photo is not offered the label; a document labelled with the switch on is "
+       "read as a document; neither reaches the photo reader",
+       not pho_off["proposals"]
+       and pho_off["refused"][0]["why"] == "a invoice_receipt label is not offered for .jpg files"
+       and doc_on["proposals"][0]["offline_pattern_scan"]["read"] == "extracted_text"
+       and len(read_calls) == n_calls)
+    import obligations as _ob_pl
+    _lc_saved, _lc_calls = _ob_pl.load_config, []
+    try:
+        _ob_pl.load_config = lambda *a, **k: _lc_calls.append(1) or ph_on
+        doc_default = person_labelled(pl, [ent["order.txt"]], "invoice_receipt", read_photo=_reader)
+        _lc_docs = len(_lc_calls)
+        pho_default = person_labelled(pl, [ph["till.png"]], "invoice_receipt", read_photo=_reader)
+        empty_cfg = label_formats("invoice_receipt", {})
+    finally:
+        _ob_pl.load_config = _lc_saved
+    ok("the switch is read from the person's config when none is given, and only for a file in a photo format",
+       _lc_docs == 0 and len(doc_default["proposals"]) == 1 and len(_lc_calls) >= 1
+       and [e["file"] for e in pho_default["proposals"]] == ["Inbox/till.png"]
+       and empty_cfg == PERSON_LABELS["invoice_receipt"])
+    ok("label_formats adds the photo formats while the switch is on, and is empty for a category the screen "
+       "does not offer",
+       label_formats("invoice_receipt", ph_off) == PERSON_LABELS["invoice_receipt"]
+       and label_formats("invoice_receipt", {}) == PERSON_LABELS["invoice_receipt"]
+       and label_formats("invoice_receipt", ph_on) == PERSON_LABELS["invoice_receipt"] | _photo.PHOTO_SUFFIXES
+       and label_formats("brand_contract", ph_on) == frozenset()
+       and PHOTO_LABELS == {"invoice_receipt": _photo.PHOTO_SUFFIXES} and _PHOTO_LABEL_MAX_BYTES == 20_000_000)
     pl_led = Path(tempfile.mkdtemp()) / "pl-ledger.json"
     ap = approve(pl, {"proposals": [props["Inbox/order.txt"]]}, ledger_path=pl_led)
     fu = plan_followups(ap["moved_details"])

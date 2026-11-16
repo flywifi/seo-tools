@@ -1,0 +1,16 @@
+# Optional local reader for photographed receipts (P103, ADR 0087). NOTHING here is required:
+# tools/photo_text.py returns a gap ("the photo reader is not installed") when a package is
+# missing, and the person types the entry or a chat session reads the photo. The reader runs on
+# this computer: its recognition models ship inside the rapidocr package, and it downloads nothing
+# when it runs. It is used while the photo_receipts switch is on.
+#
+# rapidocr runs its models on a backend it does not install itself; onnxruntime is that backend,
+# so both lines are needed. rapidocr brings opencv-python-headless and numpy (also in
+# requirements-videoedit.txt), Pillow, pyclipper, Shapely, omegaconf, PyYAML, six, tqdm, requests
+# and colorlog. On Windows onnxruntime needs Microsoft's Visual C++ runtime, as faster-whisper does
+# (docs/SETUP_WINDOWS.md).
+#
+# Validated together: rapidocr 3.10.0 on onnxruntime 1.31.1, Python 3.12 on Linux x64
+# (python3 tools/photo_text.py --engine-check).
+rapidocr>=3.10
+onnxruntime>=1.31

@@ -3354,7 +3354,7 @@ def _screen_inbox(scan_result: dict | None = None, token: str = "",
                      f"<td>{html.escape(str(p.get('classified_as')))}</td>"
                      f"<td>{html.escape(str((p.get('route_to') or {}).get('handler')))}</td></tr>")
         from handoff import inbox as _inbox_lb
-        _receipt_exts = _inbox_lb.PERSON_LABELS["invoice_receipt"]
+        _receipt_exts = _inbox_lb.label_formats("invoice_receipt")  # photos too while photo_receipts is on
         review, labelable = "", 0
         for i, e in enumerate(scan_result.get("needs_review", [])):
             ext = e.get("file", "").rsplit(".", 1)[-1].lower() if "." in e.get("file", "") else ""
@@ -7657,6 +7657,24 @@ def _selftest_p101() -> int:
         _boxes = re.findall(r'name="receipt_(\d+)"', _page_rc)
         if len(_boxes) != 4 or "and the ticked receipts" not in _page_rc:
             _rc_fail.append(f"the Inbox screen does not offer the receipt tick for the four documents ({_boxes})")
+        # P103 (ADR 0087): a photo gets the receipt tick while photo_receipts is on.
+        _lf_saved = _inbox_t.label_formats
+        _photo_scan = dict(_scan_rc, proposals=[], needs_review=[
+            {"file": "Inbox/till.JPG", "sha256": "0" * 64, "category_source": "content_pending", "note": "held"},
+            {"file": "Inbox/pic.heic", "sha256": "0" * 64, "category_source": "content_pending", "note": "held"}])
+        try:
+            _inbox_t.label_formats = lambda category, config=None: _lf_saved(
+                category, {"capabilities": {"photo_receipts": True}})
+            _page_ph_on = _screen_inbox(scan_result=_photo_scan, token="PH1")
+            _inbox_t.label_formats = lambda category, config=None: _lf_saved(
+                category, {"capabilities": {"photo_receipts": False}})
+            _page_ph_off = _screen_inbox(scan_result=_photo_scan, token="PH1")
+        finally:
+            _inbox_t.label_formats = _lf_saved
+        if (re.findall(r'name="receipt_(\d+)"', _page_ph_on) != ["0"]
+                or re.findall(r'name="receipt_(\d+)"', _page_ph_off)):
+            _rc_fail.append("the Inbox screen does not offer the receipt tick for a photo while photo_receipts "
+                            "is on, or offers it with the switch off or for a format outside the photo list")
         _skip = str(next(i for i, e in enumerate(_scan_rc["needs_review"]) if e["file"].endswith("second.txt")))
         _set(inbox_batch={"token": "RC1", "hub": str(_rc_hub), "proposal": _scan_rc})
         _post_rc("/api/inbox-approve", dict({"token": "RC1"}, **{f"receipt_{i}": "on" for i in _boxes if i != _skip}))
