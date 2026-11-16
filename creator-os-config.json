@@ -252,7 +252,7 @@
     },
     "price_capture": {
       "enabled": false,
-      "description": "Price capture for gifted products (P103, ADR 0088). While on, tools/price_capture.py (the price_capture tool, or the command line) fetches the one public page the person names and reads the price that page states in its product data, to propose it with the page and the date. One request per link, to http or https on a public host; a redirect is followed on the same host; the page's text is not sent anywhere else. Recording the price is a separate step (the Books tab's price form, the price_confirm tool or tools/books.py --set-price), after the person's yes, behind finance_management.",
+      "description": "Price capture for gifted products (P103, ADR 0088). While on, tools/price_capture.py (the price_capture tool, or the command line) fetches the one public page the person names and reads the price that page states in its product data, to propose it with the page and the date. A link is fetched by http or https from a public host, with at most four requests per address tried (a redirect is followed on the same host, up to three times); the page's text is not sent anywhere else. Recording the price is a separate step (the Books tab's price form, the price_confirm tool or tools/books.py --set-price), after the person's yes, behind finance_management.",
       "requires": "Network access to the page the person names. Nothing is installed."
     },
     "invoice_generation": {

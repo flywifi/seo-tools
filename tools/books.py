@@ -344,10 +344,12 @@ def set_price(entry_id, price, price_source, price_source_ref=None, price_captur
     """Record a product entry's retail price with where it came from (the human's confirmation;
     ADR 0088). The entry must be a product that is not void. The price and its provenance go
     through validate_entry's rule (ADR 0082): a source from PRICE_SOURCES, the page for a brand or
-    retailer price, and a capture date written YYYY-MM-DD that is not after today. A refusal
-    changes nothing and lists the problems. The entry keeps its id, its status and its other
-    fields; its retail_price gap is dropped; `replaced` is the price it held before. Gated like
-    every write."""
+    retailer price, and a capture date written YYYY-MM-DD that is not after today. Two checks are
+    made here: the price must be at least one cent once rounded to cents, and the page of a brand
+    or retailer price must be a link price_capture.check_link accepts (it is stored without the
+    blanks around it; a stated price keeps the page it was given, if any). A refusal changes
+    nothing and lists the problems. The entry keeps its id, its status and its other fields; its
+    retail_price gap is dropped; `replaced` is the price it held before. Gated like every write."""
     allowed, why_not = _write_allowed(config)
     if not allowed:
         return {"updated": False, "reason": why_not}
@@ -363,14 +365,22 @@ def set_price(entry_id, price, price_source, price_source_ref=None, price_captur
                 cents = _fin.money(_num(price, "product.retail_price"))
             except ValueError as exc:
                 return {"updated": False, "problems": [str(exc)]}
+            page = price_source_ref.strip() if isinstance(price_source_ref, str) else price_source_ref
+            if price_source in ("brand_page", "retailer_page") and page:
+                import price_capture as _pc  # the link rule the price reader uses
+                if _pc.check_link(page)[0] is None:
+                    return {"updated": False, "problems": [
+                        f"product.price_source_ref: {_pc.check_link(page)[1]}"]}
             trial = json.loads(json.dumps(e))
             before = trial["product"].get("retail_price")
             trial["product"].update(retail_price=price, price_source=price_source,
-                                    price_source_ref=price_source_ref or None,
+                                    price_source_ref=page or None,
                                     price_captured_at=price_captured_at)
             problems = validate_entry(trial)
             if problems:
                 return {"updated": False, "problems": problems}
+            if cents <= 0:  # a positive amount under half a cent rounds to nothing
+                return {"updated": False, "problems": ["product.retail_price: must be at least one cent"]}
             trial["product"]["retail_price"] = str(cents)
             trial["gaps"] = [g for g in trial.get("gaps") or [] if not str(g).startswith("retail_price:")]
             e.clear()
@@ -1079,6 +1089,29 @@ def selftest():
                stated["updated"] and stated["replaced"] == now["product"]["retail_price"]
                and stated["product"]["price_source"] == "user_stated" and stated["product"]["price_source_ref"] is None
                and row["value"] == "60.00" and row["price_source"] == "user_stated", f)
+            held_bytes = ledger_path().read_bytes()
+            page_rule = [set_price(aid, "24.50", "brand_page", ref, "2026-08-02", config=on)
+                         for ref in ("   ", "-", "javascript:alert(1)", "not a link", "ftp://example.com/apron")]
+            tiny = [set_price(aid, amount, "user_stated", None, "2026-08-02", config=on)
+                    for amount in ("0.004", "0.0049999")]
+            _c("set_price refuses a brand or retailer page that is blank or not an http or https link, and a "
+               "price that rounds to no cents, and the ledger's bytes stay",
+               not any(r["updated"] for r in page_rule + tiny) and all(r.get("problems") for r in page_rule + tiny)
+               and all("price_source_ref" in r["problems"][0] for r in page_rule)
+               and tiny[0]["problems"] == tiny[1]["problems"] == ["product.retail_price: must be at least one cent"]
+               and ledger_path().read_bytes() == held_bytes, f)
+            locked_on, real_locked = [], _locked
+            set_status(aid, "confirmed", config=on)
+            globals()["_locked"] = lambda where, *a, **k: locked_on.append(Path(where)) or real_locked(where, *a, **k)
+            try:
+                kept = set_price(aid, "31", "retailer_page", f"  {page}  ", "2026-08-03", config=on)
+            finally:
+                globals()["_locked"] = real_locked
+            _c("a confirmed entry takes a price, the page is stored without the blanks around it, and the "
+               "write holds the lock of the ledger it writes",
+               kept["updated"] and kept["product"]["price_source_ref"] == page
+               and next(x for x in load_ledger()["entries"] if x["entry_id"] == aid)["status"] == "confirmed"
+               and locked_on == [ledger_path()], f)
             set_status(aid, "void", config=on)
             g = gift_register(2026)
             _c("gift register lists the priced item with its source",

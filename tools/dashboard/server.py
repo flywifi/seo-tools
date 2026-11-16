@@ -722,7 +722,6 @@ def _books_price(body, config=None):
         parts, why = price_capture.check_link(ref)
         if parts is None:
             return {"error": f"the page link cannot be kept: {why}"}, 400
-        ref = ref.strip()
     try:
         out = books.set_price(eid, price.strip(), source, ref, captured.strip(), config=config)
     except ValueError as err:
@@ -1817,20 +1816,21 @@ def _selftest_checks() -> int:
     ledger_before_price = books.ledger_path().read_bytes()
     pg = "https://shop.example/smoothing-plane"
     form = {"entry_id": gift_id, "price": " 149.50 ", "price_source": "brand_page", "price_source_ref": f" {pg} ",
-            "price_captured_at": "2026-06-02"}
+            "price_captured_at": " 2026-06-02 "}
     price_calls, real_set_price = [], books.set_price
     books.set_price = lambda *a, **k: price_calls.append(a) or real_set_price(*a, **k)
     price_refusals = [_books_price(dict(form, **change), books_on) for change in (
         {"entry_id": gift_id.upper()}, {"entry_id": 7}, {"price_source": "a guess"}, {"price_source": ["brand_page"]},
         {"price": 149.5}, {"price_captured_at": 20260602}, {"price_source_ref": None},
         {"price_source_ref": "ftp://shop.example/x"}, {"price_source_ref": "https://user:pw@shop.example/x"},
-        {"price_source": "retailer_page", "price_source_ref": "  "})]
+        {"price_source": "retailer_page", "price_source_ref": "  "},
+        {"entry_id": "zz" + gift_id}, {"price_source": None}, {"price_source": ""})]
     price_refusals.append(_books_price(None, books_on))
     books.set_price = real_set_price
-    ok("the price form is refused with 400, before the ledger is called, for an id in another form, a "
-       "source outside the list, a price or date that is not text, and a brand or retailer price whose "
-       "page link is missing, not http or https, or carries a sign-in part",
-       [s for _r, s in price_refusals] == [400] * 11 and all(r.get("error") for r, _s in price_refusals)
+    ok("the price form is refused with 400, before the ledger is called, for an id in another form or with "
+       "characters before it, a source outside the list or not given, a price or date that is not text, and "
+       "a brand or retailer price whose page link is missing, not http or https, or carries a sign-in part",
+       [s for _r, s in price_refusals] == [400] * 14 and all(r.get("error") for r, _s in price_refusals)
        and books.ledger_path().read_bytes() == ledger_before_price and price_calls == [])
     ledger_calls = [_books_price(dict(form, **change), cfg) for change, cfg in (
         ({"price": "0"}, books_on), ({"price_captured_at": "2099-01-01"}, books_on),
@@ -1842,7 +1842,19 @@ def _selftest_checks() -> int:
        and "must be positive" in ledger_calls[0][0]["error"] and "after today" in ledger_calls[1][0]["error"]
        and "finance_management is off" in ledger_calls[4][0]["error"]
        and books.ledger_path().read_bytes() == ledger_before_price)
-    recorded = _books_price(form, books_on)
+    import socket as _net
+    reached, saved_net = [], (_net.getaddrinfo, _net.gethostbyname, _net.create_connection)
+    _net.getaddrinfo = lambda *a, **k: reached.append(("getaddrinfo", a)) or saved_net[0](*a, **k)
+    _net.gethostbyname = lambda *a, **k: reached.append(("gethostbyname", a)) or saved_net[1](*a, **k)
+    _net.create_connection = lambda *a, **k: reached.append(("connect", a)) or saved_net[2](*a, **k)
+    try:
+        recorded = _books_price(form, books_on)
+        by_retailer = _books_price(dict(form, price="150", price_source="retailer_page"), books_on)
+        _books_price(dict(form, price_source="brand_page"), books_on)
+    finally:
+        _net.getaddrinfo, _net.gethostbyname, _net.create_connection = saved_net
+    ok("recording a brand or retailer price looks no host up and opens no connection",
+       recorded[1] == by_retailer[1] == 200 and reached == [])
     priced_row = next(g for g in _books_payload(2026, config=books_on)["gifts"]["items"] if g["entry_id"] == gift_id)
     stated_form = _books_price(dict(form, price="12", price_source="user_stated", price_source_ref="not a link"),
                                books_on)
@@ -1852,7 +1864,8 @@ def _selftest_checks() -> int:
        and recorded[0]["product"]["price_source_ref"] == pg and recorded[0]["product"]["price_captured_at"] == "2026-06-02"
        and priced_row["value"] is not None and priced_row["price_source"] == "brand_page"
        and stated_form[1] == 200 and stated_form[0]["product"]["price_source"] == "user_stated"
-       and stated_form[0]["product"]["price_source_ref"] is None and stated_form[0]["replaced"] == "149.50")
+       and stated_form[0]["product"]["price_source_ref"] is None and stated_form[0]["replaced"] == "149.50"
+       and recorded[0]["replaced"] is None)
     price_route = []
     price_gate = []
     saved_price_gate, saved_set_price = books._write_allowed, books.set_price
