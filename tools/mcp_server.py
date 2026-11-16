@@ -86,6 +86,50 @@ def _search_impl(query: str, db_path=None) -> dict:
     return _cache_records.search(query, pathlib_Path(db_path) if db_path else _CACHE_DB)
 
 
+def _citable_url_problem(result) -> str:
+    """Why a connector search hit or fetch result cannot become a citation, or "" when it can.
+    ChatGPT creates citation metadata for a search result or a fetch response only when `url` is
+    a non-empty string (developers.openai.com/api/docs/mcp). A string of whitespace is refused
+    here as well: it names no page."""
+    if not isinstance(result, dict):
+        return f"result is {type(result).__name__}, not an object"
+    if "url" not in result:
+        return "no url field"
+    url = result["url"]
+    if not isinstance(url, str):
+        return f"url is {type(url).__name__}, not a string"
+    if not url.strip():
+        return "url is empty"
+    return ""
+
+
+# Cases for _citable_url_problem: (result, expected problem). The last two rows record what the
+# test does NOT refuse: a non-empty string that is not a URL, and an invisible character that
+# str.strip keeps. Whether ChatGPT cites such a value is not stated on the contract page.
+_CITABLE_URL_CASES = (
+    ({"id": "a::b", "title": "t", "text": "x",
+      "url": "https://github.com/flywifi/seo-tools/blob/main/canonical-sources/keyword-library.json",
+      "metadata": {"source_file": "a"}}, ""),
+    ({"url": ""}, "url is empty"),
+    ({"url": "   \n"}, "url is empty"),
+    ({"url": "\xa0"}, "url is empty"),
+    ({"id": "a::b", "title": "t", "text": "x", "metadata": {}}, "no url field"),
+    ({"error": "unknown id"}, "no url field"),
+    ({"URL": "https://example.com/a"}, "no url field"),
+    ({"metadata": {"url": "https://example.com/a"}}, "no url field"),
+    ({"url": None}, "url is NoneType, not a string"),
+    ({"url": True}, "url is bool, not a string"),
+    ({"url": 0}, "url is int, not a string"),
+    ({"url": b"https://example.com/a"}, "url is bytes, not a string"),
+    ({"url": ["https://example.com/a"]}, "url is list, not a string"),
+    (None, "result is NoneType, not an object"),
+    ('{"url": "https://example.com/a"}', "result is str, not an object"),
+    ([{"url": "https://example.com/a"}], "result is list, not an object"),
+    ({"url": "canonical-sources/keyword-library.json"}, ""),
+    ({"url": "\u200b"}, ""),
+)
+
+
 def _fetch_impl(record_id: str, db_path=None) -> dict:
     """Connector-contract fetch by "source::record" id (cache_records.fetch). Refuses .local.
     sources so a hosted endpoint can never serve records that are not committed content."""
@@ -884,6 +928,9 @@ def _selftest_static() -> tuple:
              "fall decor keyword list"),
             ("canonical-sources/seed.local.json", "sec", "Should never surface",
              "gitignored local record"),
+            ("canonical-sources/keyword-library.json", "kw2", "", "an untitled keyword record"),
+            ("canonical-sources\\sub\\stored.json", "st1", "Backslash source",
+             "keyword record stored with backslashes"),
         ])
         conn.commit(); conn.close()
         sr = _search_impl("keyword", db_path=db)
@@ -897,6 +944,19 @@ def _selftest_static() -> tuple:
         fr = _fetch_impl(sr["results"][0]["id"], db_path=db)
         ok("fetch returns EXACTLY the contract fields",
            set(fr) == {"id", "title", "text", "url", "metadata"})
+        ok("the fetch result's url is a non-empty string (ChatGPT citation rule)",
+           _citable_url_problem(fr) == "")
+        # Each fixture record search returns (titled, untitled, stored with backslashes) is
+        # fetched: its url passes the same test and equals the url search gave for it.
+        _fetched = [(r, _fetch_impl(r["id"], db_path=db)) for r in sr["results"]]
+        ok("search returns the three committed fixture records",
+           sorted(r["id"].rpartition("::")[2] for r in sr["results"]) == ["kw1", "kw2", "st1"])
+        ok("each fixture record's fetch url is a non-empty string",
+           all(_citable_url_problem(f) == "" for _, f in _fetched))
+        ok("each fixture record's fetch url equals its search url",
+           all(f.get("url") == r["url"] for r, f in _fetched))
+        for _case, _want in _CITABLE_URL_CASES:
+            ok(f"citable-url case {_case!r:.60} -> {_want!r}", _citable_url_problem(_case) == _want)
         ok("citation url is repo-relative once, never doubled (P72 D1)",
            sr["results"][0]["url"].endswith("/canonical-sources/keyword-library.json")
            and "canonical-sources/canonical-sources" not in sr["results"][0]["url"])
@@ -3162,6 +3222,16 @@ if __name__ == "__main__":
         _fr = fetch(_sr["results"][0]["id"]) if _sr["results"] else {"error": "empty"}
         if _sr["results"] and not {"id", "title", "text", "url"} <= set(_fr):
             _shape_ok = False
+        if _sr["results"] and _citable_url_problem(_fr):
+            _shape_ok = False
+        _wire_fetch_note = "fetch url NOT checked on a live record (cache index absent or no hit)"
+        if _sr["results"]:
+            import asyncio as _asyncio0
+            _wf = _asyncio0.run(mcp.call_tool("fetch", {"id": _sr["results"][0]["id"]}))
+            _wfs = _wf[1] if isinstance(_wf, tuple) else _wf.structured_content
+            if _citable_url_problem(_wfs) or _wfs.get("url") != _sr["results"][0]["url"]:
+                _shape_ok = False
+            _wire_fetch_note = "fetch url checked on one live record, as returned and on the wire"
         if "error" not in fetch("x.local.json::anything"):
             _shape_ok = False
         if "results" not in search('a AND ("'):   # FTS syntax bomb -> must not raise
@@ -3201,8 +3271,8 @@ if __name__ == "__main__":
             _shape_ok = False
         print(("ok   " if _shape_ok else "FAIL ")
               + "search/fetch: dual connector envelope on the wire (structuredContent + text "
-              + "mirror); output schema declared; result urls non-empty; .local refused; "
-              + "hostile FTS input survives")
+              + "mirror); output schema declared; search urls non-empty; .local refused; "
+              + "hostile FTS input survives; " + _wire_fetch_note)
         # P80: six write tools are serialised behind _WRITE_LOCK and configure_tool writes atomically.
         # Two threads toggling different capabilities must leave one parseable file holding both keys
         # and no temp residue. Runs against a temp path; the real local config is never touched.

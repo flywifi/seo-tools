@@ -15,6 +15,8 @@ description: >
 
   Use when the creator needs a keyword deliverable to act on.
   For quick cross-platform comparison only, use keyword_compare instead.
+  Use keyword_compare for a supplied keyword list; use seo_keywords to discover and
+  develop keywords from a topic.
 parameters:
   type: object
   properties:

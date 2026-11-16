@@ -13,6 +13,8 @@ description: >
   Use when the creator wants to decide which platform to prioritize for a keyword or
   batch of keywords in a single query. Do NOT use for keyword research from scratch
   (use keyword_cluster first) or full SEO strategy output (use seo_keywords).
+  Use keyword_compare for a supplied keyword list; use seo_keywords to discover and
+  develop keywords from a topic.
 parameters:
   type: object
   properties:

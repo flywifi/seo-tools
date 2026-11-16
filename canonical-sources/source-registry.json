@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-11-07",
+  "last_registry_update": "2026-11-16",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -4848,26 +4848,27 @@
     },
     {
       "id": "openai-developer-mode",
-      "name": "ChatGPT developer mode (full read/write MCP client)",
-      "url": "https://developers.openai.com/api/docs/guides/developer-mode",
+      "name": "Add custom MCP server (ChatGPT app setup and authentication options)",
+      "url": "https://developers.openai.com/api/docs/guides/custom-mcp-server",
       "category": "ai-surface-spec",
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-09-19",
-      "last_changed_detected": "2026-09-19",
-      "extraction_hint": "Full read+write MCP client support, plan gating, SSE + streaming HTTP, write actions require confirmation (beta)",
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "authentication options for a custom MCP app (OAuth, no authentication, OAuth or no authentication); CIMD and DCR client registration; refreshing an app to pull new tools; the earlier developer-mode guide address redirects here",
       "used_by": [
-        "docs/CROSS-MODALITY.md"
+        "docs/CROSS-MODALITY.md",
+        "implementation/gpt/mcp-connector/README.md"
       ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "First-party (fetchable) source for the ChatGPT Tier-B connector path; replaces reliance on the 403-walled help page",
-      "content_sha256": "2daabe92c43eb686ca52b395bf745a91b43931c241d2540a87b100ca7050b156",
-      "content_etag": "\"60174f35afa6a22819b2c7606ce3a8e6\"",
-      "content_last_modified": "Sat, 19 Sep 2026 14:30:26 GMT"
+      "content_sha256": null,
+      "content_etag": null,
+      "content_last_modified": null
     },
     {
       "id": "openai-connect-chatgpt",
@@ -7776,7 +7777,83 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "openai-plugin-auth",
+      "name": "Authentication for plugin MCP servers",
+      "url": "https://developers.openai.com/plugins/build/auth",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "OAuth authorization-code with PKCE (S256); CIMD, DCR and predefined clients; ChatGPT cannot present custom API keys; the bearer sent is the OAuth access token",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-plugin-mcp-server",
+      "name": "Build an MCP server for plugins (tool annotations)",
+      "url": "https://developers.openai.com/plugins/build/mcp-server",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "meaning of readOnlyHint, destructiveHint, openWorldHint; annotations do not replace authorization, validation or confirmation in the server",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "codex-config-reference",
+      "name": "Codex configuration reference (config.toml)",
+      "url": "https://learn.chatgpt.com/docs/config-file/config-reference",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "mcp_servers.<id>.startup_timeout_sec (default 10s), tool_timeout_sec (default 60s), bearer_token_env_var, env, env_vars",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-function-calling",
+      "name": "OpenAI function calling guide (tool loop, strict mode)",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Responses API tool loop: function_call items (name, arguments, call_id), function_call_output; strict mode requirements and the default when strict is omitted",
+      "used_by": [
+        "implementation/gpt/api/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "2a319294a6b9710ab6af299d85fbd18b9aa538bccb3d6785fed5cfb792164c2b"
+  "_content_digest": "c8ecd10039432648baae75e33a2b425a17fe3641841b47648b7623cebe35206c"
 }

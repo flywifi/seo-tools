@@ -443,6 +443,37 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- OpenAI surface files (connector runbook, API function specs, ChatGPT instruction packs).
+  `implementation/gpt/mcp-connector/README.md`: the Responses API example passes the
+  `authorization` value as the access token alone; the hosting requirements say a static bearer
+  token serves Codex, the Responses API and claude.ai while a ChatGPT custom MCP app takes OAuth,
+  no authentication, or both; the ChatGPT card says ChatGPT may prompt on annotated write tools
+  and that the confirmation Creator OS relies on is its own `human_review_required` step; the
+  Codex card names `startup_timeout_sec` (default 10 s) and `tool_timeout_sec` (default 60 s);
+  the developer-mode guide citations point to the custom MCP server guide its address now leads
+  to (also in `docs/TRANSITIONS.md` and the registry entry `openai-developer-mode`).
+  `implementation/gpt/api/README.md`: the Python example runs the function-calling loop
+  (`function_call` items run through a `HANDLERS` map the integrator supplies, results returned
+  as `function_call_output` with `previous_response_id`) and sets `strict: False` explicitly,
+  with the reason; `keyword_compare.yaml` and `seo_keywords.yaml` each say which of the two to
+  use; `video_development.yaml` is ASCII (two em dashes replaced by a comma and a colon).
+  `implementation/gpt/project/project-instructions.md`, `implementation/gpt/web/custom-instructions.md`
+  and `custom-instructions-compact.md`: the em dash rule covers each reply; added rules against
+  posting, publishing, scheduling or sending, against saying a lookup is under way when no tool
+  is connected, against describing the creator's output as AI generated, and for treating stats,
+  rates and deal facts as unknown unless they are in the chat or the files; the two custom
+  files gain a deal-stage rule and the compact file names the upgrade path; the Project file
+  lists Core rules and Capability awareness before the routing steps. Four sources are added to
+  the registry (`openai-plugin-auth`, `openai-plugin-mcp-server`, `codex-config-reference`,
+  `openai-function-calling`).
+- `tools/mcp_server.py` selftest: `_citable_url_problem` tests a connector result's `url` (an
+  object with a `url` that is a string holding more than whitespace), with its cases in
+  `_CITABLE_URL_CASES`, two of which record that a non-URL string and a zero-width character are
+  accepted. The package-independent tier fetches its three fixture records (titled, untitled,
+  stored with backslashes) and fails when a fetch url does not pass that test or differs from
+  the url search returned for the record. The full tier does the same for one live record, as
+  returned and as `call_tool` delivers it, when the cache index is built and the query has a
+  hit; otherwise its result line says the fetch url was not checked.
 - P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
   to stderr naming each mutation row before it runs it, a line before and after each module's
   unmutated baseline run, and a done line after its rows, and arms `faulthandler` to dump its

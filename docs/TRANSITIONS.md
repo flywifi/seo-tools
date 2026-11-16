@@ -147,7 +147,7 @@ connected Creator OS to ChatGPT:
 - **Developer-mode MCP connector (ChatGPT web or desktop):** the tools run against your live endpoint,
   so their output updates server-side. If you change the tool list or descriptions, ChatGPT needs a
   manual **Refresh** on the connector. `[NEEDS VERIFICATION: developer-mode availability, plan gating,
-  and the read-only vs write split; see developers.openai.com/api/docs/guides/developer-mode.]`
+  and the read-only vs write split; see developers.openai.com/api/docs/guides/custom-mcp-server.]`
 - **Agent mode:** it can browse your public repo, read the version, and assemble an updated pack in
   its own workspace, but it **cannot** write it into your Project (no management API) and
   it does not use custom connectors for actions. Treat it as a helper that prepares the pack; a human
