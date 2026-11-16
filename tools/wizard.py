@@ -6739,6 +6739,21 @@ def _selftest_p101() -> int:
     check('href="/doctor">Check my setup</a> tells a missing engine from one that is installed but cannot load' in _import_v
           and "Transcription engine found" not in _import_v,
           "the import screen without an engine does not point at Check my setup for an engine that cannot load")
+    _import_found_v = {}
+    for _probe_v in (("fixture-engine", None, True), ("fixture-engine", "fixture-bin", False)):
+        globals()["_stt_backend_present"] = lambda _p=_probe_v: _p
+        try:
+            _import_found_v[_probe_v[1]] = _screen_import()
+        finally:
+            globals()["_stt_backend_present"] = _real_stt_v
+    check("No transcription engine yet." in _import_v
+          and all("No transcription engine yet." not in _s and "Install a transcription engine" not in _s
+                  for _s in _import_found_v.values())
+          and "Transcription engine found:</strong> fixture-engine. Creator OS can" in _import_found_v[None]
+          and "Transcription engine found:</strong> fixture-engine (fixture-bin). Creator OS can"
+          in _import_found_v["fixture-bin"],
+          "the import screen does not follow the engine probe: it names no engine the probe found, or "
+          "offers an install beside a found engine")
     # P102: the engine probe takes a .exe on Windows, so the Mouse control panel (main.cpl, which
     # which() returns for "main" through PATHEXT) is not reported as whisper.cpp.
     _real_which_v, _real_os_v = env_paths.which, _OS_OVERRIDE
@@ -6757,6 +6772,13 @@ def _selftest_p101() -> int:
             _OS_OVERRIDE = _os_v
             env_paths.which = lambda name, *a, _f=_found_v, **k: _f.get(name)
             _stt_v[len(_stt_v)] = _stt_backend_present()[:2]
+        _OS_OVERRIDE = "linux"
+        env_paths.which = lambda name, *a, **k: None
+        _stt_full_v = [_stt_backend_present()]
+        sys.modules["faster_whisper"] = type(sys)("faster_whisper")
+        _stt_full_v.append(_stt_backend_present())
+        env_paths.which = lambda name, *a, **k: "/usr/local/bin/whisper-cli" if name == "whisper-cli" else None
+        _stt_full_v.append(_stt_backend_present())
     finally:
         env_paths.which, _OS_OVERRIDE = _real_which_v, _real_os_v
         if _real_fw_v is _fw_missing:
@@ -6766,6 +6788,9 @@ def _selftest_p101() -> int:
     check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main"),
                      3: ("whisper.cpp", "whisper-cli")},
           f"the wizard's engine probe counts main.cpl as whisper.cpp on Windows, or misses a real engine ({_stt_v})")
+    check(_stt_full_v == [(None, None, False), ("faster-whisper", None, True), ("whisper.cpp", "whisper-cli", True)],
+          f"the engine probe does not return (None, None, False) with no engine, ('faster-whisper', None, "
+          f"True) with only that package importable, or whisper.cpp first with both ({_stt_full_v})")
     check(_quit_v[0] == "send" and "still running" in _quit_v[1] and _quit_shut_v is False,
           "/quit closes the wizard while the Visual C++ install runs, leaving its temporary folder")
     check(_waiting_v[0] == "send" and "Visual C++ Redistributable" in _waiting_v[1]
@@ -7058,12 +7083,19 @@ def _selftest_p101() -> int:
             _bad_kept_c = _bad_kept_c and any(
                 _c.read_bytes() == b'{"youtube": "\xfe\xff"}'
                 for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*.bak"))
+            _names_end_c = sorted(_c.name for _c in _cp.parent.glob("api-credentials.local.json.corrupt.*"))
         finally:
             _g_c["ROOT"], atomic_io.locked, _g_c["time"] = _saved_root_c, _real_locked_c, _real_time_c
         check(_again_c and _copies_again_c == _copies_c
               and (os.name == "nt" or _mode_c == 0o600),
               f"a repeated refused credential save does not reuse its copy, or the copy is not owner-only "
               f"({len(_copies_again_c)} copies, mode {_mode_c!r})")
+        _stem_c = "api-credentials.local.json.corrupt.20260101120000"
+        check([_c.name for _c in _copies_c] == [_stem_c + ".bak"]
+              and _names_end_c == [_stem_c + ".2.bak", _stem_c + ".3.bak", _stem_c + ".bak"],
+              f"a credentials copy is not named <name>.corrupt.<14-digit seconds stamp>.bak, or a later "
+              f"copy under the same stamp is not numbered .2.bak and .3.bak "
+              f"({[_c.name for _c in _copies_c]}, {_names_end_c})")
         check(set(_bom_lenient_c) == {"youtube"} and set(_bom_merged_c) == {"youtube", "pinterest"}
               and _bad_lenient_c == {} and _bad_refused_c and _bad_kept_c,
               f"the credential readers do not read past a byte-order mark, or a file that is not UTF-8 "

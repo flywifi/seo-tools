@@ -443,6 +443,24 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (a skipped hook run is reported; three wizard checks): `readonly_bash_guard`'s selftest
+  reports a hook run it skipped through `_hook_skip_report`. In a file_hash mutation run the line
+  is a `[skip]`, as before. Otherwise the line starts with `DID NOT RUN: ` and names the reason
+  (`_hook_shell` found no POSIX shell), the selftest still passes on a computer where the `CI`
+  environment variable is unset or empty, and it fails where `CI` is set, as GitHub Actions sets
+  it. `readonly_bash_guard.py --selftest` exits 1 with a message when `_IN_MUTANT` is set in the
+  file, the flag `file_hash` sets on a copy before it calls `selftest()` directly.
+  `selftest_sweep.run_sweep` repeats a tool's output lines that start with `DID NOT RUN: `
+  (`did_not_run_lines`) under that tool's `[ok]` or `[FAIL]` line and counts them in its last
+  line; its exit code does not change. `tools/battery.py` prints a passing gate's verdict and not
+  its output, so the line shows when the sweep is run directly. `wizard._selftest_p101` checks
+  three more things: under the fixed seconds stamp a kept credentials copy is named
+  `api-credentials.local.json.corrupt.20260101120000.bak` and the next two under that stamp end
+  `.2.bak` and `.3.bak`; the import screen names the engine and path a stand-in probe reports,
+  with the install note absent, and says "No transcription engine yet." when the probe reports
+  none; and the engine probe returns `(None, None, False)` with no engine found,
+  `("faster-whisper", None, True)` with a stand-in `faster_whisper` module importable, and the
+  whisper.cpp binary first when both are present.
 - P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
   to stderr naming each mutation row before it runs it, a line before and after each module's
   unmutated baseline run, and a done line after its rows, and arms `faulthandler` to dump its
