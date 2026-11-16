@@ -39,12 +39,26 @@ MAX_PIXELS = 50_000_000   # width times height; a larger picture is refused befo
 READ_TIMEOUT = 120        # seconds the reader's process gets
 LOW_SCORE = 0.80          # a lowest score under this adds a gap that names it
 TEXT_MAX = 200_000        # characters kept of what the reader returns
+PHOTO_FORMATS = ("PNG", "JPEG", "WEBP", "TIFF", "BMP")  # the decoders Pillow may use for a photo
 SETUP_HINT = ("the photo reader is not installed; run python3 tools/setup.py --install-deps, or ask a chat "
               "session to read the photo")
 
 
 class PhotoRefused(Exception):
     """A photo the reader does not take; its message is the gap shown to the person."""
+
+
+def looks_like_photo(path):
+    """True when the file's opening bytes are those of a png, jpeg, webp, tiff or bmp picture. The
+    suffix is a name; this is the content. A file that cannot be opened is not a photo."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(12)
+    except OSError:
+        return False
+    return (head.startswith(b"\x89PNG\r\n\x1a\n") or head.startswith(b"\xff\xd8\xff")
+            or (head[:4] == b"RIFF" and head[8:12] == b"WEBP") or head[:4] in (b"II*\x00", b"MM\x00*")
+            or (head[:2] == b"BM" and head[6:10] == b"\x00\x00\x00\x00"))
 
 
 def _blank():
@@ -87,7 +101,9 @@ def lines_from(boxes, txts, scores):
     return text, min(float(s) for s in scores), tall > wide
 
 
-_TAIL = re.compile(r"[ \t]+(?:(\d{1,3})[ \t]*)?((?:\$|USD ?)\d[\d,]*\.\d{2})[ \t]*$", re.M)
+# Every run of blanks is bounded and starts at the run's first blank, so the pattern is linear in the
+# text (a run of over 40 blanks is left as it is: it is two columns apart already).
+_TAIL = re.compile(r"(?<![ \t])[ \t]{1,40}(?:(\d{1,3})[ \t]{0,40})?((?:\$|USD ?)\d[\d,]*\.\d{2})[ \t]{0,40}$", re.M)
 
 
 def space_amounts(text):
@@ -99,13 +115,13 @@ def space_amounts(text):
 
 def _rapidocr_reader(path):
     """(boxes, txts, scores, engine name) from the installed reader. ImportError when a package is
-    missing; PhotoRefused for a picture over MAX_PIXELS. The picture is opened by Pillow, turned
-    upright by its EXIF orientation, and handed over as a BGR array."""
+    missing; PhotoRefused for a picture over MAX_PIXELS. The picture is opened by Pillow with the
+    PHOTO_FORMATS decoders, turned upright by its EXIF orientation, and handed over as a BGR array."""
     from importlib import metadata
     import numpy as np
     from PIL import Image, ImageOps
     from rapidocr import RapidOCR
-    with Image.open(path) as im:
+    with Image.open(path, formats=PHOTO_FORMATS) as im:
         width, height = im.size
         if width * height > MAX_PIXELS:
             raise PhotoRefused(f"the photo is {width} by {height} pixels, over the {MAX_PIXELS} the reader takes; "
@@ -155,8 +171,8 @@ def read_image(path, python=None, run=None, timeout=READ_TIMEOUT):
     """{"text", "engine", "lowest_score", "gaps"} for a photo. The reader runs as
     `<python> -B tools/photo_text.py --read <path>` (python defaults to env_paths.app_python(), run to
     subprocess.run) and gets timeout seconds. A suffix outside PHOTO_SUFFIXES, a file over
-    MAX_BYTES, a reader that does not finish, or a reply that is not the result object, comes back
-    as a gap with no text."""
+    MAX_BYTES, a file whose opening bytes are not a picture's (looks_like_photo), a reader that does
+    not finish, or a reply that is not the result object, comes back as a gap with no text."""
     p = Path(path)
     out = _blank()
     ext = p.suffix.lower().lstrip(".")
@@ -170,6 +186,9 @@ def read_image(path, python=None, run=None, timeout=READ_TIMEOUT):
         return out
     if size > MAX_BYTES:
         out["gaps"].append(f"the photo is over {MAX_BYTES} bytes; type the entry in")
+        return out
+    if not looks_like_photo(p):
+        out["gaps"].append("the file is not a png, jpg, webp, tiff or bmp picture; type the entry in")
         return out
     run = subprocess.run if run is None else run
     python = python or env_paths.app_python()
@@ -246,6 +265,26 @@ def selftest():
        == "Brad nails  2  $12.50\nKit  1  $199.99\nTotal  $5.00\nUSD 7.25 due\nSize 5\n"
        and space_amounts(space_amounts("a 2 $1.00\n")) == space_amounts("a 2 $1.00\n")
        and space_amounts("a 1234 $1.00\n") == "a 1234  $1.00\n")
+
+    ok("an amount written with USD at a line's end is set off too, and a run of over 40 blanks is left alone",
+       space_amounts("Kit 1 USD 7.25\nFee USD7.25\n") == "Kit  1  USD 7.25\nFee  USD7.25\n"
+       and space_amounts("Kit" + " " * 41 + "$5.00\n") == "Kit" + " " * 41 + "$5.00\n"
+       and space_amounts("Kit" + " " * 40 + "$5.00\n") == "Kit  $5.00\n")
+    import time
+    t0 = time.monotonic()
+    blanks = space_amounts("Order total" + " " * TEXT_MAX + "x\n" + "\t" * TEXT_MAX + "$1.00\n")
+    took = time.monotonic() - t0
+    # 10 s is a tripwire for a pattern that stops being linear: the case takes well under a second.
+    ok(f"TEXT_MAX blanks in a row are passed through within 10 s ({took:.2f} s)",
+       took < 10 and len(blanks) == 2 * TEXT_MAX + 19)
+    skew = [_box(0, 0, 100, 30), _box(0, 100, 100, 30), _box(0, 200, 100, 30, 80)]
+    ok("the turn is the median box angle, so one box at another angle does not tilt the rest",
+       lines_from(skew[:2] + [_box(300, 0, 100, 30)] + skew[2:], ["a", "c", "b", "d"], [0.9] * 4)[0].startswith("a  b\n"))
+    ok("a box counts as tall once it is higher than it is wide",
+       lines_from([_box(0, 0, 100, 150)], ["Order total"], [0.9])[2] is True
+       and lines_from([_box(0, 0, 100, 100)], ["Order total"], [0.9])[2] is False)
+    ok("the limits are the documented ones",
+       READ_TIMEOUT == 120 and MAX_PIXELS == 50_000_000 and MAX_BYTES == 20_000_000 and TEXT_MAX == 200_000)
 
     def reader_of(value):
         def reader(_path):
@@ -324,6 +363,7 @@ def selftest():
             fh.truncate(MAX_BYTES + 1)
         at_cap = Path(td) / "cap.png"
         with open(at_cap, "wb") as fh:
+            fh.write(b"\x89PNG\r\n\x1a\n")
             fh.truncate(MAX_BYTES)
         refusals = [read_image(heic, python="py-x", run=run_of()), read_image(big, python="py-x", run=run_of()),
                     read_image(Path(td) / "absent.png", python="py-x", run=run_of())]
@@ -335,6 +375,22 @@ def selftest():
            and "could not be opened (FileNotFoundError)" in refusals[2]["gaps"][0])
         read_image(at_cap, python="py-x", run=run_of(json.dumps(reply)))
         ok("a file of exactly MAX_BYTES reaches the reader", len(calls) == n + 1)
+        n = len(calls)
+        heads = {"a.png": b"\x89PNG\r\n\x1a\n", "b.jpg": b"\xff\xd8\xff\xe0", "c.webp": b"RIFF\x10\x00\x00\x00WEBP",
+                 "d.tif": b"II*\x00", "e.tiff": b"MM\x00*", "f.bmp": b"BM\x10\x00\x00\x00\x00\x00\x00\x00"}
+        fakes = {"g.jpg": b"Order total $5.00\n", "h.jpg": b"%!PS-Adobe-3.0 EPSF-3.0\n", "i.png": b"",
+                 "j.webp": b"RIFF\x10\x00\x00\x00WAVE", "k.bmp": b"BMW sells cars\n", "l.png": b"\x89PNG"}
+        for name, head in {**heads, **fakes}.items():
+            (Path(td) / name).write_bytes(head)
+        not_pictures = [read_image(Path(td) / name, python="py-x", run=run_of()) for name in fakes]
+        ok("a file with a photo suffix whose opening bytes are not a picture's is a gap, and the reader is not "
+           "started; the five formats' opening bytes are taken",
+           len(calls) == n and all(r["text"] == "" and r["gaps"] == [
+               "the file is not a png, jpg, webp, tiff or bmp picture; type the entry in"] for r in not_pictures)
+           and all(looks_like_photo(Path(td) / name) for name in heads)
+           and not any(looks_like_photo(Path(td) / name) for name in fakes)
+           and looks_like_photo(Path(td) / "absent.png") is False
+           and PHOTO_FORMATS == ("PNG", "JPEG", "WEBP", "TIFF", "BMP"))
         saved = env_paths.app_python
         try:
             env_paths.app_python = lambda *a, **k: "py-app"
@@ -347,6 +403,9 @@ def selftest():
         ok("--read prints the result as one line of JSON",
            code == 0 and len(out_lines) == 1 and "\n" not in out_lines[0]
            and json.loads(out_lines[0])["text"] == space_amounts(want))
+    printed = []
+    lone = main(["--read"], reader=reader_of((*_grid(), "stub 1.0")), emit=printed.append, usage=printed.append)
+    ok("--read with no file after it reads nothing and prints the usage", printed == [__doc__] and lone == 2)
     ok("the photo suffixes are the seven the reader was run on, and the creator-facing gaps carry no em dash",
        PHOTO_SUFFIXES == {"png", "jpg", "jpeg", "webp", "tif", "tiff", "bmp"}
        and "—" not in SETUP_HINT + json.dumps([none, side, low, broken, refusals, slow, gone]))
@@ -382,7 +441,7 @@ def engine_check():
     return 0 if good else 1
 
 
-def main(argv=None, reader=None, emit=print):
+def main(argv=None, reader=None, emit=print, usage=print):
     argv = sys.argv[1:] if argv is None else argv
     if "--selftest" in argv:
         return selftest()
@@ -393,7 +452,7 @@ def main(argv=None, reader=None, emit=print):
         return 0
     files = [a for a in argv if not a.startswith("--")]
     if not files:
-        print(__doc__)
+        usage(__doc__)
         return 2
     print(json.dumps(read_image(files[0]), indent=2))
     return 0

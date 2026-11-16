@@ -549,8 +549,11 @@ def person_labelled(hub_root, entries, category, rules=None, config=None, read_p
     note. pass2_pending stays True. Reads files, writes nothing. While the photo_receipts switch is
     on (config, else the person's config) a photo in PHOTO_LABELS is taken too, up to the photo
     reader's size limit: its text is what tools/photo_text.py reads (read_photo stands in for
-    photo_text.read_image) and goes through the same tier; with no reader installed it is accepted
-    with no screen record and the reader's reason in the note."""
+    photo_text.read_image) and goes through the same tier. A file with a photo suffix whose opening
+    bytes are not a picture's (photo_text.looks_like_photo) is refused before it is read. A picture
+    the reader returns no text for (no reader installed, a picture it could not decode, did not
+    finish, found turned on its side or over its pixel limit, or found no text in) is accepted with
+    no screen record and the reader's reasons in the note: nothing was read from it."""
     from shared.docintel import parse_text as _pt
     hub = Path(hub_root)
     rule = (load_rules() if rules is None else rules).get(category) or {}
@@ -574,6 +577,8 @@ def person_labelled(hub_root, entries, category, rules=None, config=None, read_p
             refusal = "over 2 MB; type the entry in, or ask a Claude session to read it"
         if not refusal and _sha256(src) != e.get("sha256"):
             refusal = "file changed since the scan; re-scan first"
+        if not refusal and photo and not _photo.looks_like_photo(src):
+            refusal = "its content is not a png, jpg, webp, tiff or bmp picture; left in the Inbox, never routed"
         if refusal:
             out["refused"].append({"file": rel, "why": refusal})
             continue
@@ -1947,19 +1952,26 @@ def _selftest_checks() -> int:
     # P103 (ADR 0087): a photo takes the receipt label while photo_receipts is on. The reader is a
     # stand-in here, so no optional package is needed.
     ph_on, ph_off = {"capabilities": {"photo_receipts": True}}, {"capabilities": {"photo_receipts": False}}
-    for n in ("till.JPG", "till.png", "evil.jpeg", "bare.webp", "pic.heic"):
+    for n in ("till.JPG", "till.png", "evil.jpeg", "bare.webp", "pic.heic", "late.jpg"):
         (pl / "Inbox" / n).write_bytes(b"\xff\xd8\xff photo " + n.encode())
+    (pl / "Inbox" / "renamed.jpg").write_bytes(poison.encode("utf-8"))
     with open(pl / "Inbox" / "huge.tiff", "wb") as fh:
         fh.truncate(_PHOTO_LABEL_MAX_BYTES + 1)
     with open(pl / "Inbox" / "large.bmp", "wb") as fh:
+        fh.write(b"BM")
         fh.truncate(_PHOTO_LABEL_MAX_BYTES)  # past the documents' 2 MB, at the photos' limit
     ph = {n: {"file": f"Inbox/{n}", "sha256": _sha256(pl / "Inbox" / n)}
-          for n in ("till.JPG", "till.png", "evil.jpeg", "bare.webp", "pic.heic", "huge.tiff", "large.bmp")}
-    read_calls = []
+          for n in ("till.JPG", "till.png", "evil.jpeg", "bare.webp", "pic.heic", "huge.tiff", "large.bmp",
+                    "late.jpg", "renamed.jpg")}
+    read_calls, read_paths = [], []
 
     def _reader(path):
         name = Path(path).name
         read_calls.append(name)
+        read_paths.append(Path(path))
+        if name.startswith("late"):
+            return {"text": "Your receipt\nTotal  $4.00\n" + "Thank you for your order.\n" * 400 + poison,
+                    "engine": "stub 1.0", "lowest_score": 0.9, "gaps": []}
         if name.startswith("evil"):
             return {"text": poison, "engine": "stub 1.0", "lowest_score": 0.9, "gaps": []}
         if name.startswith("bare"):
@@ -1982,7 +1994,16 @@ def _selftest_checks() -> int:
        "flagged its text" in pwhy["Inbox/evil.jpeg"] and (pl / "Inbox" / "evil.jpeg").exists()
        and pwhy["Inbox/huge.tiff"] == "over 20 MB; type the entry in" and "huge.tiff" not in read_calls
        and pwhy["Inbox/pic.heic"] == "a invoice_receipt label is not offered for .heic files"
-       and "pic.heic" not in read_calls and sorted(pwhy) == ["Inbox/evil.jpeg", "Inbox/huge.tiff", "Inbox/pic.heic"])
+       and "pic.heic" not in read_calls
+       and sorted(pwhy) == ["Inbox/evil.jpeg", "Inbox/huge.tiff", "Inbox/late.jpg", "Inbox/pic.heic",
+                            "Inbox/renamed.jpg"])
+    ok("a text file renamed with a photo suffix is refused unread and left in the Inbox; a flagged line after "
+       "10,000 characters of a photo's text refuses it; the reader is handed each file's resolved path",
+       pwhy["Inbox/renamed.jpg"] == ("its content is not a png, jpg, webp, tiff or bmp picture; left in the "
+                                     "Inbox, never routed")
+       and "renamed.jpg" not in read_calls and (pl / "Inbox" / "renamed.jpg").exists()
+       and "flagged its text" in pwhy["Inbox/late.jpg"]
+       and read_paths and all(p.is_absolute() and p.is_file() and p.parent.name == "Inbox" for p in read_paths))
     ok("a photo the reader returned no text for is proposed with no screen record and the reader's reasons "
        "in its note",
        pprops["Inbox/bare.webp"]["offline_pattern_scan"] is None
@@ -2004,11 +2025,13 @@ def _selftest_checks() -> int:
         doc_default = person_labelled(pl, [ent["order.txt"]], "invoice_receipt", read_photo=_reader)
         _lc_docs = len(_lc_calls)
         pho_default = person_labelled(pl, [ph["till.png"]], "invoice_receipt", read_photo=_reader)
+        empty_cfg = label_formats("invoice_receipt", {})
     finally:
         _ob_pl.load_config = _lc_saved
     ok("the switch is read from the person's config when none is given, and only for a file in a photo format",
        _lc_docs == 0 and len(doc_default["proposals"]) == 1 and len(_lc_calls) >= 1
-       and [e["file"] for e in pho_default["proposals"]] == ["Inbox/till.png"])
+       and [e["file"] for e in pho_default["proposals"]] == ["Inbox/till.png"]
+       and empty_cfg == PERSON_LABELS["invoice_receipt"])
     ok("label_formats adds the photo formats while the switch is on, and is empty for a category the screen "
        "does not offer",
        label_formats("invoice_receipt", ph_off) == PERSON_LABELS["invoice_receipt"]

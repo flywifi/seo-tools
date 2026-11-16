@@ -13,11 +13,18 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (photo receipts, content check and bounded spacing): `photo_text.looks_like_photo` reads a
+  file's opening bytes; `inbox.person_labelled` refuses a file with a photo suffix whose bytes are
+  not a png, jpeg, webp, tiff or bmp picture's, `photo_text.read_image` returns a gap for it
+  without starting the reader, and the reader opens a picture with those five Pillow decoders
+  (`PHOTO_FORMATS`). `photo_text.space_amounts` bounds each run of blanks at 40, so its time is
+  linear in the text. `receipt_extract.extract_text` takes no `from_photo` argument. The
+  `receipt_from_text` texts say the tool reads the config's switch and opens no document.
 - P103 (file_hash sweep cap): the selftest sweep gives `tools/file_hash.py` 3000 s, up from
   2400 s (`selftest_sweep.TOOL_TIMEOUTS`), so its cap is 12000 s with one worker, 6000 s with
   two, 4000 s with three and 3000 s with four or more. At 2,304 rows the four Windows CI jobs
   of one commit took 34 to 38.5 minutes, the other gates about 6 of them, and the photo
-  receipts rows bring the table to 2,397. The Windows CI job's limit is 65 minutes, up from 55.
+  receipts rows bring the table to 2,415. The Windows CI job's limit is 65 minutes, up from 55.
 - P103 (photo receipts, ADR 0087): behind the new `photo_receipts` switch (off by default), a photo
   (png, jpg, jpeg, webp, tif, tiff, bmp) in the hub Inbox can be labelled a receipt
   (`tools/handoff/inbox.py::label_formats`, `person_labelled`), and `tools/receipt_extract.py::extract`

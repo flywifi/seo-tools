@@ -131,7 +131,7 @@ _READ_DESPITE_NAME = {
 _VERIFIED_READS = {
     "books_summary",  # P103: reads the income ledger and adds; writes nothing
     "mail_triage",    # P103 WP2b: sorts the messages it is given; writes nothing, reads no mail
-    "receipt_from_text",  # P103: reads the text it is given and proposes; writes nothing, opens no file
+    "receipt_from_text",  # P103: reads the text it is given and proposes; writes nothing, opens no document
     "cache_query", "cashflow_view", "chapter_map", "code_lookup", "competitor_scan",
     "construction_lookup", "contact_lookup", "cost_rollup", "coverage_verify", "currency_scan",
     "deal_status", "drift_check", "edit_captions", "edit_parse_fcpxml", "edit_preflight",
@@ -2870,7 +2870,7 @@ def receipt_from_text(text: str, ref: str = "", sha256: str = "") -> str:
     withholds the record) and read with the receipt rules. The result is capped at probable
     confidence and its gaps ask the person to check each figure against the receipt: show them
     the figures and the photo's name, and wait for their yes. This tool writes nothing and opens
-    no file. Money received is then recorded with books_add; money paid is recorded by the person
+    no document: the config's switch is what it reads from disk. Money received is then recorded with books_add; money paid is recorded by the person
     on the setup wizard's work order."""
     try:
         return json.dumps(_receipt_from_text_reply(text, ref, sha256), indent=2, ensure_ascii=False)

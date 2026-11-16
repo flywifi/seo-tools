@@ -28,23 +28,33 @@ stdlib-only tools do not have, and text a model read can carry a wrong digit tha
    switch is on, and its text goes through the offline injection screen and the receipt rules
    (`_propose`, the body `extract` and `extract_text` share). A QUARANTINE or BLOCK verdict
    withholds the record.
-4. **Probable at most.** What is read from a photo is never proposed as exact: an exact result
-   becomes probable, and the gap `read from a photo; check each figure against the receipt` is
+4. **Probable at most.** `extract` on a photo and `extract_text` propose a photo's text at
+   probable at most (`_propose` with `from_photo` set, which neither takes as a parameter): an exact
+   result becomes probable, and the gap `read from a photo; check each figure against the receipt` is
    added. A lowest reader score under 0.80 adds a gap naming it.
 5. **The label.** While the switch is on, `inbox.label_formats` adds the photo formats to the
    receipt label on the wizard's Inbox screen, and `person_labelled` screens the text the reader
-   returns before the file is routed. With no reader installed the photo is accepted with no
-   screen record, as a PDF with no readable text is, and the note carries the reader's reason.
+   returns before the file is routed. A file with a photo suffix whose opening bytes are not a
+   png, jpeg, webp, tiff or bmp picture's (`photo_text.looks_like_photo`) is refused and left in
+   the Inbox, and `read_image` returns a gap for it without starting the reader; the reader opens a
+   picture with those five Pillow decoders. A picture the reader returns no text for (no reader
+   installed, a picture it could not decode, a read that did not finish, a photo on its side or
+   over the pixel limit, or no text found) is accepted with no screen record, as a PDF with no
+   readable text is, and the note carries the reader's reasons.
 6. **The chat session as the other reader.** The read-only MCP tool `receipt_from_text` takes the
    text a session copied from a photo, with the photo's hub path and its fingerprint from the
    inbox ledger, and returns `receipt_extract.extract_text`'s proposal under decisions 3 and 4.
-   It opens no file and writes nothing.
+   It reads the config's switch, opens no document and writes nothing.
 
 ## Consequences
 
 - A photographed receipt reaches the work order with its fields filled, for the person to check
   against the paper. The photo stays on this computer on the local path; on the session path the
   photo is seen by the AI app the person is using.
+- The wizard reads a labelled photo twice in one approval (once to screen it at the label step,
+  once for the work order), and the work order screen reads each pending photo again when it is
+  opened; each read has the reader's 120 second limit.
+- `space_amounts` leaves a run of over 40 blanks before an amount as it is.
 - heic and gif are not taken: the reader's decoder was not run on them. A phone that saves HEIC
   photos needs them converted, or the session path.
 - A photo turned a quarter is reported and not read; a photo turned upside down gives rows in
