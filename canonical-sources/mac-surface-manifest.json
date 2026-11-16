@@ -105,7 +105,7 @@
     "tools/pick_folder.py": "4d455c7f07318591ddee82dc94cd1114b9457286e4704310a5034929abdf609a",
     "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8",
     "tools/profile_mirror.py": "d6297bde987097313a808c40140ac97a3850ab87b0efce324c70d8dbce564435",
-    "tools/readonly_bash_guard.py": "b5ca123437067486b9c66162bf3ae05b16b3089a4cd1f4485459b60a5a764437",
+    "tools/readonly_bash_guard.py": "9d316347640b5b123d48099557ae7e93e2011b8b20cd07886235cd30c53662bd",
     "tools/secret_scan.py": "e579008eadf769a0ed7e56f7e90c7e1ddae5a3cea9aba4d2fd1c1cb28c777013",
     "tools/setup.py": "9fd7db106769fe6bbd4f6f22b821bb107e5ee60314e654fd963e40a28f16c2c9",
     "tools/surface_workflow_check.py": "7b4939bb7258b93f7bc92ebfb97b15a0d48ccc65df125d60d4bb5f52f0fe9a36",
@@ -116,7 +116,7 @@
     "tools/videoedit/fcpxml.py": "360e3c57145b068fa21cf9cbd88c0145f597a77bde894e1f8aeaae34e589a077",
     "tools/videoedit/preflight.py": "be23665e7ef42d29676b099da748a0fcc2c7990bda9bf422ac3d754235fa3c80",
     "tools/videoedit/resolve.py": "b019f1d8021ed30bc2061669ae05a6523b8a5199531be7e1b6e5d81e1d6e7d27",
-    "tools/wizard.py": "dc797f86d1fe6827ed9ed745fdaf2076b7b96b585cd2621a890727cb651de6c1"
+    "tools/wizard.py": "91cd3583d435549f9e94de224ec0d1fb2b1aa86f1a4cfb3cbae8b77a349941f8"
   },
   "excluded": {}
 }

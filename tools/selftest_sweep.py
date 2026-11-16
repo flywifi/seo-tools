@@ -343,23 +343,30 @@ def selftest():
         globals()["discover"] = lambda: [(ROOT / "tools" / "secret_scan.py", ["--selftest"])]
         globals()["enrolment_problems"] = lambda: []
         PACKAGE_ENTRIES[:] = []
-        for name, stdout, rc in (("skip", "  [ok] a\n  DID NOT RUN: the hook run (no shell)\nx: 3/3 passed\n", 0),
-                                 ("clean", "  [ok] the gate says DID NOT RUN there\nx: 3/3 passed\n", 0),
-                                 ("red", "DID NOT RUN: part b\nFAIL c\n", 1)):
-            subprocess.run = lambda argv, _o=stdout, _rc=rc, **kw: subprocess.CompletedProcess(argv, _rc, _o, "")
+        for name, stdout, stderr, rc in (
+                ("skip", "  [ok] a\n  DID NOT RUN: the hook run (no shell)\nx: 3/3 passed\n", "", 0),
+                ("two", "DID NOT RUN: part a\n  [ok] b\n  DID NOT RUN: part c\n", "", 0),
+                ("clean", "  [ok] the gate says DID NOT RUN: there\nDID NOT RUN there\nx: 3/3 passed\n",
+                 "DID NOT RUN: on stderr\n", 0),
+                ("red", "DID NOT RUN: part b\nFAIL c\n", "", 1)):
+            subprocess.run = lambda argv, _o=stdout, _e=stderr, _rc=rc, **kw: subprocess.CompletedProcess(
+                argv, _rc, _o, _e)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 rc_sweep = run_sweep()
             said[name] = (rc_sweep, [ln for ln in buf.getvalue().splitlines()
-                                     if "DID NOT RUN" in ln or ln.startswith("selftest-sweep:")])
+                                     if ln.startswith(("         DID NOT RUN", "selftest-sweep:"))])
     finally:
         subprocess.run, globals()["discover"] = real_run, real_discover
         globals()["enrolment_problems"] = real_enrol
         PACKAGE_ENTRIES[:] = real_pkgs
-    check("the sweep repeats a selftest's DID NOT RUN: line under a tool that passes and under one that "
-          "fails, counts it in its last line, and passes over the words inside another line",
+    check("the sweep repeats each stdout line of a selftest that starts with DID NOT RUN: under a tool "
+          "that passes and under one that fails, counts the lines in its last line, and passes over the "
+          "words inside a line, the words without the colon, and a line on stderr",
           said == {"skip": (0, ["         DID NOT RUN: the hook run (no shell)",
                                 "selftest-sweep: PASS (1 of 1 selftests); 1 DID NOT RUN line(s) above"]),
+                   "two": (0, ["         DID NOT RUN: part a", "         DID NOT RUN: part c",
+                               "selftest-sweep: PASS (1 of 1 selftests); 2 DID NOT RUN line(s) above"]),
                    "clean": (0, ["selftest-sweep: PASS (1 of 1 selftests)"]),
                    "red": (1, ["         DID NOT RUN: part b",
                                "selftest-sweep: FAIL (0 of 1 selftests); 1 DID NOT RUN line(s) above"])})

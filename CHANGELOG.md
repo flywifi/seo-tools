@@ -460,7 +460,16 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with the install note absent, and says "No transcription engine yet." when the probe reports
   none; and the engine probe returns `(None, None, False)` with no engine found,
   `("faster-whisper", None, True)` with a stand-in `faster_whisper` module importable, and the
-  whisper.cpp binary first when both are present.
+  whisper.cpp binary first when both are present; the binary alone comes with `False`, and a
+  package whose import raises an `OSError` reads as absent. The import screen is also rendered
+  for a probe that reports a binary and the package together, and the screen without an engine
+  must carry the install note. The fixed stamp stands in for a `strftime` call that passes no
+  time. `_hook_shell` takes stand-ins for `shutil.which`, `os.name` and
+  `battery.bash_for_syntax`, and the guard's selftest checks which shell it returns for six
+  combinations of them; the skip report is also checked with `CI=1`. The sweep's check covers
+  two lines from one tool, the words inside a line and without the colon, and a line on stderr,
+  which is not repeated. `tools/file_hash.py` carries rows G5-WZ1 to G5-WZ34, G5-RB1 to G5-RB26
+  and G5-SW1 to G5-SW19 for these checks.
 - P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
   to stderr naming each mutation row before it runs it, a line before and after each module's
   unmutated baseline run, and a done line after its rows, and arms `faulthandler` to dump its

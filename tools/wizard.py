@@ -6740,20 +6740,22 @@ def _selftest_p101() -> int:
           and "Transcription engine found" not in _import_v,
           "the import screen without an engine does not point at Check my setup for an engine that cannot load")
     _import_found_v = {}
-    for _probe_v in (("fixture-engine", None, True), ("fixture-engine", "fixture-bin", False)):
+    for _probe_v in (("fixture-engine", None, True), ("fixture-engine", "fixture-bin", False),
+                     ("fixture-engine", "fixture-bin", True)):
         globals()["_stt_backend_present"] = lambda _p=_probe_v: _p
         try:
-            _import_found_v[_probe_v[1]] = _screen_import()
+            _import_found_v[_probe_v[1:]] = _screen_import()
         finally:
             globals()["_stt_backend_present"] = _real_stt_v
-    check("No transcription engine yet." in _import_v
+    check("No transcription engine yet." in _import_v and "Install a transcription engine" in _import_v
           and all("No transcription engine yet." not in _s and "Install a transcription engine" not in _s
                   for _s in _import_found_v.values())
-          and "Transcription engine found:</strong> fixture-engine. Creator OS can" in _import_found_v[None]
-          and "Transcription engine found:</strong> fixture-engine (fixture-bin). Creator OS can"
-          in _import_found_v["fixture-bin"],
-          "the import screen does not follow the engine probe: it names no engine the probe found, or "
-          "offers an install beside a found engine")
+          and "Transcription engine found:</strong> fixture-engine. Creator OS can"
+          in _import_found_v[(None, True)]
+          and all("Transcription engine found:</strong> fixture-engine (fixture-bin). Creator OS can"
+                  in _import_found_v[("fixture-bin", _fw_v)] for _fw_v in (False, True)),
+          "the import screen does not follow the engine probe: it names no engine or path the probe "
+          "found, offers an install beside a found engine, or offers none without one")
     # P102: the engine probe takes a .exe on Windows, so the Mouse control panel (main.cpl, which
     # which() returns for "main" through PATHEXT) is not reported as whisper.cpp.
     _real_which_v, _real_os_v = env_paths.which, _OS_OVERRIDE
@@ -6775,6 +6777,24 @@ def _selftest_p101() -> int:
         _OS_OVERRIDE = "linux"
         env_paths.which = lambda name, *a, **k: None
         _stt_full_v = [_stt_backend_present()]
+        env_paths.which = lambda name, *a, **k: "/usr/local/bin/whisper-cli" if name == "whisper-cli" else None
+        _stt_full_v.append(_stt_backend_present())
+        env_paths.which = lambda name, *a, **k: None
+
+        class _BrokenFw:
+            """An import finder whose faster_whisper cannot load, with an error that is not an
+            ImportError, as a package whose native library is missing raises."""
+            def find_spec(self, name, path=None, target=None):
+                if name == "faster_whisper":
+                    raise OSError("fixture: the package's library does not load")
+                return None
+        _broken_fw = _BrokenFw()
+        del sys.modules["faster_whisper"]
+        sys.meta_path.insert(0, _broken_fw)
+        try:
+            _stt_full_v.append(_stt_backend_present())
+        finally:
+            sys.meta_path.remove(_broken_fw)
         sys.modules["faster_whisper"] = type(sys)("faster_whisper")
         _stt_full_v.append(_stt_backend_present())
         env_paths.which = lambda name, *a, **k: "/usr/local/bin/whisper-cli" if name == "whisper-cli" else None
@@ -6788,8 +6808,10 @@ def _selftest_p101() -> int:
     check(_stt_v == {0: (None, None), 1: ("whisper.cpp", "whisper-cli"), 2: ("whisper.cpp", "main"),
                      3: ("whisper.cpp", "whisper-cli")},
           f"the wizard's engine probe counts main.cpl as whisper.cpp on Windows, or misses a real engine ({_stt_v})")
-    check(_stt_full_v == [(None, None, False), ("faster-whisper", None, True), ("whisper.cpp", "whisper-cli", True)],
-          f"the engine probe does not return (None, None, False) with no engine, ('faster-whisper', None, "
+    check(_stt_full_v == [(None, None, False), ("whisper.cpp", "whisper-cli", False), (None, None, False),
+                          ("faster-whisper", None, True), ("whisper.cpp", "whisper-cli", True)],
+          f"the engine probe does not return (None, None, False) with no engine or with a package that "
+          f"raises on import, the binary with False when the package is absent, ('faster-whisper', None, "
           f"True) with only that package importable, or whisper.cpp first with both ({_stt_full_v})")
     check(_quit_v[0] == "send" and "still running" in _quit_v[1] and _quit_shut_v is False,
           "/quit closes the wizard while the Visual C++ install runs, leaving its temporary folder")
@@ -7030,7 +7052,9 @@ def _selftest_p101() -> int:
         named by, so a second copy always meets the first one's name and must take the next free
         name; with the real clock two copies a second apart never collide (P102)."""
         def strftime(self, fmt, *args):
-            return "20260101120000" if fmt == "%Y%m%d%H%M%S" else _real_time_c.strftime(fmt, *args)
+            # the fixed stamp stands for local time now: a call that passes a time is not replaced
+            return ("20260101120000" if fmt == "%Y%m%d%H%M%S" and not args
+                    else _real_time_c.strftime(fmt, *args))
 
         def __getattr__(self, name):
             return getattr(_real_time_c, name)

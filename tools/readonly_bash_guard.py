@@ -1638,15 +1638,19 @@ _IN_MUTANT = False
 DID_NOT_RUN = "DID NOT RUN: "
 
 
-def _hook_shell():
+def _hook_shell(which=None, os_name=None, bash_for_syntax=None):
     """A POSIX shell to run the wired hook command under, or None: sh off Windows, else the bash
-    battery.bash_for_syntax finds (Git for Windows' on Windows)."""
+    battery.bash_for_syntax finds (Git for Windows' on Windows). The three arguments stand in for
+    shutil.which, os.name and battery.bash_for_syntax in the selftest."""
     import shutil
-    sh = shutil.which("sh") if os.name != "nt" else None
+    which = which or shutil.which
+    sh = which("sh") if (os_name or os.name) != "nt" else None
     if sh is None:
         try:
-            import battery
-            sh = battery.bash_for_syntax()
+            if bash_for_syntax is None:
+                import battery
+                bash_for_syntax = battery.bash_for_syntax
+            sh = bash_for_syntax()
         except Exception:  # noqa: BLE001
             sh = None
     return sh or None
@@ -1762,12 +1766,10 @@ def _selftest_hook_run():
     return fails
 
 
-_SKIP_POLICY_CHECKS = 3
-
-
 def _selftest_skip_policy():
-    """Failures of the three checks on a hook run that does not run: what _hook_skip_report says
-    for each of a mutation run, a computer with no shell and a CI runner; that _selftest_hook_run
+    """Failures of the four checks on a hook run that does not run: what _hook_skip_report says
+    for each of a mutation run, a computer with no shell and a CI runner; which shell _hook_shell
+    returns for stand-in lookups; that _selftest_hook_run
     returns the reason and starts no shell when none is found; and that main() refuses --selftest
     while _IN_MUTANT is set and runs selftest() while it is not."""
     import contextlib
@@ -1776,13 +1778,31 @@ def _selftest_skip_policy():
     saved = {k: g[k] for k in ("_IN_MUTANT", "_hook_shell", "selftest")}
     got = {name: _hook_skip_report("no shell", in_mutant, env)
            for name, in_mutant, env in (("mutant", True, {"CI": "true"}), ("creator", False, {}),
-                                        ("empty CI", False, {"CI": ""}), ("ci", False, {"CI": "true"}))}
+                                        ("empty CI", False, {"CI": ""}), ("ci", False, {"CI": "true"}),
+                                        ("ci 1", False, {"CI": "1"}))}
     # The prefix is spelled out: the selftest sweep looks for these exact words at a line's start.
     line = "DID NOT RUN: readonly_bash_guard's run of the hook command wired in .claude/settings.json (no shell)"
     if got != {"mutant": ("  [skip] guard hook run: no shell", None), "creator": (line, None),
                "empty CI": (line, None),
-               "ci": (line, "the wired hook command did not run, and CI is set (no shell)")}:
+               "ci": (line, "the wired hook command did not run, and CI is set (no shell)"),
+               "ci 1": (line, "the wired hook command did not run, and CI is set (no shell)")}:
         fails.append(f"a skipped hook run is reported wrongly: {got}")
+    asked = []
+
+    def which_sh(name):
+        asked.append(name)
+        return "/fixture/sh" if name == "sh" else None
+
+    def raises():
+        raise OSError("fixture")
+    shells = [_hook_shell(which_sh, "posix", lambda: "/fixture/bash"),
+              _hook_shell(lambda name: None, "posix", lambda: "/fixture/bash"),
+              _hook_shell(which_sh, "nt", lambda: "C:\\fixture\\bash.exe"),
+              _hook_shell(which_sh, "nt", lambda: None),
+              _hook_shell(lambda name: None, "posix", lambda: ""),
+              _hook_shell(lambda name: None, "posix", raises)]
+    if shells != ["/fixture/sh", "/fixture/bash", "C:\\fixture\\bash.exe", None, None, None] or asked != ["sh"]:
+        fails.append(f"_hook_shell returns {shells} after asking for {asked}")
     try:
         g["_hook_shell"] = lambda: None
         g["_IN_MUTANT"] = False
@@ -1851,7 +1871,7 @@ def selftest():
     if survivors or not _PROFILE_MIRROR_MUTANTS:
         fails.append(f"profile_mirror write-verb mutations not caught: {survivors}")
     n = (len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 1
-         + (hook_ran or bool(skip_fail)) + _SKIP_POLICY_CHECKS)
+         + (hook_ran or bool(skip_fail)) + 4)   # 4: the checks of _selftest_skip_policy
     for f in fails:
         print(f"FAIL {f}")
     print(f"readonly_bash_guard selftest: {n - len(fails)}/{n} passed "
