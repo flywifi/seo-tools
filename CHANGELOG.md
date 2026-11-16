@@ -443,6 +443,22 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- Google connector wording (docs): the passages on what ChatGPT's and claude.ai's Google
+  integrations do with the Drive hub's files are reworded to what the vendor pages document, as read
+  on 2026-11-16. `docs/DRIVE-HUB.md`: the local lane's markdown copies serve the computer and a Drive
+  for desktop mirror, and a web chat uses the Google Docs lane or uploaded pack files; the
+  self-updating Project section is stated for claude.ai, with uploads for a ChatGPT Project; a
+  boundary names the connected account's Drive permissions and ChatGPT's Library coverage.
+  `docs/TASK-TRACKER.md`, `shared/tasks-engine.md`, `shared/integrations-engine.md` and knowledge
+  file `07-pipeline-spokes.md`: Calendar and Gmail are described as read paths, nudge text is drafted
+  in the chat for the person to send, and the `.ics`, JSON/CSV and Sheet exports say how each
+  reaches another AI. `docs/SURFACE-WORKFLOWS.md` and the W4 live step in
+  `skills/creator-core/evals/surface-workflows.json`: the person saves the profile export into the
+  synced Profile folder. `docs/DEPLOYMENT.md`: a note on what "No" means for ChatGPT in the Google
+  Workspace row. `shared/connectors/connectors.json` is unchanged. Five pages join the source
+  registry (Claude's Gmail, Calendar and Drive connector reference, OpenAI's Library and ChatGPT Work
+  help articles), declared in the docs' `sources` blocks. Projects fed by uploads: replace
+  `07-pipeline-spokes.md` and `creator-os-combined.md` after the next re-export.
 - P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
   to stderr naming each mutation row before it runs it, a line before and after each module's
   unmutated baseline run, and a done line after its rows, and arms `faulthandler` to dump its

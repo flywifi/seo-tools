@@ -152,12 +152,18 @@ offline copy.
   Drive); carrier tracking and .ics export run here.
 - **claude.ai web / mobile** — the tracker runs as an Agent Skill (its stdlib scripts run in the
   code-exec sandbox when settings allow; otherwise the model computes under `tasks-engine.md` with a
-  `verify` flag), over the Drive/Sheets store, with native Calendar for due dates and native Gmail
-  for email→task and nudge drafts (never auto-send). Continuous with Desktop because both share the
-  Drive store.
+  `verify` flag), over the Drive/Sheets store, with native Calendar to read due dates and native
+  Gmail to read the mail a task comes from; nudge text is drafted in the chat for you to send
+  yourself. Anthropic's connector reference describes Gmail and Calendar as read-only, and its Help
+  Center article describes drafts, sends and calendar events with approval by default (Team and
+  Enterprise owners can allow actions without asking each time), so a Gmail draft or a calendar
+  event is written where your account offers it (both pages checked 2026-11-16). Continuous with
+  Desktop because both share the Drive store.
 - **Other AIs (ChatGPT / Gemini)** — via the optional remote MCP, or the provider-neutral exports the
-  tool already emits (the `.ics` calendar, portable JSON/CSV, the Google Sheet). Gemini reads Drive
-  natively; ChatGPT via an app/Drive.
+  tool already emits: the `.ics` calendar (for you to import into Google Calendar; ChatGPT does not
+  document reading `.ics`), portable JSON/CSV (upload them to the chat where it accepts the type;
+  the Claude and ChatGPT Drive pages do not document reading them from Drive), and the Google Sheet
+  (readable through a connected Drive app where available and authorized).
 
 See `docs/DEPLOYMENT.md` (capability matrix) and `docs/LOCAL_CONTEXT.md`.
 
@@ -193,7 +199,8 @@ on the calendar — no terminal, no hosting.
    only ever use the web app, the Skill creates these on first use instead.)
 3. **Add the task-tracker Skill on claude.ai** (Settings → Skills → upload). It is already present on
    Desktop.
-4. **Enable native Calendar** in Claude so due dates and reminders land on Google Calendar.
+4. **Connect Google Calendar in Claude** so due dates can be read against your calendar; creating
+   events depends on your connector's permissions and approval settings.
 5. Now ask, on any surface: *"what am I waiting on from <brand>?"*, *"plan backwards from my publish
    date"*, *"did my final cut cover the approved talking points?"*, *"which milestones are billable?"*
    The same store answers on web, desktop, and mobile.
@@ -248,3 +255,18 @@ server (the transport + runbook ship; standing one up is user/host work). Semant
 are optional and flag-gated; the offline core (reconciliation + lexical + citation verification +
 abstention) works with no ML dependency and abstains rather than guesses. No blockchain chain of
 custody; a `sha256` content hash of a cited artifact is the tamper-evidence.
+
+## Where the connector facts come from
+
+The surface notes above cite these pages, registered in the source registry so the currency checks
+re-read them.
+
+```sources
+[
+  {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"},
+  {"id": "claude-gmail-connector-docs", "name": "Claude connector reference - Gmail", "url": "https://claude.com/docs/connectors/google/gmail", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "Gmail connector described as read and search; states Claude cannot create, send, or modify emails."},
+  {"id": "claude-google-calendar-connector-docs", "name": "Claude connector reference - Google Calendar", "url": "https://claude.com/docs/connectors/google/calendar", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "Calendar connector described as read-only; states Claude cannot create, modify, or delete events."},
+  {"id": "claude-google-drive-connector-docs", "url": "https://claude.com/docs/connectors/google/drive"},
+  {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"}
+]
+```

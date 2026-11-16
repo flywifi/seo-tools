@@ -195,10 +195,13 @@ conflict forces the human gate.
   .ics export run here.
 - **claude.ai web / mobile** — the tracker as a bundled Agent Skill (its stdlib scripts run in the
   code-exec sandbox when allowed; otherwise the model computes under this engine with a `verify` flag), the
-  Drive/Sheets store, native Calendar for due dates, native Gmail for email-to-task and nudge drafts
-  (never auto-send). Continuous with Desktop through the shared Drive store.
-- **Other AIs (ChatGPT / Gemini)** — the optional remote MCP, or the provider-neutral exports (.ics, JSON,
-  CSV, the Google Sheet).
+  Drive/Sheets store, native Calendar to read due dates, native Gmail to read the mail a task comes from;
+  nudge text is drafted in the chat for you to send yourself, and a Gmail draft or calendar event is written
+  where your connector offers writes, with approval by default (docs/TASK-TRACKER.md names the vendor
+  pages). Continuous with Desktop through the shared Drive store.
+- **Other AIs (ChatGPT / Gemini)** — the optional remote MCP, or the provider-neutral exports: the .ics
+  calendar for you to import (ChatGPT does not document reading .ics), JSON and CSV uploaded to the chat
+  where it accepts the type, and the Google Sheet through a connected Drive app where available.
 
 ## Governance
 Every output sets `human_review_required`. Nothing is sent, invoiced, or posted automatically. No

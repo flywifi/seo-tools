@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-11-08 (Creator OS baseline 5411a5d4). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-11-16 (Creator OS baseline c843cd37). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS - combined knowledge (single-file upload)
 
@@ -2770,11 +2770,14 @@ Capability tiers (see docs/TASK-TRACKER.md for the setup runbook):
 - Claude Desktop + MCP: full offline compute (tools/tasks.py, shipments.py, coverage_verify.py), the carrier
   connector, and .ics export.
 - claude.ai web / mobile: the tracker runs as an Agent Skill with the native Google Drive/Sheets store (the
-  same file Desktop uses, so tasks are continuous across surfaces), native Calendar for due dates, and native
-  Gmail for email-to-task and nudge drafts. In knowledge-only mode the offline math is unavailable and the
-  model computes under shared/tasks-engine.md with a verify flag.
-- Other AIs (ChatGPT / Gemini): the optional remote MCP endpoint, or the portable exports (.ics, JSON, the
-  Google Sheet). Gemini reads Drive natively.
+  same file Desktop uses, so tasks are continuous across surfaces), native Calendar to read due dates, and
+  native Gmail to read the mail a task comes from. Nudge text is drafted in the chat for you to send
+  yourself; a Gmail draft or calendar event is written where your connector offers it, with approval by
+  default. In knowledge-only mode the offline math is unavailable and the model computes under
+  shared/tasks-engine.md with a verify flag.
+- Other AIs (ChatGPT / Gemini): the optional remote MCP endpoint, or the portable exports: the .ics calendar
+  for you to import (ChatGPT does not document reading .ics), JSON uploaded to the chat where it accepts the
+  type, and the Google Sheet through a connected Drive app where available.
 
 ---
 

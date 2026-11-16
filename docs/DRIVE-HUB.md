@@ -252,8 +252,13 @@ present in the hub's `Knowledge/` folder, two ways:
 
 - **Local lane (default, zero network):** `python3 tools/project_docs.py project --hub PATH` (or
   the Refresh button on the wizard `/drive-hub` screen, or a queued `project_docs` job) copies
-  each pack file into `Knowledge/` with its freshness stamp intact. Any chat using the Google
-  Drive connector then reads the CURRENT copy at question time.
+  each pack file into `Knowledge/` with its freshness stamp intact. These markdown copies serve
+  the computer and any Drive for desktop mirror. Claude's Drive connector documents reading Google
+  Docs, Sheets, Slides, PDFs, Office and OpenDocument files, and PNG and JPEG images; ChatGPT's
+  Drive app documents Docs, Sheets and Slides actions and says that finding a file's name does not
+  confirm its contents were read. Neither documents reading markdown from Drive, so for a web chat
+  use the Google Docs lane below, or upload the pack files to the Project. (Both pages checked
+  2026-11-16.)
 - **Google Docs lane (opt-in, `--api`, needs the Drive API credential from `/drive-hub`):**
   creates one real Google Doc per pack file via the Drive import conversion and, on every
   re-projection, UPDATES the same Doc (the doc id is remembered locally), because Google Docs
@@ -271,6 +276,12 @@ Setting up the self-updating Project, once:
    so a rich pack stays usable. (Source: the Claude Help Center articles "What are Projects" and
    the Google Workspace connectors article above, checked 2026-07-16.)
 
+This live refresh is documented for Google Docs added to a private claude.ai Project. ChatGPT's
+Projects page says its Google Drive app does not support sync when added within a project; it also
+lets a private project take a pasted Drive file or folder link as a source, without saying that the
+source refreshes. So for ChatGPT, upload the pack files as Project files, in a type it accepts, and
+replace them after each re-export (`implementation/gpt/project/README.md`). (Checked 2026-11-16.)
+
 Staleness is split deliberately: engines to pack is drift invariant 47
 (`tools/projection_manifest.py`, runs in CI as an ADVISORY: it reports a stale projection without
 failing the build); pack to Drive is `python3 tools/project_docs.py
@@ -286,6 +297,9 @@ unchanged for non-Drive users and shared projects.
   (`live_publishing_enabled` + human confirmation); no job type touches it.
 - **The hub is per Google account, per install.** One hub pairs with one Creator OS clone and one
   profile. A second user gets their own clone and their own hub.
+- **A web chat reaches the hub through the Google account you connect, with that account's Drive
+  permissions.** ChatGPT's Library starts from My Drive and items shared directly with the account;
+  Shared Drives are not in it yet (checked 2026-11-16).
 - **Putting data in Drive is a choice.** The hub holds only what the chosen store mode already
   shares; the local-first mode remains the default posture of the repo.
 
@@ -303,6 +317,9 @@ declared below and registered in the source registry, so the currency system re-
   {"id": "google-drive-desktop-sync-modes", "name": "Google Drive Help - Stream and mirror files with Drive for desktop", "url": "https://support.google.com/drive/answer/13401938", "category": "os-platform", "tier": "T1", "extraction_hint": "Stream vs mirror: mirrored files are stored locally and in the cloud; on conflicting content Drive for desktop keeps both copies."},
   {"id": "google-drive-desktop-macos", "name": "Google Drive Help - Use Drive for desktop on macOS", "url": "https://support.google.com/drive/answer/12178485", "category": "os-platform", "tier": "T1", "extraction_hint": "Drive for desktop on macOS; streaming uses Apple's File Provider on macOS 12.1 and later."},
   {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
+  {"id": "claude-google-drive-connector-docs", "name": "Claude connector reference - Google Drive", "url": "https://claude.com/docs/connectors/google/drive", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "File types Claude reads from Drive: Google Docs, Sheets, Slides, PDF, Word/Excel/PowerPoint, OpenDocument, PNG and JPEG."},
+  {"id": "openai-projects-help", "url": "https://help.openai.com/en/articles/10169521-projects-in-chatgpt"},
+  {"id": "openai-library-help", "name": "Using Library to manage files in ChatGPT (help center)", "url": "https://help.openai.com/en/articles/20001052-using-library-to-manage-files-in-chatgpt", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "Library's Google Drive coverage: My Drive and items shared directly; Shared Drives not included yet."},
   {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"},
   {"id": "google-drive-desktop-org-setup", "name": "Set up Drive for desktop for your organization (Google Workspace Admin Help)", "url": "https://knowledge.workspace.google.com/admin/drive/set-up-drive-for-desktop-for-your-organization", "category": "os-platform", "tier": "T1"},
   {"id": "fileinfo-google-drive-file-types", "name": "Google Drive file types (FileInfo)", "url": "https://fileinfo.com/help/google_drive_file_types", "category": "platform-spec", "tier": "T3"},

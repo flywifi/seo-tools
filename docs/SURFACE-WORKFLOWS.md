@@ -106,7 +106,7 @@ confirm.
 | W1 | claude.ai, then Claude Desktop | A voice change saved on the web as a new dated file is content-checked (a copy holding a credential is refused); claude.ai cannot edit the file in place; once saved at home the mirror copies it, rewrites the "About me and my voice" Doc, logs one summary line and stamps the run `ok`; a second run reports the Doc unchanged |
 | W2 | claude.ai, then the ChatGPT desktop app (Codex view) | A job ticket from the web waits while `compute_handoff_enabled` is off, runs once it is on (a result with `human_review_required` and an Outbox report), a Drive conflict copy is skipped, a ticket for a job type that is not allowed is refused, and a ticket trashed from the web before the run leaves nothing behind (gap SW-G10) |
 | W3 | claude.ai, then the Gemini desktop app | A low-confidence research result with no minority report fails the validator; a second opinion written through Gemini Spark into the hub Inbox disagrees, and the reconciler keeps the disagreement as a minority report instead of picking a winner; a second opinion that agrees yields no conflict and no review flag |
-| W4 | ChatGPT on the web, then the ChatGPT desktop app | A profile export saved through ChatGPT's Google Drive app passes the content check; the contact profile reaches Drive only with the opt-in |
+| W4 | ChatGPT on the web, then the ChatGPT desktop app | A profile export saved into the hub's Profile folder passes the content check; the contact profile reaches Drive only with the opt-in |
 | W5 | ChatGPT on the web, then Claude Desktop | The same task edited on the web and at home, plus a Drive conflict copy that adds one more event, merges with each change once, and each of three re-reads holds the same events in the same order |
 | W6 | ChatGPT on the web, then the Gemini desktop app | "Post it now" goes nowhere: the Gemini desktop app has no Creator OS tools; on the computer the publishing gate refuses with live publishing off and makes no network call, while with it on the network spy records the attempt (so the spy is shown to see one); the schedule tool returns a plan for human review with the flag off or on, and calls neither the config loader nor the credentials loader |
 | W7 | Gemini on the web, then the Gemini desktop app | Gemini Spark editing the content calendar in a connected folder: a valid edit is mirrored and the Doc updated; a broken edit is refused, stamped `error`, and the Drive copy and Doc keep the last good version; a deleted file keeps its Drive copy |
@@ -130,10 +130,12 @@ confirm.
 - **W3:** In claude.ai, ask for the research as a dated JSON export into Creator OS/Store. On the
   Mac, connect ONLY the hub's Inbox folder to Gemini Spark and ask Gemini for a second opinion
   saved there. In Claude Desktop, ask Creator OS to check both.
-- **W4:** In ChatGPT on the web, run `implementation/gpt/profile-import/PROMPT.md` and ask
-  ChatGPT to save the JSON as a NEW file in Creator OS/Profile. Continue the Work chat in the
-  desktop app; in Codex run `python3 tools/profile_mirror.py check-file "<the file>"`. Claude
-  Desktop then proposes `creator-profile.local.json` for you to save by hand.
+- **W4:** In ChatGPT on the web, run `implementation/gpt/profile-import/PROMPT.md`, copy the JSON
+  reply into a file named `profile-export-<context>.json`, and save it into your synced Creator
+  OS/Profile folder (ChatGPT documents Drive file actions and Docs, Sheets and Slides actions, not
+  this JSON export workflow; checked 2026-11-16). Continue the Work chat in the desktop app; in
+  Codex run `python3 tools/profile_mirror.py check-file "<the file>"`. Claude Desktop then proposes
+  `creator-profile.local.json` for you to save by hand.
 - **W5:** Save your task list from ChatGPT on the web into Creator OS/Store, change the same task
   in Claude Desktop the same day, then ask Creator OS for the list: each change appears once.
 - **W6:** Ask ChatGPT on the web for a posting package, then tell the Gemini desktop app to post
@@ -209,6 +211,7 @@ on 2026-10-01 and are registered in the source registry, so the currency checks 
 [
   {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"},
   {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
+  {"id": "openai-work-google-files", "name": "Creating and editing documents, spreadsheets, and presentations with ChatGPT Work (help center)", "url": "https://help.openai.com/en/articles/20001278-creating-and-editing-documents-spreadsheets-and-presentations-with-chatgpt-work", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "ChatGPT Work creates or edits native Google Docs, Sheets and Slides where the plan and workspace allow it."},
   {"id": "openai-chatgpt-desktop-move", "url": "https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app"},
   {"id": "openai-chatgpt-developer-mode-help", "url": "https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt"},
   {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"},
