@@ -13,6 +13,21 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (price capture, ADR 0088): behind the new `price_capture` switch (off by default), the new
+  `tools/price_capture.py` (`capture`, the `price_capture` MCP tool, or the command line) fetches
+  the public page the person names and reads the price that page states in its product data (a
+  JSON-LD Product's offers, else price meta tags), following a redirect on the same host up to
+  three times and refusing a host that resolves to this computer or a private network, also in
+  the IPv6 forms that carry such an address; a link gets 15 seconds, with a timer that shuts a
+  connection whose time is up, and 2 MB; with no proxy the checked addresses are tried in the
+  resolver's order, three at most, and with a proxy a redirect the proxy would not carry is
+  refused; one price in USD is proposed with the
+  page and the date, anything else is a gap. `tools/books.py::set_price` records a price with its
+  source, page and date on a product entry behind `finance_management`, from the Books tab's new
+  price form (`POST /api/books-price`, `tools/dashboard/server.py::_books_price`, which fetches no
+  page), the new `price_confirm` MCP tool (a write only with `write` true) or
+  `tools/books.py --set-price`. `tools/file_hash.py` lists the row for a body the timer cut
+  short as POSIX-only, so a Windows run skips that row and counts it.
 - P103 (photo receipts, content check and bounded spacing): `photo_text.looks_like_photo` reads a
   file's opening bytes; `inbox.person_labelled` refuses a file with a photo suffix whose opening
   bytes do not match a png, jpeg, webp, tiff or bmp signature, and one the reader could not

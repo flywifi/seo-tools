@@ -21,6 +21,7 @@ const App = (function () {
     editingItemId: null,
     editingPlatform: null,
     books: null,
+    booksPriceFor: null,
     booksYear: new Date().getFullYear(),
   };
 
@@ -588,12 +589,40 @@ const App = (function () {
     if (!gifts.length) {
       html += '<p class="queue-empty">No products are recorded for this year.</p>';
     } else {
-      html += booksTable(["Date", "From", "Item", "Quantity", "Value", "Price source", "Page", "Status"],
+      html += booksTable(["Date", "From", "Item", "Quantity", "Value", "Price source", "Page", "Status", ""],
         gifts.map(function (g) {
+          var act = "";
+          if (b.recording_on && g.entry_id) {
+            act = '<button class="btn btn-sm" data-action="books-price-open" data-entry-id="' +
+                  escapeHtml(g.entry_id) + '">' + (g.value === null ? "Record price" : "Change price") + "</button>";
+          }
           return "<tr>" + booksCell(g.date) + booksCell(g.payer) + booksCell(g.item) + booksCell(g.quantity) +
                  booksCell(g.value === null ? "no price yet" : g.value) + booksCell(g.price_source) +
-                 booksCell(g.price_source_ref) + booksCell(g.status) + "</tr>";
+                 booksCell(g.price_source_ref) + booksCell(g.status) + "<td>" + act + "</td></tr>";
         }));
+      var target = gifts.filter(function (g) { return g.entry_id && g.entry_id === state.booksPriceFor; })[0];
+      if (target && b.recording_on) {
+        var d = new Date();
+        var today = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+        html += '<div class="books-price-form"><h4>Price for: ' + escapeHtml(String(target.item || "")) + "</h4>" +
+                '<p><label>Price of one, in US dollars <input id="books-price-amount" inputmode="decimal" ' +
+                'placeholder="24.50"></label></p>' +
+                '<p><label>Where the price comes from <select id="books-price-source">' +
+                '<option value="brand_page">The brand\'s own page</option>' +
+                '<option value="retailer_page">A shop\'s page</option>' +
+                '<option value="user_stated">I am stating it myself</option></select></label></p>' +
+                '<p><label>Link to that page <input id="books-price-ref" type="url" ' +
+                'placeholder="https://"></label></p>' +
+                '<p><label>Date the price was read <input id="books-price-date" type="date" value="' + today +
+                '"></label></p>' +
+                '<p><button class="btn btn-sm btn-primary" data-action="books-price-save" data-entry-id="' +
+                escapeHtml(target.entry_id) + '">Record price</button> ' +
+                '<button class="btn btn-sm" data-action="books-price-cancel">Cancel</button></p>' +
+                '<p class="muted">This page fetches nothing. To have the price read from a page for you, give ' +
+                "the link to your chat session and ask it to read the price, or run " +
+                "<code>python3 tools/price_capture.py</code> with the link. Both need the price_capture " +
+                "switch on. Then enter the price and the link here.</p></div>";
+      }
     }
 
     html += "<h3>Forms received, checked against the ledger</h3>";
@@ -646,6 +675,33 @@ const App = (function () {
     } else {
       toast((res && res.error) || "The entry was not changed", "error");
     }
+  }
+
+  async function booksSavePrice(entryId) {
+    var field = function (id) {
+      var el = document.getElementById(id);
+      return el ? el.value : "";
+    };
+    var res = await api("POST", "/api/books-price", {
+      entry_id: entryId,
+      price: field("books-price-amount"),
+      price_source: field("books-price-source"),
+      price_source_ref: field("books-price-ref"),
+      price_captured_at: field("books-price-date"),
+    });
+    if (res && res.updated) {
+      state.booksPriceFor = null;
+      await loadBooks();
+      render();
+      toast("Price recorded");
+    } else {
+      toast((res && res.error) || "The price was not recorded", "error");
+    }
+  }
+
+  function booksOpenPrice(entryId) {
+    state.booksPriceFor = entryId || null;
+    render();
   }
 
   async function booksSetYear(year) {
@@ -1039,6 +1095,9 @@ const App = (function () {
       else if (action === "books-confirm") booksSetStatus(el.dataset.entryId, "confirmed");
       else if (action === "books-void") booksSetStatus(el.dataset.entryId, "void");
       else if (action === "books-year") booksSetYear(el.dataset.year);
+      else if (action === "books-price-open") booksOpenPrice(el.dataset.entryId);
+      else if (action === "books-price-cancel") booksOpenPrice(null);
+      else if (action === "books-price-save") booksSavePrice(el.dataset.entryId);
     });
     main.addEventListener("change", function (e) {
       var el = e.target.closest('[data-action="toggle"]');

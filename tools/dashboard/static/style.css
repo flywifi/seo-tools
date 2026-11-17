@@ -708,3 +708,10 @@ main {
 }
 .books-boundary { margin-top: 20px; font-size: 12px; }
 .books-year ~ h3 { margin: 22px 0 8px; }
+.books-price-form {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.books-price-form input, .books-price-form select { margin-left: 6px; }

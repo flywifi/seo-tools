@@ -38,6 +38,7 @@ import atomic_io  # noqa: E402  (the one atomic writer, P81)
 import finance  # noqa: E402  (P31: read-only AR view)
 import tasks as _tasks  # noqa: E402  (P35: read-only task view)
 import books  # noqa: E402  (P103: the Books tab reads the income ledger and confirms entries)
+import price_capture  # noqa: E402  (P103: check_link, the form of a page link; this server fetches no page)
 import loopback_server  # noqa: E402  (P101: port block and exclusive bind)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -425,6 +426,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         "/api/update-schedule": "_handle_update_schedule",
         "/api/delete-item": "_handle_delete_item",
         "/api/books-status": "_handle_books_status",
+        "/api/books-price": "_handle_books_price",
     }
 
     def do_POST(self):
@@ -687,6 +689,49 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         except Exception as exc:  # noqa: BLE001 - a click gets a reply, whatever the ledger raises
             reply, status = {"error": str(exc) or type(exc).__name__}, 500
         self._json_response(reply, status=status)
+
+    def _handle_books_price(self, body):
+        try:
+            answer, code = _books_price(body)
+        except Exception as exc:  # noqa: BLE001 - the form gets a reply, whatever the ledger raises
+            answer, code = {"error": str(exc) or type(exc).__name__}, 500
+        self._json_response(answer, status=code)
+
+
+def _books_price(body, config=None):
+    """Pass the Books tab's price form to books.set_price (ADR 0088): the entry id in the ledger's
+    id form, the price as text, a source from books.PRICE_SOURCES, the date the price was read
+    as text, and, for a brand or retailer price, a page link price_capture.check_link accepts (a
+    stated price keeps no link). The page is not fetched here: this server reads no page.
+    books.set_price holds the provenance rule and writes behind finance_management. Returns
+    (reply, status): 200 when recorded; 400 for a field in another form; 422 with the ledger's
+    problems; 404 for an id the ledger does not hold; 409 for the switch off or an entry that
+    takes no price; 500 for a ledger that does not parse."""
+    form = body if isinstance(body, dict) else {}
+    eid, source = form.get("entry_id"), form.get("price_source")
+    price, captured, ref = form.get("price"), form.get("price_captured_at"), form.get("price_source_ref")
+    if not (isinstance(eid, str) and _BOOKS_ID_RE.match(eid)):
+        return {"error": "the entry id is not in the ledger's id form"}, 400
+    if not isinstance(source, str) or source not in books.PRICE_SOURCES:
+        return {"error": "price_source must be brand_page, retailer_page or user_stated"}, 400
+    if not isinstance(price, str) or not isinstance(captured, str):
+        return {"error": "price and price_captured_at must be text"}, 400
+    if source == "user_stated":
+        ref = None
+    else:
+        parts, why = price_capture.check_link(ref)
+        if parts is None:
+            return {"error": f"the page link cannot be kept: {why}"}, 400
+    try:
+        out = books.set_price(eid, price.strip(), source, ref, captured.strip(), config=config)
+    except ValueError as err:
+        return {"error": str(err)}, 500
+    if out.get("updated"):
+        return out, 200
+    if out.get("problems"):
+        return {"error": "; ".join(str(p) for p in out["problems"])}, 422
+    why_not = str(out.get("reason") or "")
+    return {"error": why_not}, (404 if why_not.startswith("no entry") else 409)
 
 
 def _save_publish_creds(platform, updated):
@@ -1767,6 +1812,88 @@ def _selftest_checks() -> int:
        and ledger_file.read_bytes() == before_refusals)
     confirmed = _books_status({"entry_id": cash_id, "status": "confirmed"}, books_on)
     after_confirm = _books_payload(2026, config=books_on)
+    # The price form (ADR 0088). The ledger is put back afterwards, so the cases below see it as it was.
+    ledger_before_price = books.ledger_path().read_bytes()
+    pg = "https://shop.example/smoothing-plane"
+    form = {"entry_id": gift_id, "price": " 149.50 ", "price_source": "brand_page", "price_source_ref": f" {pg} ",
+            "price_captured_at": " 2026-06-02 "}
+    price_calls, real_set_price = [], books.set_price
+    books.set_price = lambda *a, **k: price_calls.append(a) or real_set_price(*a, **k)
+    price_refusals = [_books_price(dict(form, **change), books_on) for change in (
+        {"entry_id": gift_id.upper()}, {"entry_id": 7}, {"price_source": "a guess"}, {"price_source": ["brand_page"]},
+        {"price": 149.5}, {"price_captured_at": 20260602}, {"price_source_ref": None},
+        {"price_source_ref": "ftp://shop.example/x"}, {"price_source_ref": "https://user:pw@shop.example/x"},
+        {"price_source": "retailer_page", "price_source_ref": "  "},
+        {"entry_id": "zz" + gift_id}, {"price_source": None}, {"price_source": ""})]
+    price_refusals.append(_books_price(None, books_on))
+    books.set_price = real_set_price
+    ok("the price form is refused with 400, before the ledger is called, for an id in another form or with "
+       "characters before it, a source outside the list or not given, a price or date that is not text, and "
+       "a brand or retailer price whose page link is missing, not http or https, or carries a sign-in part",
+       [s for _r, s in price_refusals] == [400] * 14 and all(r.get("error") for r, _s in price_refusals)
+       and books.ledger_path().read_bytes() == ledger_before_price and price_calls == [])
+    ledger_calls = [_books_price(dict(form, **change), cfg) for change, cfg in (
+        ({"price": "0"}, books_on), ({"price_captured_at": "2099-01-01"}, books_on),
+        ({"entry_id": cash_id}, books_on), ({"entry_id": cash_id[:-8] + "0" * 8}, books_on),
+        ({}, {"capabilities": {"finance_management": False}}))]
+    ok("the ledger's own refusals answer 422 with its problems, 409 for an entry that takes no price or the "
+       "switch off, and 404 for an id it does not hold, and leave its bytes as they were",
+       [s for _r, s in ledger_calls] == [422, 422, 409, 404, 409]
+       and "must be positive" in ledger_calls[0][0]["error"] and "after today" in ledger_calls[1][0]["error"]
+       and "finance_management is off" in ledger_calls[4][0]["error"]
+       and books.ledger_path().read_bytes() == ledger_before_price)
+    import socket as _net
+    reached, saved_net = [], (_net.getaddrinfo, _net.gethostbyname, _net.create_connection)
+    _net.getaddrinfo = lambda *a, **k: reached.append(("getaddrinfo", a)) or saved_net[0](*a, **k)
+    _net.gethostbyname = lambda *a, **k: reached.append(("gethostbyname", a)) or saved_net[1](*a, **k)
+    _net.create_connection = lambda *a, **k: reached.append(("connect", a)) or saved_net[2](*a, **k)
+    try:
+        recorded = _books_price(form, books_on)
+        by_retailer = _books_price(dict(form, price="150", price_source="retailer_page"), books_on)
+        _books_price(dict(form, price_source="brand_page"), books_on)
+    finally:
+        _net.getaddrinfo, _net.gethostbyname, _net.create_connection = saved_net
+    ok("recording a brand or retailer price looks no host up and opens no connection",
+       recorded[1] == by_retailer[1] == 200 and reached == [])
+    priced_row = next(g for g in _books_payload(2026, config=books_on)["gifts"]["items"] if g["entry_id"] == gift_id)
+    stated_form = _books_price(dict(form, price="12", price_source="user_stated", price_source_ref="not a link"),
+                               books_on)
+    ok("the price form records the price with its source, the page link without its outer spaces and the "
+       "date, and the gift is valued; a stated price keeps no link",
+       recorded[1] == 200 and recorded[0]["product"]["retail_price"] == "149.50"
+       and recorded[0]["product"]["price_source_ref"] == pg and recorded[0]["product"]["price_captured_at"] == "2026-06-02"
+       and priced_row["value"] is not None and priced_row["price_source"] == "brand_page"
+       and stated_form[1] == 200 and stated_form[0]["product"]["price_source"] == "user_stated"
+       and stated_form[0]["product"]["price_source_ref"] is None and stated_form[0]["replaced"] == "149.50"
+       and recorded[0]["replaced"] is None)
+    price_route = []
+    price_gate = []
+    saved_price_gate, saved_set_price = books._write_allowed, books.set_price
+
+    class _PriceRequest:
+        def _json_response(self, data, status=200):
+            price_route.append((status, data))
+    try:
+        books._write_allowed = lambda config=None: price_gate.append(config) or (True, "ok")
+        DashboardHandler._handle_books_price(_PriceRequest(), dict(form, price="150"))
+        DashboardHandler._handle_books_price(_PriceRequest(), dict(form, price_source="a guess"))
+        for exc in (OSError("disk full"), AssertionError()):
+            books.set_price = lambda *_a, exc=exc, **_k: (_ for _ in ()).throw(exc)
+            DashboardHandler._handle_books_price(_PriceRequest(), form)
+    finally:
+        books._write_allowed, books.set_price = saved_price_gate, saved_set_price
+    ok("the /api/books-price route answers with the form's status and reply, hands the ledger's switch no "
+       "config of its own, and answers 500 with the reason, or the error's type, when the ledger raises",
+       DashboardHandler.POST_ROUTES.get("/api/books-price") == "_handle_books_price"
+       and [s for s, _d in price_route] == [200, 400, 500, 500] and price_route[0][1]["product"]["retail_price"] == "150.00"
+       and price_gate == [None]
+       and [d.get("error") for _s, d in price_route[2:]] == ["disk full", "AssertionError"])
+    broken_ledger_price = None
+    books.ledger_path().write_text("{not json", encoding="utf-8")
+    broken_ledger_price = _books_price(form, books_on)
+    ok("the price form answers 500 with the reason when the ledger does not parse",
+       broken_ledger_price[1] == 500 and "does not parse" in broken_ledger_price[0]["error"])
+    books.ledger_path().write_bytes(ledger_before_price)
     voided = _books_status({"entry_id": gift_id, "status": "void"}, books_on)
     after_void = _books_payload(2026, config=books_on)
     ok("Confirm marks the entry confirmed and it leaves the awaiting list; Void takes the entry out of the "

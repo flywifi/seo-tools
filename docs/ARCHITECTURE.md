@@ -562,6 +562,7 @@ wizard's block is 8765, 8775, 8785). Exposes a JSON API:
 | POST | `/api/update-schedule` | Update scheduled datetime for a platform-specific post |
 | POST | `/api/delete-item` | Remove an item from the queue |
 | POST | `/api/books-status` | Confirm or void one ledger entry (`{entry_id, status}`), written by `tools/books.py` behind `finance_management` |
+| POST | `/api/books-price` | Record a product entry's price with its source, page and date (`{entry_id, price, price_source, price_source_ref, price_captured_at}`), written by `tools/books.py` behind `finance_management`; fetches no page |
 
 **Security:** the server binds to `127.0.0.1` only, emits no wildcard CORS header, requires
 `Content-Type: application/json` on POSTs, rejects mutating requests carrying a foreign `Origin`
@@ -586,7 +587,9 @@ the next save leaves that copy in place <!-- verify: tools/dashboard/server.py::
    confirmation with Confirm and Void buttons, gifted products with their price source and forms
    checked against the ledger; from the cost-actuals file, spending (ADR 0086). The buttons are offered while
    `finance_management` is on; the click goes to `tools/books.py`, which holds the ledger's rules
-   <!-- verify: tools/dashboard/server.py::_books_status -->.
+   <!-- verify: tools/dashboard/server.py::_books_status -->. A gifted product's row opens a price form
+   (price, source, page link, date) that goes to `books.set_price` (ADR 0088)
+   <!-- verify: tools/dashboard/server.py::_books_price -->.
 6. **Credentials** — traffic-light indicators per platform linking to the setup wizard's
    `/publishing-setup` screens for OAuth credential configuration.
 7. **Edit** (modal) — caption textarea with character count, hashtag editor, content type selector,
