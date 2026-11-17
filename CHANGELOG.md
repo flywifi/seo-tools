@@ -18,9 +18,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   the public page the person names and reads the price that page states in its product data (a
   JSON-LD Product's offers, else price meta tags), following a redirect on the same host up to
   three times and refusing a host that resolves to this computer or a private network, also in
-  the IPv6 forms that carry such an address; a fetch gets 15 seconds and 2 MB; with no proxy the
-  checked addresses are tried in the resolver's order, three at most, and with a proxy a redirect
-  the proxy would not carry is refused; one price in USD is proposed with the
+  the IPv6 forms that carry such an address; a link gets 15 seconds, with a timer that shuts a
+  connection whose time is up, and 2 MB; with no proxy the checked addresses are tried in the
+  resolver's order, three at most, and with a proxy a redirect the proxy would not carry is
+  refused; one price in USD is proposed with the
   page and the date, anything else is a gap. `tools/books.py::set_price` records a price with its
   source, page and date on a product entry behind `finance_management`, from the Books tab's new
   price form (`POST /api/books-price`, `tools/dashboard/server.py::_books_price`, which fetches no

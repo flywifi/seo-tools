@@ -1317,6 +1317,7 @@ def _selftest_static() -> tuple:
        "price_confirm as a write that calls books.set_price only past the write flag",
        "price_capture" in _VERIFIED_READS and "price_confirm" in _WRITE_TOOLS
        and _OPEN_WORLD_READS == {"price_capture"} and _OPEN_WORLD_READS <= _VERIFIED_READS
+       and not (_OPEN_WORLD_READS & set(_WRITE_TOOLS)) and all(_WRITE_TOOLS.values())
        and _OPEN_WORLD_READONLY == dict(_DEFAULT_READONLY, openWorldHint=True)
        and _WRITE_TOOLS["price_confirm"]["readOnlyHint"] is False
        and src.count("return json.dumps(_pc.capture" + "(url), indent=2, ensure_ascii=False)") == 1
@@ -3213,7 +3214,8 @@ def _apply_annotations() -> tuple:
     problems = _classification_problems(Path(__file__).read_text(encoding="utf-8"))
     applied = 0
     for name, tool in mcp._tool_manager._tools.items():
-        ann = _WRITE_TOOLS.get(name) or (_OPEN_WORLD_READONLY if name in _OPEN_WORLD_READS else _DEFAULT_READONLY)
+        ann = (_WRITE_TOOLS[name] if name in _WRITE_TOOLS
+               else _OPEN_WORLD_READONLY if name in _OPEN_WORLD_READS else _DEFAULT_READONLY)
         try:
             tool.annotations = ToolAnnotations(**ann)
             applied += 1

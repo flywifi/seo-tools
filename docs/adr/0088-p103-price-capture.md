@@ -18,13 +18,17 @@ POST routes to making no network request outside the Confirm route.
    person names, checks its form (`check_link`: http or https, a host, port 80 or 443, no sign-in
    part), resolves the host and refuses it unless each address it resolves to is a public one
    (`public_host`; an IPv6 address that carries an IPv4 address is judged by the one it carries),
-   and fetches the page with a GET. One fetch, its redirects included, gets 15 seconds, and the
-   read stops past 2 MB. With no network proxy set, the connection goes to a checked address:
-   the first in the resolver's order, then the next when a connection fails, three at most. With
-   a proxy set, the request goes the environment's way and the result says the address was not
-   pinned. `read_price` takes the price from the offers of a schema.org Product in a JSON-LD
-   block that is not inside another Product, else from `product:price`, `og:price` or `itemprop`
-   price meta tags. A figure in the page's wording is not read. One distinct price in USD is a
+   and fetches the page with a GET. A link gets 15 seconds for the addresses it tries and the
+   redirects it follows, and the read stops past 2 MB: a timer shuts a GET's connection when its
+   time is up, during the TLS handshake, the headers or the body. The timer does not reach a
+   connection that has no socket yet, so the TCP connect, and with a proxy the proxy's answer to
+   the tunnel request, each wait up to the time that was left when the GET began. With no network
+   proxy set, the connection goes to a checked address: the first in the resolver's order, then
+   the next when a connection could not be made, three at most. With a proxy set, the request
+   goes the environment's way and the result says the address was not pinned. `read_price` takes
+   the price from the offers of a schema.org Product in a JSON-LD block (a Product listed inside
+   another Product is read when it is one of its `hasVariant` entries, not otherwise), else from
+   `product:price`, `og:price` or `itemprop` price meta tags. A figure in the page's wording is not read. One distinct price in USD is a
    price; no price, more than one, a range (also one with a single end given), another currency
    or no currency is a gap, and the person can state the price.
 3. **The page stored is the page read.** A redirect to another address on the same host, by
@@ -33,12 +37,15 @@ POST routes to making no network request outside the Confirm route.
    `redirected_from`. A redirect to another host is reported and not followed. So one link
    costs at most four GETs per address tried. With a proxy set, a redirect the proxy would not
    carry (the environment names a proxy for http and none for https, say) is refused: that
-   request would go straight to an address this computer resolved after the check.
+   request would go straight to an address this computer resolved after the check. `_proxied`
+   asks the environment about the host and about the host with the port the link writes, the two
+   forms a `no_proxy` entry can take, and treats a bypass of either as not proxied.
 4. **Screened before it is proposed.** The product's name and description and the page's titles
    go through the offline injection screen; a QUARANTINE or BLOCK verdict withholds the price
-   and the title, and a REVIEW verdict is returned in `screen` with a gap. The words of the
-   address a redirect lands on go through the same screen, and a flagged address is not
-   returned. A type that is not HTML is named back from a short list of known types, and a
+   and the title, and a REVIEW verdict is returned in `screen` with a gap. The address a
+   redirect lands on goes through the same screen, unquoted up to five times, as written and as
+   bare words: a flagged address, or one still encoded after five rounds, is not returned, and a
+   REVIEW verdict on it adds a gap. A type that is not HTML is named back from a short list of known types, and a
    redirect's host is named back when it is letters, digits, dots and hyphens.
 5. **Recording is a separate, gated write.** `tools/books.py::set_price` puts the price, its
    source, the page and the date on a product entry that is not void, through `validate_entry`'s
