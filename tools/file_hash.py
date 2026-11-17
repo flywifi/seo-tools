@@ -7851,7 +7851,10 @@ _POSIX_ONLY = {"aio-dir-precheck-nt-only",
                # the copy's mode check is skipped on Windows, where chmod sets only the read-only flag
                "A-WK2 the corrupt credentials copy is world-readable",
                # zipfile reads a backslash in a member name as a slash on Windows
-               "AU-IX5 backslash member names are not normalised"}
+               "AU-IX5 backslash member names are not normalised",
+               # on Windows the reader still answers LATE for a body the timer cut, so this
+               # row's mutant is not told apart from the original there
+               "P103 price 96: a body the timer cut short is read as the whole page"}
 
 # The function the runner scores for a module with no selftest(): it returns 0 when clean.
 # sync_check.py is exempt from the selftest sweep (running it is its test).

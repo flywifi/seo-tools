@@ -26,7 +26,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   source, page and date on a product entry behind `finance_management`, from the Books tab's new
   price form (`POST /api/books-price`, `tools/dashboard/server.py::_books_price`, which fetches no
   page), the new `price_confirm` MCP tool (a write only with `write` true) or
-  `tools/books.py --set-price`.
+  `tools/books.py --set-price`. `tools/file_hash.py` lists the row for a body the timer cut
+  short as POSIX-only, so a Windows run skips that row and counts it.
 - P103 (photo receipts, content check and bounded spacing): `photo_text.looks_like_photo` reads a
   file's opening bytes; `inbox.person_labelled` refuses a file with a photo suffix whose opening
   bytes do not match a png, jpeg, webp, tiff or bmp signature, and one the reader could not
