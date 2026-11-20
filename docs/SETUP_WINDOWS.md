@@ -190,6 +190,8 @@ round-trips through the default cp1252 console.
 - After cloning, run `py -3 tools/install_hooks.py` once (`CLAUDE.md`, Commit and PR hygiene).
 - `py -3 tools/battery.py` runs every gate; CI runs it on Windows too (the `windows` job in
   `.github/workflows/ci.yml`).
+- `docs/WINDOWS-VALIDATION.md` is the ordered checklist for running the Creator Books surfaces
+  on a Windows PC in a scratch clone and recording the outcome. *(not yet tested on Windows)*
 - The auditor agent's hook in `.claude/settings.json` runs under Git Bash; it tries `python3`,
   `python` and `py -3`, and refuses the auditor's call when none works.
 - With MinGit, which puts no `sh` or `bash` on PATH, the hooks selftest runs the hooks with the
