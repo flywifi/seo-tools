@@ -186,11 +186,21 @@ def enrolment_problems():
                                    Path(__file__).resolve().relative_to(ROOT).as_posix())
 
 
+DID_NOT_RUN = "DID NOT RUN: "
+
+
+def did_not_run_lines(text) -> list:
+    """The lines of a selftest's output that start with DID_NOT_RUN (after leading spaces), stripped:
+    a part of the selftest that was skipped on this computer. run_sweep repeats them under the
+    tool's line, for a tool that passes too."""
+    return [ln.strip() for ln in str(text).splitlines() if ln.strip().startswith(DID_NOT_RUN)]
+
+
 def run_sweep():
     import os
     targets = [(p.relative_to(ROOT).as_posix(), [str(p)] + args) for p, args in discover()]
     targets.extend(PACKAGE_ENTRIES)
-    failed = []
+    failed, not_run = [], []
     for rel, argv in targets:
         env = dict(os.environ)
         if argv and argv[0] == "-m":
@@ -205,13 +215,19 @@ def run_sweep():
             continue
         ok = out.returncode == 0
         print(f"  [{'ok' if ok else 'FAIL'}] {rel} (exit {out.returncode})")
+        notes = did_not_run_lines(out.stdout)
+        for line in notes:
+            print(f"         {line}")
+            not_run.append(f"{rel}: {line}")
         if not ok:
             tail = (out.stdout + out.stderr).strip().splitlines()[-8:]
             for line in tail:
-                print(f"         {line}")
+                if line.strip() not in notes:
+                    print(f"         {line}")
             failed.append(str(rel))
     print(f"selftest-sweep: {'PASS' if not failed else 'FAIL'} "
-          f"({len(targets) - len(failed)} of {len(targets)} selftests)")
+          f"({len(targets) - len(failed)} of {len(targets)} selftests)"
+          + (f"; {len(not_run)} DID NOT RUN line(s) above" if not_run else ""))
     enrol = enrolment_problems()
     for e in enrol:
         print(f"  [FAIL] {e}")
@@ -323,6 +339,38 @@ def selftest():
                          ("tools/surface_workflow_check.py", 900)],
                    "2": [("tools/file_hash.py", 6000), ("tools/secret_scan.py", PER_TOOL_TIMEOUT),
                          ("tools/surface_workflow_check.py", 900)]})
+    said, real_enrol = {}, globals()["enrolment_problems"]
+    try:
+        globals()["discover"] = lambda: [(ROOT / "tools" / "secret_scan.py", ["--selftest"])]
+        globals()["enrolment_problems"] = lambda: []
+        PACKAGE_ENTRIES[:] = []
+        for name, stdout, stderr, rc in (
+                ("skip", "  [ok] a\n  DID NOT RUN: the hook run (no shell)\nx: 3/3 passed\n", "", 0),
+                ("two", "DID NOT RUN: part a\n  [ok] b\n  DID NOT RUN: part c\n", "", 0),
+                ("clean", "  [ok] the gate says DID NOT RUN: there\nDID NOT RUN there\nx: 3/3 passed\n",
+                 "DID NOT RUN: on stderr\n", 0),
+                ("red", "DID NOT RUN: part b\nFAIL c\n", "", 1)):
+            subprocess.run = lambda argv, _o=stdout, _e=stderr, _rc=rc, **kw: subprocess.CompletedProcess(
+                argv, _rc, _o, _e)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc_sweep = run_sweep()
+            said[name] = (rc_sweep, [ln for ln in buf.getvalue().splitlines()
+                                     if ln.startswith(("         DID NOT RUN", "selftest-sweep:"))])
+    finally:
+        subprocess.run, globals()["discover"] = real_run, real_discover
+        globals()["enrolment_problems"] = real_enrol
+        PACKAGE_ENTRIES[:] = real_pkgs
+    check("the sweep repeats each stdout line of a selftest that starts with DID NOT RUN: under a tool "
+          "that passes and under one that fails, counts the lines in its last line, and passes over the "
+          "words inside a line, the words without the colon, and a line on stderr",
+          said == {"skip": (0, ["         DID NOT RUN: the hook run (no shell)",
+                                "selftest-sweep: PASS (1 of 1 selftests); 1 DID NOT RUN line(s) above"]),
+                   "two": (0, ["         DID NOT RUN: part a", "         DID NOT RUN: part c",
+                               "selftest-sweep: PASS (1 of 1 selftests); 2 DID NOT RUN line(s) above"]),
+                   "clean": (0, ["selftest-sweep: PASS (1 of 1 selftests)"]),
+                   "red": (1, ["         DID NOT RUN: part b",
+                               "selftest-sweep: FAIL (0 of 1 selftests); 1 DID NOT RUN line(s) above"])})
     caps = {j: _tool_timeout("tools/file_hash.py", jobs=j) for j in (1, 2, 3, 4, 8)}
     check("file_hash's cap is 3000 s with four or more workers and grows in proportion with fewer",
           caps == {1: 12000, 2: 6000, 3: 4000, 4: 3000, 8: 3000})
