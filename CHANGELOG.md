@@ -13,6 +13,13 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- P103 (Windows acceptance checklist): `docs/WINDOWS-VALIDATION.md` lists eight steps for
+  running the Creator Books surfaces on a Windows PC in a scratch clone under `%TEMP%`, with a
+  stand-in hub and the three switches turned on in that clone's local config: the battery, the
+  wizard's selftest, the photo reader's check, a text receipt and a photo receipt through the
+  Inbox, the Books tab, price capture, and the mail-triage selftest, each with the expected
+  result and a results log. `docs/SETUP_WINDOWS.md` and `docs/MAC-VALIDATION.md` point to it.
+  The run on a Windows PC has not been made.
 - P103 (price capture, ADR 0088): behind the new `price_capture` switch (off by default), the new
   `tools/price_capture.py` (`capture`, the `price_capture` MCP tool, or the command line) fetches
   the public page the person names and reads the price that page states in its product data (a

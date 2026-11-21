@@ -5,7 +5,8 @@ external account**, then handing a clean install to a second user. It collects i
 the local-only tier of the Mac hands-on checks. Install mechanics live in
 `docs/SETUP_MAC.md`; the maintainer "why" behind the launcher/Gatekeeper behavior lives in
 `docs/MACOS-MAINTENANCE.md`; dependency posture in `docs/DEPENDENCIES.md`. This file is the
-run-it-and-record-it companion.
+run-it-and-record-it companion. Its Windows counterpart, for the Creator Books surfaces, is
+`docs/WINDOWS-VALIDATION.md`.
 
 ## Who this is for and what it covers
 
