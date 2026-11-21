@@ -1050,7 +1050,7 @@
         "SW-G7"
       ],
       "live_steps": [
-        "In ChatGPT on the web, run implementation/gpt/profile-import/PROMPT.md and, with the Google Drive app connected, ask ChatGPT to save the JSON as a NEW file in Creator OS/Profile.",
+        "In ChatGPT on the web, run implementation/gpt/profile-import/PROMPT.md, copy the JSON reply into a file named profile-export-<context>.json, and save it into your synced Creator OS/Profile folder.",
         "Continue the same Work chat in the ChatGPT desktop app. In Codex, on your Creator OS folder, run: python3 tools/profile_mirror.py check-file \"<the saved file>\" (it prints ok, or why it was refused).",
         "Ask Claude Desktop to propose creator-profile.local.json from the export (profile-import); conflicts between ChatGPT contexts are listed for you to decide; you save the file by hand.",
         "The contact profile is copied to Drive only when the mirror agent was installed with --include-contact-profile."

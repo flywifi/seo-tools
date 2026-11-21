@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-11-12",
+  "last_registry_update": "2026-11-21",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -4848,26 +4848,27 @@
     },
     {
       "id": "openai-developer-mode",
-      "name": "ChatGPT developer mode (full read/write MCP client)",
-      "url": "https://developers.openai.com/api/docs/guides/developer-mode",
+      "name": "Add custom MCP server (ChatGPT app setup and authentication options)",
+      "url": "https://developers.openai.com/api/docs/guides/custom-mcp-server",
       "category": "ai-surface-spec",
       "tier": "T1",
       "check_interval_days": 30,
       "staleness_threshold_days": 30,
-      "last_checked": "2026-09-19",
-      "last_changed_detected": "2026-09-19",
-      "extraction_hint": "Full read+write MCP client support, plan gating, SSE + streaming HTTP, write actions require confirmation (beta)",
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "authentication options for a custom MCP app (OAuth, no authentication, OAuth or no authentication); CIMD and DCR client registration; refreshing an app to pull new tools; the earlier developer-mode guide address redirects here",
       "used_by": [
-        "docs/CROSS-MODALITY.md"
+        "docs/CROSS-MODALITY.md",
+        "implementation/gpt/mcp-connector/README.md"
       ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": [],
       "_why": "First-party (fetchable) source for the ChatGPT Tier-B connector path; replaces reliance on the 403-walled help page",
-      "content_sha256": "2daabe92c43eb686ca52b395bf745a91b43931c241d2540a87b100ca7050b156",
-      "content_etag": "\"60174f35afa6a22819b2c7606ce3a8e6\"",
-      "content_last_modified": "Sat, 19 Sep 2026 14:30:26 GMT"
+      "content_sha256": null,
+      "content_etag": null,
+      "content_last_modified": null
     },
     {
       "id": "openai-connect-chatgpt",
@@ -7828,7 +7829,168 @@
       "pinned_constraint": ">=1.31",
       "validated_version": "1.31.1",
       "_why": "rapidocr runs its models on this runtime and does not install it; without a wheel for the interpreter the photo reader does not load and photos are typed in"
+    },
+    {
+      "id": "claude-google-drive-connector-docs",
+      "name": "Claude connector reference - Google Drive",
+      "url": "https://claude.com/docs/connectors/google/drive",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-11-16",
+      "last_changed_detected": null,
+      "extraction_hint": "File types Claude reads from Drive: Google Docs, Sheets, Slides, PDF, Word/Excel/PowerPoint, OpenDocument, PNG and JPEG.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-library-help",
+      "name": "Using Library to manage files in ChatGPT (help center)",
+      "url": "https://help.openai.com/en/articles/20001052-using-library-to-manage-files-in-chatgpt",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-11-16",
+      "last_changed_detected": null,
+      "extraction_hint": "Library's Google Drive coverage: My Drive and items shared directly; Shared Drives not included yet.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-work-google-files",
+      "name": "Creating and editing documents, spreadsheets, and presentations with ChatGPT Work (help center)",
+      "url": "https://help.openai.com/en/articles/20001278-creating-and-editing-documents-spreadsheets-and-presentations-with-chatgpt-work",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-11-16",
+      "last_changed_detected": null,
+      "extraction_hint": "ChatGPT Work creates or edits native Google Docs, Sheets and Slides where the plan and workspace allow it.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-gmail-connector-docs",
+      "name": "Claude connector reference - Gmail",
+      "url": "https://claude.com/docs/connectors/google/gmail",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-11-16",
+      "last_changed_detected": null,
+      "extraction_hint": "Gmail connector described as read and search; states Claude cannot create, send, or modify emails.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "claude-google-calendar-connector-docs",
+      "name": "Claude connector reference - Google Calendar",
+      "url": "https://claude.com/docs/connectors/google/calendar",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-11-16",
+      "last_changed_detected": null,
+      "extraction_hint": "Calendar connector described as read-only; states Claude cannot create, modify, or delete events.",
+      "used_by": [],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-plugin-auth",
+      "name": "Authentication for plugin MCP servers",
+      "url": "https://developers.openai.com/plugins/build/auth",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "OAuth authorization-code with PKCE (S256); CIMD, DCR and predefined clients; ChatGPT cannot present custom API keys; the bearer sent is the OAuth access token",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-plugin-mcp-server",
+      "name": "Build an MCP server for plugins (tool annotations)",
+      "url": "https://developers.openai.com/plugins/build/mcp-server",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "meaning of readOnlyHint, destructiveHint, openWorldHint; annotations do not replace authorization, validation or confirmation in the server",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "codex-config-reference",
+      "name": "Codex configuration reference (config.toml)",
+      "url": "https://learn.chatgpt.com/docs/config-file/config-reference",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "mcp_servers.<id>.startup_timeout_sec (default 10s), tool_timeout_sec (default 60s), bearer_token_env_var, env, env_vars",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
+    },
+    {
+      "id": "openai-function-calling",
+      "name": "OpenAI function calling guide (tool loop, strict mode)",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": null,
+      "last_changed_detected": null,
+      "extraction_hint": "Responses API tool loop: function_call items (name, arguments, call_id), function_call_output; strict mode requirements and the default when strict is omitted",
+      "used_by": [
+        "implementation/gpt/api/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "db03a74a142bbdba6b384a0426177a11c2f509f988c083e1ff5a32bb95025ec9"
+  "_content_digest": "423ad03dd41a8b1d7ad435abe2618c601cc4190a20ffa75900ea2f0b52a1fc6e"
 }

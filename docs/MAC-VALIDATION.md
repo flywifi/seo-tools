@@ -123,6 +123,26 @@ profile. If they do not need the local tools on day one, the zero-install path i
 paste `implementation/claude/project/system-prompt.md` into a new claude.ai Project and upload the
 files in `implementation/claude/project/knowledge/` (see `docs/SETUP_MAC.md`).
 
+## Connector checks on real accounts (any browser; not part of Phase 1)
+
+Four short checks that only a signed-in account can settle. The vendors' pages do not state the
+answers (read 2026-11-20), so the docs describe these paths as not stated and not tested until a
+run records them. They touch real accounts, so they sit outside the local-only tier; run them
+when convenient and record each outcome in the results log.
+
+- **C1. ChatGPT's Drive app saves a file.** In ChatGPT on the web with the Google Drive app
+  connected, ask it to save a short JSON reply as a new file in `Creator OS/Profile`.
+  - Record: a file appeared there / it was refused / it was saved somewhere else.
+- **C2. ChatGPT's Drive app reads a hub file.** In the same chat, ask it to open one `.json`
+  file in `Creator OS/Store` and name its first key.
+  - Record: it read the contents / it found the name only / it could not.
+- **C3. ChatGPT's Gmail app drafts.** With the Gmail app connected, ask for a draft reply to a
+  test message, not sent.
+  - Record: a draft appeared in Gmail / the text stayed in the chat.
+- **C4. claude.ai's Gmail connector drafts.** With the Gmail connector on, ask for a nudge
+  draft.
+  - Record: a draft appeared in Gmail / the text stayed in the chat.
+
 ## Safety
 
 Local-only means no external account is touched in Phase 1. Every capability ships default-off in
@@ -143,6 +163,12 @@ V2 setup+doctor+model  : PASS / BLOCKED / NOT-RUN   verdict: green/amber/red  en
 V3 import preview       : PASS / BLOCKED / NOT-RUN   notes: ____
 V4 MCP surface          : PASS / BLOCKED / NOT-RUN   tool count: ____  notes: ____
 V5 offline engines      : PASS / BLOCKED / NOT-RUN   notes: ____
+
+Connector checks (real accounts; optional):
+C1 ChatGPT Drive save   : NOT-RUN / outcome: ____
+C2 ChatGPT Drive read   : NOT-RUN / outcome: ____
+C3 ChatGPT Gmail draft  : NOT-RUN / outcome: ____
+C4 claude.ai Gmail draft: NOT-RUN / outcome: ____
 
 Not exercised (deferred, real-account tiers): OAuth/publishing, Drive hub, remote-MCP connector.
 Not exercised (needs real Mac hardware; verified only against vendor documentation, never
