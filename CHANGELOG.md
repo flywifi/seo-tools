@@ -497,8 +497,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   it. `readonly_bash_guard.py --selftest` exits 1 with a message when `_IN_MUTANT` is set in the
   file, the flag `file_hash` sets on a copy before it calls `selftest()` directly.
   `selftest_sweep.run_sweep` repeats a tool's output lines that start with `DID NOT RUN: `
-  (`did_not_run_lines`) under that tool's `[ok]` or `[FAIL]` line and counts them in its last
-  line; its exit code does not change. `tools/battery.py` prints a passing gate's verdict and not
+  (`did_not_run_lines`) under that tool's `[ok]` or `[FAIL]` line and counts them in its
+  `selftest-sweep:` line; its exit code does not change. `tools/battery.py` prints a passing gate's verdict and not
   its output, so the line shows when the sweep is run directly. `wizard._selftest_p101` checks
   three more things: under the fixed seconds stamp a kept credentials copy is named
   `api-credentials.local.json.corrupt.20260101120000.bak` and the next two under that stamp end
@@ -514,8 +514,9 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   `battery.bash_for_syntax`, and the guard's selftest checks which shell it returns for six
   combinations of them; the skip report is also checked with `CI=1`. The sweep's check covers
   two lines from one tool, the words inside a line and without the colon, and a line on stderr,
-  which is not repeated. `tools/file_hash.py` carries rows G5-WZ1 to G5-WZ34, G5-RB1 to G5-RB26
-  and G5-SW1 to G5-SW19 for these checks.
+  which is not repeated. `tools/file_hash.py` carries rows G5-WZ1 to G5-WZ34, G5-RB1 to G5-RB28
+  and G5-SW1 to G5-SW23 for these checks. The guard's selftest prints and scores a skipped run
+  through `_hook_skip_outcome`, which reads `CI` from the process environment at the call.
 - P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
   to stderr naming each mutation row before it runs it, a line before and after each module's
   unmutated baseline run, and a done line after its rows, and arms `faulthandler` to dump its

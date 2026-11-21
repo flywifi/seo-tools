@@ -341,36 +341,51 @@ def selftest():
                          ("tools/surface_workflow_check.py", 900)]})
     said, real_enrol = {}, globals()["enrolment_problems"]
     try:
-        globals()["discover"] = lambda: [(ROOT / "tools" / "secret_scan.py", ["--selftest"])]
         globals()["enrolment_problems"] = lambda: []
         PACKAGE_ENTRIES[:] = []
-        for name, stdout, stderr, rc in (
-                ("skip", "  [ok] a\n  DID NOT RUN: the hook run (no shell)\nx: 3/3 passed\n", "", 0),
-                ("two", "DID NOT RUN: part a\n  [ok] b\n  DID NOT RUN: part c\n", "", 0),
-                ("clean", "  [ok] the gate says DID NOT RUN: there\nDID NOT RUN there\nx: 3/3 passed\n",
-                 "DID NOT RUN: on stderr\n", 0),
-                ("red", "DID NOT RUN: part b\nFAIL c\n", "", 1)):
-            subprocess.run = lambda argv, _o=stdout, _e=stderr, _rc=rc, **kw: subprocess.CompletedProcess(
-                argv, _rc, _o, _e)
+        stand_ins = [ROOT / "tools" / "secret_scan.py", ROOT / "tools" / "atomic_io.py"]
+        # Each fixture is one (stdout, stderr, exit code) per stand-in tool, in discovery order.
+        for name, outputs in (
+                ("skip", [("  [ok] a\n  DID NOT RUN: the hook run (no shell)\nx: 3/3 passed\n", "", 0)]),
+                ("two", [("DID NOT RUN: part a\n  [ok] b\n  DID NOT RUN: part c\n", "", 0)]),
+                ("clean", [("  [ok] the gate says DID NOT RUN: there\nDID NOT RUN there\nx: 3/3 passed\n",
+                            "DID NOT RUN: on stderr\n", 0)]),
+                ("red", [("  DID NOT RUN: part b\nFAIL c\n  DID NOT RUN: part b\n", "", 1)]),
+                ("red long", [("DID NOT RUN: early\n" + "".join(f"line {i}\n" for i in range(9)), "", 1)]),
+                ("pair", [("DID NOT RUN: a1\n", "", 0), ("DID NOT RUN: b1\nDID NOT RUN: b2\n", "", 0)])):
+            tools = stand_ins[:len(outputs)]
+            globals()["discover"] = lambda _t=tools: [(p, ["--selftest"]) for p in _t]
+
+            def stub(argv, _t=tools, _o=outputs, **kw):
+                out, err, code = _o[[str(p) for p in _t].index(str(argv[1]))]
+                return subprocess.CompletedProcess(argv, code, out, err)
+            subprocess.run = stub
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 rc_sweep = run_sweep()
             said[name] = (rc_sweep, [ln for ln in buf.getvalue().splitlines()
-                                     if ln.startswith(("         DID NOT RUN", "selftest-sweep:"))])
+                                     if "DID NOT RUN" in ln or ln.startswith("selftest-sweep:")])
     finally:
         subprocess.run, globals()["discover"] = real_run, real_discover
         globals()["enrolment_problems"] = real_enrol
         PACKAGE_ENTRIES[:] = real_pkgs
     check("the sweep repeats each stdout line of a selftest that starts with DID NOT RUN: under a tool "
-          "that passes and under one that fails, counts the lines in its last line, and passes over the "
-          "words inside a line, the words without the colon, and a line on stderr",
+          "that passes and under one that fails (a repeated line twice, an indented line once, a line "
+          "above the eight-line tail), counts the lines of two tools together in its selftest-sweep: "
+          "line, and passes over the words inside a line, the words without the colon, and a line on "
+          "stderr",
           said == {"skip": (0, ["         DID NOT RUN: the hook run (no shell)",
                                 "selftest-sweep: PASS (1 of 1 selftests); 1 DID NOT RUN line(s) above"]),
                    "two": (0, ["         DID NOT RUN: part a", "         DID NOT RUN: part c",
                                "selftest-sweep: PASS (1 of 1 selftests); 2 DID NOT RUN line(s) above"]),
                    "clean": (0, ["selftest-sweep: PASS (1 of 1 selftests)"]),
-                   "red": (1, ["         DID NOT RUN: part b",
-                               "selftest-sweep: FAIL (0 of 1 selftests); 1 DID NOT RUN line(s) above"])})
+                   "red": (1, ["         DID NOT RUN: part b", "         DID NOT RUN: part b",
+                               "selftest-sweep: FAIL (0 of 1 selftests); 2 DID NOT RUN line(s) above"]),
+                   "red long": (1, ["         DID NOT RUN: early",
+                                    "selftest-sweep: FAIL (0 of 1 selftests); 1 DID NOT RUN line(s) above"]),
+                   "pair": (0, ["         DID NOT RUN: a1", "         DID NOT RUN: b1",
+                                "         DID NOT RUN: b2",
+                                "selftest-sweep: PASS (2 of 2 selftests); 3 DID NOT RUN line(s) above"])})
     caps = {j: _tool_timeout("tools/file_hash.py", jobs=j) for j in (1, 2, 3, 4, 8)}
     check("file_hash's cap is 3000 s with four or more workers and grows in proportion with fewer",
           caps == {1: 12000, 2: 6000, 3: 4000, 4: 3000, 8: 3000})

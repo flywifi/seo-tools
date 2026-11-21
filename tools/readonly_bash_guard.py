@@ -1671,6 +1671,15 @@ def _hook_skip_report(reason, in_mutant, env):
     return line, None
 
 
+def _hook_skip_outcome(reason, in_mutant, env=None, out=print):
+    """Print what _hook_skip_report says for a hook run skipped for `reason` and return its
+    failure, or None. With no `env` given it reads the process environment at the call, which is
+    where a CI runner's CI variable is."""
+    line, fail = _hook_skip_report(reason, in_mutant, os.environ if env is None else env)
+    out(line)
+    return fail
+
+
 def _selftest_hook_run():
     """Names of the failing cases when the guard command wired in .claude/settings.json runs under
     a POSIX shell: it skips a missing guard file, runs the guard with a working Python, and with
@@ -1767,8 +1776,9 @@ def _selftest_hook_run():
 
 
 def _selftest_skip_policy():
-    """Failures of the four checks on a hook run that does not run: what _hook_skip_report says
-    for each of a mutation run, a computer with no shell and a CI runner; which shell _hook_shell
+    """Failures of the five checks on a hook run that does not run: what _hook_skip_report says
+    for each of a mutation run, a computer with no shell and a CI runner; that _hook_skip_outcome
+    prints that line and reads CI from the process environment; which shell _hook_shell
     returns for stand-in lookups; that _selftest_hook_run
     returns the reason and starts no shell when none is found; and that main() refuses --selftest
     while _IN_MUTANT is set and runs selftest() while it is not."""
@@ -1787,6 +1797,21 @@ def _selftest_skip_policy():
                "ci": (line, "the wired hook command did not run, and CI is set (no shell)"),
                "ci 1": (line, "the wired hook command did not run, and CI is set (no shell)")}:
         fails.append(f"a skipped hook run is reported wrongly: {got}")
+    had_ci, printed, outcomes = os.environ.get("CI"), [], []
+    try:
+        for value in ("true", None):
+            os.environ.pop("CI", None)
+            if value is not None:
+                os.environ["CI"] = value
+            outcomes.append(_hook_skip_outcome("no shell", False, out=printed.append))
+        outcomes.append(_hook_skip_outcome("no shell", False, {"CI": "1"}, printed.append))
+    finally:
+        os.environ.pop("CI", None)
+        if had_ci is not None:
+            os.environ["CI"] = had_ci
+    ci_fail = "the wired hook command did not run, and CI is set (no shell)"
+    if outcomes != [ci_fail, None, ci_fail] or printed != [line, line, line]:
+        fails.append(f"_hook_skip_outcome returns {outcomes} and prints {printed}")
     asked = []
 
     def which_sh(name):
@@ -1861,8 +1886,7 @@ def selftest():
     if hook_ran and hook_run:
         fails.append(f"the wired hook command: {hook_run}")
     if not hook_ran:
-        skip_line, skip_fail = _hook_skip_report(hook_run, _IN_MUTANT, os.environ)
-        print(skip_line)
+        skip_fail = _hook_skip_outcome(hook_run, _IN_MUTANT)
         if skip_fail:
             fails.append(skip_fail)
     policy = _selftest_skip_policy()

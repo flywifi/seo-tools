@@ -7896,6 +7896,8 @@ _MUTANTS = (
     ('G5-RB24 the bash fallback dropped', 'readonly_bash_guard.py', '            sh = bash_for_syntax()', '            sh = None'),
     ('G5-RB25 an empty bash path returned', 'readonly_bash_guard.py', '    return sh or None\n', '    return sh\n'),
     ('G5-RB26 a failing bash lookup raises', 'readonly_bash_guard.py', '            sh = bash_for_syntax()\n        except Exception:  # noqa: BLE001\n            sh = None', '            sh = bash_for_syntax()\n        except ValueError:  # noqa: BLE001\n            sh = None'),
+    ('G5-RB27 the skip outcome reads an empty environment', 'readonly_bash_guard.py', 'os.environ if env is None else env)', '{} if env is None else env)'),
+    ('G5-RB28 the skip outcome prints nothing', 'readonly_bash_guard.py', '    out(line)\n    return fail\n', '    return fail\n'),
     ('G5-SW1 the DID NOT RUN lines dropped', 'selftest_sweep.py', '    return [ln.strip() for ln in str(text).splitlines() if ln.strip().startswith(DID_NOT_RUN)]', '    return []'),
     ('G5-SW2 the words anywhere in a line', 'selftest_sweep.py', 'if ln.strip().startswith(DID_NOT_RUN)]', 'if DID_NOT_RUN in ln]'),
     ('G5-SW3 only the first line of a tool kept', 'selftest_sweep.py', 'if ln.strip().startswith(DID_NOT_RUN)]', 'if ln.strip().startswith(DID_NOT_RUN)][:1]'),
@@ -7915,6 +7917,10 @@ _MUTANTS = (
     ('G5-SW17 the count printed with no lines', 'selftest_sweep.py', 'if not_run else ""))', 'if True else ""))'),
     ('G5-SW18 the count left out of the last line', 'selftest_sweep.py', '          + (f"; {len(not_run)} DID NOT RUN line(s) above" if not_run else ""))', '          + "")'),
     ('G5-SW19 a DID NOT RUN line fails the sweep', 'selftest_sweep.py', 'return 0 if not failed and not enrol else 1', 'return 0 if not failed and not enrol and not not_run else 1'),
+    ('G5-SW20 a repeated DID NOT RUN line shown once', 'selftest_sweep.py', 'notes = did_not_run_lines(out.stdout)', 'notes = sorted(set(did_not_run_lines(out.stdout)))'),
+    ('G5-SW21 an indented DID NOT RUN line shown again in the tail', 'selftest_sweep.py', '                if line.strip() not in notes:', '                if line not in notes:'),
+    ('G5-SW22 the count is of the last tool alone', 'selftest_sweep.py', '{len(not_run)} DID NOT RUN line(s) above', '{len(notes)} DID NOT RUN line(s) above'),
+    ('G5-SW23 a failing tool is read from its tail', 'selftest_sweep.py', 'notes = did_not_run_lines(out.stdout)', 'notes = did_not_run_lines(out.stdout if ok else "\\n".join((out.stdout + out.stderr).strip().splitlines()[-8:]))'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
