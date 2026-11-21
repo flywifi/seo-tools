@@ -489,6 +489,34 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   Invariant count 57 to 58. ADR 0065 records the policy decisions.
 
 ### Changed
+- P102 (a skipped hook run is reported; three wizard checks): `readonly_bash_guard`'s selftest
+  reports a hook run it skipped through `_hook_skip_report`. In a file_hash mutation run the line
+  is a `[skip]`, as before. Otherwise the line starts with `DID NOT RUN: ` and names the reason
+  (`_hook_shell` found no POSIX shell), the selftest still passes on a computer where the `CI`
+  environment variable is unset or empty, and it fails where `CI` is set, as GitHub Actions sets
+  it. `readonly_bash_guard.py --selftest` exits 1 with a message when `_IN_MUTANT` is set in the
+  file, the flag `file_hash` sets on a copy before it calls `selftest()` directly.
+  `selftest_sweep.run_sweep` repeats a tool's output lines that start with `DID NOT RUN: `
+  (`did_not_run_lines`) under that tool's `[ok]` or `[FAIL]` line and counts them in its
+  `selftest-sweep:` line; its exit code does not change. `tools/battery.py` prints a passing gate's verdict and not
+  its output, so the line shows when the sweep is run directly. `wizard._selftest_p101` checks
+  three more things: under the fixed seconds stamp a kept credentials copy is named
+  `api-credentials.local.json.corrupt.20260101120000.bak` and the next two under that stamp end
+  `.2.bak` and `.3.bak`; the import screen names the engine and path a stand-in probe reports,
+  with the install note absent, and says "No transcription engine yet." when the probe reports
+  none; and the engine probe returns `(None, None, False)` with no engine found,
+  `("faster-whisper", None, True)` with a stand-in `faster_whisper` module importable, and the
+  whisper.cpp binary first when both are present; the binary alone comes with `False`, and a
+  package whose import raises an `OSError` reads as absent. The import screen is also rendered
+  for a probe that reports a binary and the package together, and the screen without an engine
+  must carry the install note. The fixed stamp stands in for a `strftime` call that passes no
+  time. `_hook_shell` takes stand-ins for `shutil.which`, `os.name` and
+  `battery.bash_for_syntax`, and the guard's selftest checks which shell it returns for six
+  combinations of them; the skip report is also checked with `CI=1`. The sweep's check covers
+  two lines from one tool, the words inside a line and without the colon, and a line on stderr,
+  which is not repeated. `tools/file_hash.py` carries rows G5-WZ1 to G5-WZ34, G5-RB1 to G5-RB28
+  and G5-SW1 to G5-SW23 for these checks. The guard's selftest prints and scores a skipped run
+  through `_hook_skip_outcome`, which reads `CI` from the process environment at the call.
 - P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
   to stderr naming each mutation row before it runs it, a line before and after each module's
   unmutated baseline run, and a done line after its rows, and arms `faulthandler` to dump its
@@ -691,6 +719,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P103 (price reader selftest on a coarse clock): the two checks in `tools/price_capture.py`'s
+  selftest that each try of a fetch is given what is left of its time now ask for a drop of
+  0.05 s after a 0.1 s wait and 0.02 s after a 0.05 s wait (they asked for 0.08 s and 0.04 s).
+  On Windows with Python 3.12 the clock those checks read moves in steps of about 0.016 s, and
+  with a step served late the measured drop fell under the old margins. A try given the whole
+  time measures no drop and still fails both checks.
 - P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge
   checks run with the seconds stamp the `.corrupt.<stamp>.bak` copies are named by fixed to one
   second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always

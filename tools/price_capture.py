@@ -964,7 +964,7 @@ def selftest():
        and none_up["price"] is None and tried_all == ["2606:2800:220:1::1", "93.184.216.35", "93.184.216.36"]
        and MAX_ADDRESSES == 3 and tried == ["2606:2800:220:1::1"] * 2
        and len(budgets) == 3 and budgets[0] <= TIMEOUT
-       and all(later <= earlier - 0.08 for earlier, later in zip(budgets, budgets[1:])))
+       and all(later <= earlier - 0.05 for earlier, later in zip(budgets, budgets[1:])))
     # the proxy path: which links the environment's proxy carries, and a redirect it would not
     saved_proxies, saved_bypass = urllib.request.getproxies, urllib.request.proxy_bypass
     urllib.request.getproxies = lambda: {"http": "http://proxy.example:3128"}
@@ -998,7 +998,7 @@ def selftest():
        "GET of a fetch is given what is left of the fetch's time",
        carried_by == [True, False, False, False, True]
        and len(given_time) == 1 + 2 * (MAX_HOPS + 1) and given_time[0] <= TIMEOUT
-       and all(later <= earlier - 0.04 for earlier, later in zip(given_time[1:5], given_time[2:5]))
+       and all(later <= earlier - 0.02 for earlier, later in zip(given_time[1:5], given_time[2:5]))
        and left_proxy == (None, f"the link redirects to an address the network proxy does not carry; {BROWSER_TELL}",
                           "http://shop.example/x") and asked_once == 1
        and kept_proxy[1] == pinned_hops[1] == f"the link redirects more than {MAX_HOPS} times"

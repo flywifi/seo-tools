@@ -1634,20 +1634,63 @@ def _profile_mirror_mutant_survivors():
 
 # file_hash sets this on a mutated copy of the module before it runs selftest() (P102).
 _IN_MUTANT = False
+# A selftest line that starts with this is repeated by the selftest sweep under the tool's [ok] line.
+DID_NOT_RUN = "DID NOT RUN: "
+
+
+def _hook_shell(which=None, os_name=None, bash_for_syntax=None):
+    """A POSIX shell to run the wired hook command under, or None: sh off Windows, else the bash
+    battery.bash_for_syntax finds (Git for Windows' on Windows). The three arguments stand in for
+    shutil.which, os.name and battery.bash_for_syntax in the selftest."""
+    import shutil
+    which = which or shutil.which
+    sh = which("sh") if (os_name or os.name) != "nt" else None
+    if sh is None:
+        try:
+            if bash_for_syntax is None:
+                import battery
+                bash_for_syntax = battery.bash_for_syntax
+            sh = bash_for_syntax()
+        except Exception:  # noqa: BLE001
+            sh = None
+    return sh or None
+
+
+def _hook_skip_report(reason, in_mutant, env):
+    """(the line to print, a failure or None) for a hook run that was skipped for `reason`. In a
+    file_hash mutation run the line is a [skip] and nothing fails. Otherwise the line starts with
+    DID_NOT_RUN, which the selftest sweep repeats, and the skip is a failure when the CI
+    environment variable is set to a non-empty value: a creator's computer with no shell passes,
+    a CI runner does not."""
+    if in_mutant:
+        return f"  [skip] guard hook run: {reason}", None
+    line = (f"{DID_NOT_RUN}readonly_bash_guard's run of the hook command wired in .claude/settings.json "
+            f"({reason})")
+    if env.get("CI"):
+        return line, f"the wired hook command did not run, and CI is set ({reason})"
+    return line, None
+
+
+def _hook_skip_outcome(reason, in_mutant, env=None, out=print):
+    """Print what _hook_skip_report says for a hook run skipped for `reason` and return its
+    failure, or None. With no `env` given it reads the process environment at the call, which is
+    where a CI runner's CI variable is."""
+    line, fail = _hook_skip_report(reason, in_mutant, os.environ if env is None else env)
+    out(line)
+    return fail
 
 
 def _selftest_hook_run():
     """Names of the failing cases when the guard command wired in .claude/settings.json runs under
     a POSIX shell: it skips a missing guard file, runs the guard with a working Python, and with
     only failing python3, python and py on PATH refuses a guarded agent's call and passes others.
-    None, printed as skipped and not counted, when no shell is found, or in a file_hash mutation
-    run, where the command would run the guard file on disk and not the mutant. It runs in the
+    The reason as a str, not counted, when no shell is found, or in a file_hash mutation run,
+    where the command would run the guard file on disk and not the mutant; selftest() prints it
+    through _hook_skip_report. It runs in the
     guard's own selftest, not in sync_check._selfproof, the entry each of the drift guard's
     mutation rows runs (P102)."""
     if _IN_MUTANT:
-        print("  [skip] guard hook run: a mutation run (the wired command runs the guard file on disk)")
-        return None
-    import shutil
+        return "a mutation run (the wired command runs the guard file on disk)"
     import subprocess
     import tempfile
     from pathlib import Path
@@ -1659,16 +1702,9 @@ def _selftest_hook_run():
                    if "readonly_bash_guard.py" in h.get("command", ""))
     except (OSError, ValueError, KeyError, TypeError, StopIteration):
         return ["hook command not found in .claude/settings.json"]
-    sh = shutil.which("sh") if os.name != "nt" else None
-    if sh is None:
-        try:
-            import battery
-            sh = battery.bash_for_syntax()
-        except Exception:  # noqa: BLE001
-            sh = None
+    sh = _hook_shell()
     if not sh:
-        print("  [skip] guard hook run: no POSIX shell found")
-        return None
+        return "no POSIX shell found"
 
     def run(payload, project, path, compact=False):
         env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project), PATH=path)
@@ -1739,6 +1775,84 @@ def _selftest_hook_run():
     return fails
 
 
+def _selftest_skip_policy():
+    """Failures of the five checks on a hook run that does not run: what _hook_skip_report says
+    for each of a mutation run, a computer with no shell and a CI runner; that _hook_skip_outcome
+    prints that line and reads CI from the process environment; which shell _hook_shell
+    returns for stand-in lookups; that _selftest_hook_run
+    returns the reason and starts no shell when none is found; and that main() refuses --selftest
+    while _IN_MUTANT is set and runs selftest() while it is not."""
+    import contextlib
+    import io
+    fails, g = [], globals()
+    saved = {k: g[k] for k in ("_IN_MUTANT", "_hook_shell", "selftest")}
+    got = {name: _hook_skip_report("no shell", in_mutant, env)
+           for name, in_mutant, env in (("mutant", True, {"CI": "true"}), ("creator", False, {}),
+                                        ("empty CI", False, {"CI": ""}), ("ci", False, {"CI": "true"}),
+                                        ("ci 1", False, {"CI": "1"}))}
+    # The prefix is spelled out: the selftest sweep looks for these exact words at a line's start.
+    line = "DID NOT RUN: readonly_bash_guard's run of the hook command wired in .claude/settings.json (no shell)"
+    if got != {"mutant": ("  [skip] guard hook run: no shell", None), "creator": (line, None),
+               "empty CI": (line, None),
+               "ci": (line, "the wired hook command did not run, and CI is set (no shell)"),
+               "ci 1": (line, "the wired hook command did not run, and CI is set (no shell)")}:
+        fails.append(f"a skipped hook run is reported wrongly: {got}")
+    had_ci, printed, outcomes = os.environ.get("CI"), [], []
+    try:
+        for value in ("true", None):
+            os.environ.pop("CI", None)
+            if value is not None:
+                os.environ["CI"] = value
+            outcomes.append(_hook_skip_outcome("no shell", False, out=printed.append))
+        outcomes.append(_hook_skip_outcome("no shell", False, {"CI": "1"}, printed.append))
+    finally:
+        os.environ.pop("CI", None)
+        if had_ci is not None:
+            os.environ["CI"] = had_ci
+    ci_fail = "the wired hook command did not run, and CI is set (no shell)"
+    if outcomes != [ci_fail, None, ci_fail] or printed != [line, line, line]:
+        fails.append(f"_hook_skip_outcome returns {outcomes} and prints {printed}")
+    asked = []
+
+    def which_sh(name):
+        asked.append(name)
+        return "/fixture/sh" if name == "sh" else None
+
+    def raises():
+        raise OSError("fixture")
+    shells = [_hook_shell(which_sh, "posix", lambda: "/fixture/bash"),
+              _hook_shell(lambda name: None, "posix", lambda: "/fixture/bash"),
+              _hook_shell(which_sh, "nt", lambda: "C:\\fixture\\bash.exe"),
+              _hook_shell(which_sh, "nt", lambda: None),
+              _hook_shell(lambda name: None, "posix", lambda: ""),
+              _hook_shell(lambda name: None, "posix", raises)]
+    if shells != ["/fixture/sh", "/fixture/bash", "C:\\fixture\\bash.exe", None, None, None] or asked != ["sh"]:
+        fails.append(f"_hook_shell returns {shells} after asking for {asked}")
+    try:
+        g["_hook_shell"] = lambda: None
+        g["_IN_MUTANT"] = False
+        no_shell = _selftest_hook_run()
+        g["_IN_MUTANT"] = True
+        in_mutant = _selftest_hook_run()
+        if (no_shell, in_mutant) != ("no POSIX shell found",
+                                     "a mutation run (the wired command runs the guard file on disk)"):
+            fails.append(f"the hook run without a shell or in a mutation run returns {no_shell!r}, {in_mutant!r}")
+        calls = []
+        g["selftest"] = lambda: calls.append(1) or 0
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            refused = main(["--selftest"])
+        refused_calls = len(calls)
+        g["_IN_MUTANT"] = False
+        ran = main(["--selftest"])
+        if (refused, refused_calls, ran, len(calls)) != (1, 0, 0, 1) or "_IN_MUTANT is set" not in err.getvalue():
+            fails.append(f"main --selftest with _IN_MUTANT set returns {refused} after {refused_calls} "
+                         f"selftest call(s), and {ran} after {len(calls)} with it clear")
+    finally:
+        g.update(saved)
+    return fails
+
+
 def selftest():
     fails = []
     for c in ALLOW_CASES + KNOWN_MISSES:
@@ -1768,12 +1882,20 @@ def selftest():
         elif got == 2 and not why.startswith("readonly_bash_guard: refused for the "):
             fails.append(f"decide({payload}) refuses without naming the guard: {why!r}")
     hook_run = _selftest_hook_run()
-    if hook_run:
+    hook_ran = isinstance(hook_run, list)
+    if hook_ran and hook_run:
         fails.append(f"the wired hook command: {hook_run}")
+    if not hook_ran:
+        skip_fail = _hook_skip_outcome(hook_run, _IN_MUTANT)
+        if skip_fail:
+            fails.append(skip_fail)
+    policy = _selftest_skip_policy()
+    fails.extend(policy)
     survivors = _profile_mirror_mutant_survivors()
     if survivors or not _PROFILE_MIRROR_MUTANTS:
         fails.append(f"profile_mirror write-verb mutations not caught: {survivors}")
-    n = len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 1 + (hook_run is not None)
+    n = (len(ALLOW_CASES) + len(KNOWN_MISSES) + len(REFUSE_CASES) + len(hook) + 1
+         + (hook_ran or bool(skip_fail)) + 4)   # 4: the checks of _selftest_skip_policy
     for f in fails:
         print(f"FAIL {f}")
     print(f"readonly_bash_guard selftest: {n - len(fails)}/{n} passed "
@@ -1787,6 +1909,11 @@ def main(argv=None):
     ap.add_argument("--check", metavar="CMD", help="print the verdict for one command")
     a = ap.parse_args(argv)
     if a.selftest:
+        if _IN_MUTANT:
+            print("readonly_bash_guard: --selftest refused: _IN_MUTANT is set in this file, which switches "
+                  "the hook run off. file_hash sets it on a copy in a mutation run; the file on disk "
+                  "keeps it False.", file=sys.stderr)
+            return 1
         return selftest()
     if a.check is not None:
         ok, why = guard(a.check)
