@@ -719,6 +719,12 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   (uv installer docs, nvm README) are seeded into the registry as T1.
 
 ### Fixed
+- P103 (price reader selftest on a coarse clock): the two checks in `tools/price_capture.py`'s
+  selftest that each try of a fetch is given what is left of its time now ask for a drop of
+  0.05 s after a 0.1 s wait and 0.02 s after a 0.05 s wait (they asked for 0.08 s and 0.04 s).
+  On Windows with Python 3.12 the clock those checks read moves in steps of about 0.016 s, and
+  with a step served late the measured drop fell under the old margins. A try given the whole
+  time measures no drop and still fails both checks.
 - P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge
   checks run with the seconds stamp the `.corrupt.<stamp>.bak` copies are named by fixed to one
   second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always
