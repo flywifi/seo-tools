@@ -523,24 +523,25 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   for desktop mirror, and a web chat uses the Google Docs lane or uploaded pack files; the
   self-updating Project section is stated for claude.ai, with uploads for a ChatGPT Project; a
   boundary names the connected account's Drive permissions and ChatGPT's Library coverage.
-  `docs/TASK-TRACKER.md`, `shared/tasks-engine.md`, `shared/integrations-engine.md` and knowledge
+  `docs/TASK-TRACKER.md`, `shared/tasks-engine.md` and knowledge
   file `07-pipeline-spokes.md`: Calendar and Gmail are described as read paths, nudge text is drafted
   in the chat for the person to send, and the `.ics`, JSON/CSV and Sheet exports say how each
-  reaches another AI. `docs/SURFACE-WORKFLOWS.md` and the W4 live step in
+  reaches another AI; `shared/integrations-engine.md` carries the exports sentence. `docs/SURFACE-WORKFLOWS.md` and the W4 live step in
   `skills/creator-core/evals/surface-workflows.json`: the person saves the profile export into the
   synced Profile folder. `docs/DEPLOYMENT.md`: a note on what "No" means for ChatGPT in the Google
   Workspace row. `shared/connectors/connectors.json` is unchanged. Five pages join the source
   registry (Claude's Gmail, Calendar and Drive connector reference, OpenAI's Library and ChatGPT Work
   help articles), declared in the docs' `sources` blocks. `docs/MAC-VALIDATION.md` gains four
   connector checks to run on real accounts (C1 to C4: ChatGPT's Drive app saving and reading a hub
-  file, ChatGPT's Gmail app and claude.ai's Gmail connector drafting), with their lines in the
-  results log; they have not been run. Projects fed by uploads: replace
+  file, ChatGPT's Gmail app and claude.ai's Gmail connector drafting), with what to have ready,
+  the outcomes to record and their lines in the results log; they have not been run. Projects fed by uploads: replace
   `07-pipeline-spokes.md` and `creator-os-combined.md` after the next re-export.
 - OpenAI surface files (connector runbook, API function specs, ChatGPT instruction packs).
   `implementation/gpt/mcp-connector/README.md`: the Responses API example passes the
   `authorization` value as the access token alone; the hosting requirements say a static bearer
-  token serves Codex, the Responses API and claude.ai while a ChatGPT custom MCP app takes OAuth,
-  no authentication, or both; the ChatGPT card says ChatGPT may prompt on annotated write tools
+  token serves Codex and the Responses API, that claude.ai lists a fixed request header as beta
+  for a limited set of organizations (Anthropic's connector authentication page, registered as a
+  source), and that a ChatGPT custom MCP app takes OAuth, no authentication, or both; the ChatGPT card says ChatGPT may prompt on annotated write tools
   and that the confirmation Creator OS relies on is its own `human_review_required` step; the
   Codex card names `startup_timeout_sec` (default 10 s) and `tool_timeout_sec` (default 60 s);
   the developer-mode guide citations point to the custom MCP server guide its address now leads

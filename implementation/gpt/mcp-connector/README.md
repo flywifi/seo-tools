@@ -38,8 +38,12 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
 3. Authentication in front of the endpoint (an OAuth layer or at minimum a long random bearer
    token enforced by the proxy). The MCP server binds to loopback and trusts the proxy; optionally
    set `CREATOR_OS_MCP_TOKEN` so it ALSO enforces the bearer token in-process (defense in depth).
-   A static bearer token works for Codex (`bearer_token_env_var`), the Responses API and
-   claude.ai. It does not work for ChatGPT on the web or in the desktop app: a custom MCP app
+   A static bearer token works for Codex (`bearer_token_env_var`) and the Responses API. On
+   claude.ai a fixed request header (an API key or bearer token that an organization Owner
+   enters when adding the connector) is in beta for a limited set of organizations; the other
+   types Anthropic's page lists are OAuth sign-in and no authentication
+   (claude.com/docs/connectors/building/authentication, read 2026-11-22). A static bearer token
+   does not work for ChatGPT on the web or in the desktop app: a custom MCP app
    there offers OAuth, no authentication, or OAuth or no authentication, and ChatGPT cannot
    present a custom API key, so the bearer it sends is the OAuth access token; it registers as a
    client through a Client ID Metadata Document (CIMD), Dynamic Client Registration (DCR) or a
@@ -266,6 +270,9 @@ handshake check as the Claude Desktop button.
    "category": "ai-surface-spec", "tier": "T1"},
   {"id": "codex-config-reference", "name": "Codex configuration reference (config.toml)",
    "url": "https://learn.chatgpt.com/docs/config-file/config-reference",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-connector-auth-docs", "name": "Claude connector docs - Authentication for connectors",
+   "url": "https://claude.com/docs/connectors/building/authentication",
    "category": "ai-surface-spec", "tier": "T1"}
 ]
 ```

@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-11-21",
+  "last_registry_update": "2026-11-22",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -4859,7 +4859,8 @@
       "extraction_hint": "authentication options for a custom MCP app (OAuth, no authentication, OAuth or no authentication); CIMD and DCR client registration; refreshing an app to pull new tools; the earlier developer-mode guide address redirects here",
       "used_by": [
         "docs/CROSS-MODALITY.md",
-        "implementation/gpt/mcp-connector/README.md"
+        "implementation/gpt/mcp-connector/README.md",
+        "docs/TRANSITIONS.md"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -7841,7 +7842,9 @@
       "last_checked": "2026-11-16",
       "last_changed_detected": null,
       "extraction_hint": "File types Claude reads from Drive: Google Docs, Sheets, Slides, PDF, Word/Excel/PowerPoint, OpenDocument, PNG and JPEG.",
-      "used_by": [],
+      "used_by": [
+        "docs/TASK-TRACKER.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -7858,7 +7861,9 @@
       "last_checked": "2026-11-16",
       "last_changed_detected": null,
       "extraction_hint": "Library's Google Drive coverage: My Drive and items shared directly; Shared Drives not included yet.",
-      "used_by": [],
+      "used_by": [
+        "docs/DRIVE-HUB.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -7875,7 +7880,9 @@
       "last_checked": "2026-11-16",
       "last_changed_detected": null,
       "extraction_hint": "ChatGPT Work creates or edits native Google Docs, Sheets and Slides where the plan and workspace allow it.",
-      "used_by": [],
+      "used_by": [
+        "docs/SURFACE-WORKFLOWS.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -7892,7 +7899,9 @@
       "last_checked": "2026-11-16",
       "last_changed_detected": null,
       "extraction_hint": "Gmail connector described as read and search; states Claude cannot create, send, or modify emails.",
-      "used_by": [],
+      "used_by": [
+        "docs/TASK-TRACKER.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -7909,7 +7918,9 @@
       "last_checked": "2026-11-16",
       "last_changed_detected": null,
       "extraction_hint": "Calendar connector described as read-only; states Claude cannot create, modify, or delete events.",
-      "used_by": [],
+      "used_by": [
+        "docs/TASK-TRACKER.md"
+      ],
       "depth": 0,
       "parent_source_id": null,
       "traversal_status": "pending",
@@ -7990,7 +8001,26 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "claude-connector-auth-docs",
+      "name": "Claude connector docs - Authentication for connectors",
+      "url": "https://claude.com/docs/connectors/building/authentication",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-11-22",
+      "last_changed_detected": null,
+      "extraction_hint": "Authentication types for a connector: OAuth sign-in, no authentication, and static_headers (a fixed API key or bearer token an organization Owner enters), which is beta for a limited set of organizations.",
+      "used_by": [
+        "implementation/gpt/mcp-connector/README.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "423ad03dd41a8b1d7ad435abe2618c601cc4190a20ffa75900ea2f0b52a1fc6e"
+  "_content_digest": "716f3e2ea18e495c1d96f93edc7d4a129341c10351101246892f472018ea8bd0"
 }

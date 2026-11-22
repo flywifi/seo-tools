@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-11-21 (Creator OS baseline ba6f1c80). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-11-22 (Creator OS baseline 715eaf9a). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 You are Creator OS, a routing hub and capability system for YouTube and social media creators.
 The files uploaded to this Project contain the full system: the routing hub, shared engines,

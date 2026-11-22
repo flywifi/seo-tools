@@ -125,23 +125,34 @@ files in `implementation/claude/project/knowledge/` (see `docs/SETUP_MAC.md`).
 
 ## Connector checks on real accounts (any browser; not part of Phase 1)
 
-Four short checks that only a signed-in account can settle. The vendors' pages do not state the
-answers (read 2026-11-20), so the docs describe these paths as not stated and not tested until a
-run records them. They touch real accounts, so they sit outside the local-only tier; run them
-when convenient and record each outcome in the results log.
+Four short checks that only a signed-in account can settle. The vendors' pages leave them open
+or disagree: OpenAI's Drive article says the app can create and update Drive files and does not
+say whether it saves into a chosen folder or reads a JSON file there; Anthropic's connector
+reference describes Gmail as read-only while its Help Center article describes drafts with
+approval (`docs/TRANSITIONS.md` and `docs/TASK-TRACKER.md` cite the pages). The docs describe
+these paths as not tested until a run records them. They touch real accounts, so they sit
+outside the local-only tier; run them when convenient and record each outcome in the results log.
+
+Before you start: a hub set up through the wizard's `/drive-hub` screen, so `Creator OS/Profile`
+and `Creator OS/Store` exist in your Drive (if `Store` holds no `.json` file yet, use any `.json`
+file in the hub for C2), and one test message in Gmail that is safe to answer. Each check leaves
+at most one test file or one draft; delete it afterwards.
 
 - **C1. ChatGPT's Drive app saves a file.** In ChatGPT on the web with the Google Drive app
   connected, ask it to save a short JSON reply as a new file in `Creator OS/Profile`.
-  - Record: a file appeared there / it was refused / it was saved somewhere else.
+  - Record: a file appeared there / it said it saved a file and none is there / it was refused /
+    it was saved somewhere else.
 - **C2. ChatGPT's Drive app reads a hub file.** In the same chat, ask it to open one `.json`
   file in `Creator OS/Store` and name its first key.
   - Record: it read the contents / it found the name only / it could not.
-- **C3. ChatGPT's Gmail app drafts.** With the Gmail app connected, ask for a draft reply to a
+- **C3. ChatGPT's Gmail app drafts.** With the Gmail app connected, ask for a draft reply to the
   test message, not sent.
-  - Record: a draft appeared in Gmail / the text stayed in the chat.
-- **C4. claude.ai's Gmail connector drafts.** With the Gmail connector on, ask for a nudge
-  draft.
-  - Record: a draft appeared in Gmail / the text stayed in the chat.
+  - Record: a draft appeared in Gmail / it asked for approval, then a draft appeared / the text
+    stayed in the chat / it sent the message (stop and record that).
+- **C4. claude.ai's Gmail connector drafts.** With the Gmail connector on, ask for a draft reply
+  to the same test message, not sent.
+  - Record: a draft appeared in Gmail / it asked for approval, then a draft appeared / the text
+    stayed in the chat / it sent the message (stop and record that).
 
 ## Safety
 
