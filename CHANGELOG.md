@@ -13,6 +13,33 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- Private terms in the secret scan (ADR 0089): `tools/secret_scan.py` reads the person's own
+  list, `creator-os-private-terms.local.json` at the repo root (`{"terms": ["...", ...]}`,
+  ignored by git, created empty by `tools/setup.py` for the account that runs it), and reports a
+  term found in tracked text (drift invariant 21), staged lines (the battery's staged scan and
+  the pre-commit hook), file paths, commit messages and the names and addresses a commit is made
+  under (the commit-msg hook and the range scan). A term matches in any letter case, with
+  nothing or a run of whitespace, dots, hyphens and underscores between its words, where it is
+  not part of a longer word. A finding gives the term's position in the list and not the term,
+  as does another pattern's finding whose text holds a listed term; an allowlist entry does not
+  exempt it; a list that cannot be used is itself a finding in the scan, the commit-msg hook and
+  the push preflight. A linked git worktree with no list of its own reads the main worktree's.
+  Paths are read as git stores them, a name outside UTF-8 or with a carriage return among them,
+  and the staged diff with fixed options, a file that an attribute marks as binary read as text.
+  A term saved with a separate accent mark is read as its composed spelling. The content
+  patterns read a carriage return as a line end, so a YAML or .env credential on a line that
+  ends in CR LF is found. A finding's line in the scan's report and in the push preflight prints
+  a character that does not print, in the file's name or the matched text, as its escape. A
+  tracked file's bytes are read as git's output is, so a match that holds a byte outside UTF-8
+  has one pin staged and tracked. A matched text or a file name is shown by the term's position
+  when a form its line can be written in would complete a listed term: the report's own escapes,
+  that form with compatibility letters folded, an ASCII terminal's escapes, and the preflight's
+  `--json` output.
+  With no list or an empty one the scan prints `private terms: DID NOT RUN`, which the drift
+  guard repeats as an advisory; CI has no list and prints the same. The staged scan reads an
+  added line that begins with two plus signs as text. Run `python3 tools/install_hooks.py`
+  again to install the commit-msg hook that reads the list. `CLAUDE.md` and
+  `docs/LOCAL_CONTEXT.md` describe it.
 - P103 (Windows acceptance checklist): `docs/WINDOWS-VALIDATION.md` lists eight steps for
   running the Creator Books surfaces on a Windows PC in a scratch clone under `%TEMP%`, with a
   stand-in hub and the three switches turned on in that clone's local config: the battery, the
@@ -778,10 +805,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with a step served late the measured drop fell under the old margins. A try given the whole
   time measures no drop and still fails both checks.
 - P103 (price reader selftest, first request's time): the check that the first GET of a fetch is
-  given at most the fetch's time compares to within 1e-9 s, and one fetch in that check runs under
-  a clock held at one reading (2033.001 s). On Windows with Python 3.12 two clock reads inside one
+  given at most the fetch's time compares to within 1e-6 s, and one fetch in that check runs under
+  a clock held at one reading (2033.001 s, shown in the check to be one that rounds up). On Windows with Python 3.12 two clock reads inside one
   step return the same number, and the deadline less that reading can round to a hair above the
   fetch's time; the comparison had asked for an exact bound. `fetch` is unchanged.
+- P103 (injection screen wording, docs): the `_fold_tables` and `_screen_readings` docstrings in
+  `tools/injection_scan.py`, ADR 0080, ADR 0083 and `shared/injection-guard-engine.md` state the
+  lacing, keycap, wide-reading and line-break limits as the code runs them. Code paths are
+  unchanged.
 - P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge
   checks run with the seconds stamp the `.corrupt.<stamp>.bak` copies are named by fixed to one
   second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always

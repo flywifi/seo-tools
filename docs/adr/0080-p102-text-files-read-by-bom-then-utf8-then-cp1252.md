@@ -60,7 +60,9 @@ the WebVTT format allows beside `hh:mm:ss.ttt`. The files Creator OS writes keep
   characters.)
 - A limit of that rule: ASCII behind a mark whose NUL bytes stand both for its spaces and inside its
   words reads, with each NUL dropped or as a space, as run-together or split words, which the
-  pattern tier misses as it misses those words written that way with no mark. Before this decision
+  pattern tier can miss outside the gaps its OVERRIDE and REDIRECT patterns allow (and inside one
+  that the NULs, read as spaces, take past its 80 characters), as it can miss
+  those words written that way with no mark. Before this decision
   such a file was skipped as binary; now it is screened, and the in-session guard, which stays
   authoritative, reads it as it reads any other text.
 

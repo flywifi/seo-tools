@@ -94,6 +94,20 @@ if email and not secret_scan.EMAIL_ALLOW_RE.search(email) \\
         and not secret_scan._allowed(allowlist, "commit-message", "author_email"):
     problems.append({"pattern_id": "author_email", "match": email})
 
+# The person's private list (ADR 0089): a list that cannot be used is a finding, the names and
+# addresses the commit is published under are read against it, and the line about the list is
+# printed. A secret_scan from before the list has none of this and is left to the rules above.
+if hasattr(secret_scan, "private_list_findings"):
+    extra, status = secret_scan.private_list_findings()
+    problems += extra
+    committer = subprocess.run(["git", "var", "GIT_COMMITTER_IDENT"], capture_output=True,
+                               text=True).stdout.strip()
+    for who, ident in (("author", author), ("committer", committer)):
+        person = ident.rpartition(">")[0]
+        problems += secret_scan.private_name_findings(person.partition("<")[0], "", who + " name")
+        problems += secret_scan.private_name_findings(person.partition("<")[2], "", who + " email")
+    print("commit-msg hook: " + status)
+
 # Commit-subject claims (tools/commit_claims.py): a subject the invariant-60 detector flags needs a
 # resolving Claim-Proof: trailer. This check fails open, with a DID-NOT-RUN line, when it cannot be
 # imported; the CI commit hygiene step over the pushed commits fails closed.
@@ -104,6 +118,19 @@ except Exception as exc:  # noqa: BLE001
     print(f"commit-msg hook: claim-subject check DID NOT RUN ({type(exc).__name__}: {exc}); "
           "the CI commit hygiene step still checks this subject")
 
+# A line this hook prints does not show a listed term: a finding of another check (the address,
+# the claim words quoted from the subject) whose text holds one says so in place of the text.
+if hasattr(secret_scan, "held_term"):
+    # The claim check quotes the message in its own spelling (a no-break space as an escape),
+    # so its lines are judged by the message, not by the quoted text.
+    message_holds = secret_scan.held_term(msg) is not None
+    for f in problems:
+        if f["pattern_id"] in ("private_term", "private_terms_list"):
+            continue
+        if secret_scan.held_term(str(f["match"])) is not None \\
+                or (message_holds and f["pattern_id"].startswith("claim_")):
+            f["match"] = "(text holding a listed term)"
+
 if problems:
     print("commit-msg hook: commit rejected (commit and PR hygiene, CLAUDE.md):")
     for f in problems:
@@ -111,6 +138,9 @@ if problems:
     if any(f["pattern_id"].startswith("claim_") for f in problems):
         print("  Name the mechanism the commit changed, or add a Claim-Proof: trailer naming the")
         print("  invariant or selftest pin that proves the claim (tools/commit_claims.py).")
+    if any(f["pattern_id"] == "private_term" and " name)" in f["match"] for f in problems):
+        print("  The name this commit is made under is on your private list. Set a name you")
+        print("  publish under:  git config user.name '<name>'")
     if any(f["pattern_id"] == "author_email" for f in problems):
         print("  Set the repo-local noreply address:")
         print("    git config user.email '<your-github-noreply-address>'")
@@ -199,6 +229,11 @@ def selftest() -> int:
        not any(line.lstrip().startswith("python3") for body in (PRE_COMMIT, COMMIT_MSG)
                for line in body.splitlines()))
     ok("the commit-msg hook still runs the claim check", "commit_claims.message_problems(msg)" in COMMIT_MSG)
+    ok("the commit-msg hook reports a private list that cannot be used, prints the line about the "
+       "list, and reads the author's and the committer's name and address against it",
+       all(piece in COMMIT_MSG for piece in (
+           "secret_scan.private_list_findings()", "problems += extra", 'print("commit-msg hook: " + status)',
+           '"GIT_COMMITTER_IDENT"', 'who + " name"', 'who + " email"')))
     with tempfile.TemporaryDirectory() as td:
         hooks = Path(td) / "hooks"
         hooks.mkdir()
@@ -218,21 +253,64 @@ def selftest() -> int:
             ok("a hook names a linked interpreter by the link, not by the file it points to",
                "CREATOR_OS_PY=" + _sh_quote(link_py.absolute().as_posix()) + "\n" in render(COMMIT_MSG, link_py))
         sh = _shell()
-        git_ok = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=str(ROOT),
-                                capture_output=True, text=True).returncode == 0
+        # The hooks run in a stand-in checkout: a new git repository that holds copies of the
+        # tools a hook calls, so the result does not depend on this checkout's private-terms
+        # list and a list can be put there for the checks below.
+        import shutil as _shutil_stand
+        stand = Path(td) / "checkout"
+        (stand / "tools").mkdir(parents=True)
+        for item in sorted((ROOT / "tools").iterdir()):
+            if item.is_file() and item.suffix in (".py", ".json"):
+                _shutil_stand.copy2(item, stand / "tools" / item.name)
+        try:
+            git_ok = subprocess.run(["git", "init", "-q", str(stand)], capture_output=True,
+                                    text=True, timeout=60).returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            git_ok = False
         if not sh or not git_ok:
-            skips.append("running the hook: " + ("no POSIX sh found" if not sh else "not a git checkout"))
+            skips.append("running the hook: " + ("no POSIX sh found" if not sh else "git did not make a repository"))
         else:
             env = dict(os.environ, GIT_AUTHOR_NAME="Hook Selftest",
-                       GIT_AUTHOR_EMAIL="hook-selftest@users.noreply.github.com")
+                       GIT_AUTHOR_EMAIL="hook-selftest@users.noreply.github.com",
+                       GIT_COMMITTER_NAME="Hook Selftest",
+                       GIT_COMMITTER_EMAIL="hook-selftest@users.noreply.github.com")
 
             def run_hook(hook, message):
                 msg = Path(td) / "msg.txt"
                 msg.write_text(message, encoding="utf-8")
-                return subprocess.run([sh, str(hook), str(msg)], cwd=str(ROOT), env=env,
+                return subprocess.run([sh, str(hook), str(msg)], cwd=str(stand), env=env,
                                       capture_output=True, text=True, encoding="utf-8",
                                       errors="replace", timeout=120)
             clean = run_hook(hooks / "commit-msg", "Add a selftest line\n")
+            # The private list, in the stand-in checkout, with invented terms.
+            import json
+            one, two = "Jordan", "Avery"
+            terms_file = stand / "creator-os-private-terms.local.json"
+            terms_file.write_text(json.dumps({"terms": [one + " " + two]}), encoding="utf-8")
+            listed = run_hook(hooks / "commit-msg", "Add a selftest line\n")
+            in_message = run_hook(hooks / "commit-msg", "Notes from " + one.lower() + "-" + two.upper() + "\n")
+            env_kept = dict(env)
+            env["GIT_AUTHOR_NAME"] = one + " " + two
+            by_name = run_hook(hooks / "commit-msg", "Add a selftest line\n")
+            env.update(env_kept)
+            env["GIT_AUTHOR_EMAIL"] = (one + "." + two).lower() + "99@" + "mail.invalid"
+            by_address = run_hook(hooks / "commit-msg", "Add a selftest line\n")
+            env.update(env_kept)
+            env["GIT_COMMITTER_NAME"] = two + ", " + one + " " + two
+            by_committer = run_hook(hooks / "commit-msg", "Add a selftest line\n")
+            env.update(env_kept)
+            env["GIT_AUTHOR_EMAIL"] = (one + "-" + two).lower() + "@users.noreply.github.com"
+            by_allowed_address = run_hook(hooks / "commit-msg", "Add a selftest line\n")
+            env.update(env_kept)
+            quoted_subject = run_hook(hooks / "commit-msg", "Every note by " + one + " " + two + " is removed\n")
+            # The claim check quotes the subject in its own spelling, and a trailer line too.
+            spelled = [run_hook(hooks / "commit-msg", "Every note by " + one + between + two + " is removed\n")
+                       for between in (chr(0xA0), chr(9), chr(0x200B) + " ")]
+            spelled.append(run_hook(hooks / "commit-msg", "Every note is removed\n\nClaim-Proof: "
+                                    + (one + "-" + two).lower() + "::selftest::x\n"))
+            terms_file.write_text("{terms", encoding="utf-8")
+            unusable = run_hook(hooks / "commit-msg", "Add a selftest line\n")
+            terms_file.unlink()
             link = run_hook(hooks / "commit-msg", "Add a line\n\nhttps://claude.ai/" + "code/session_" + "01ABC\n")
             gone = Path(td) / "gone-hook"
             gone.write_text(render(COMMIT_MSG, Path(td) / "no-such-python"), encoding="utf-8", newline="\n")
@@ -251,7 +329,7 @@ def selftest() -> int:
                 _shutil.which("git"), _shutil.which("sh") or sh) if w})
             env_stub = dict(env, PATH=os.pathsep.join(keep))
             msg = Path(td) / "msg.txt"
-            nothing = subprocess.run([sh, str(gone), str(msg)], cwd=str(ROOT), env=env_stub,
+            nothing = subprocess.run([sh, str(gone), str(msg)], cwd=str(stand), env=env_stub,
                                      capture_output=True, text=True, encoding="utf-8",
                                      errors="replace", timeout=120)
             # A pinned interpreter that exists is the one the hook runs, even with only stand-ins on
@@ -264,7 +342,7 @@ def selftest() -> int:
             pinned_hook = Path(td) / "pinned-hook"
             pinned_hook.write_text(render(COMMIT_MSG, pinned), encoding="utf-8", newline="\n")
             msg.write_text("Add a selftest line\n", encoding="utf-8")
-            used = subprocess.run([sh, str(pinned_hook), str(msg)], cwd=str(ROOT), env=env_stub,
+            used = subprocess.run([sh, str(pinned_hook), str(msg)], cwd=str(stand), env=env_stub,
                                   capture_output=True, text=True, encoding="utf-8",
                                   errors="replace", timeout=120)
             # A pinned interpreter that exists but does not run (a venv whose base Python was removed)
@@ -285,7 +363,7 @@ def selftest() -> int:
             for drain_file in drain.iterdir():
                 drain_file.chmod(0o755)
             msg.write_text("Add a line\n\nhttps://claude.ai/" + "code/session_" + "01ABC\n", encoding="utf-8")
-            proc = subprocess.Popen([sh, str(gone), str(msg)], cwd=str(ROOT),
+            proc = subprocess.Popen([sh, str(gone), str(msg)], cwd=str(stand),
                                     env=dict(env, PATH=os.pathsep.join([str(drain)] + keep[1:])),
                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
@@ -299,6 +377,30 @@ def selftest() -> int:
                 for stream in (proc.stdin, proc.stdout, proc.stderr):
                     stream.close()
             ok("the installed commit-msg hook passes a clean message", clean.returncode == 0)
+            said = [r.stdout + r.stderr for r in (listed, in_message, by_name, by_address, quoted_subject,
+                                                  unusable, by_committer, by_allowed_address)]
+            ok("with a private list in the checkout the commit-msg hook passes a clean message and "
+               "says how many terms it checked; it refuses a message that holds a term, a commit "
+               "made under a listed author or committer name, and one made under an address that holds a "
+               "term, an address this repository allows included; a line "
+               "it prints does not show the term, in the address and in a quoted subject included; "
+               "a list that does not parse refuses the commit",
+               listed.returncode == 0 and "commit-msg hook: private terms: 1 term(s) checked" in said[0]
+               and in_message.returncode == 1 and "private_term: term 1 of" in said[1]
+               and by_name.returncode == 1 and "(author name)" in said[2] and "git config user.name" in said[2]
+               and by_address.returncode == 1 and "author_email: (text holding a listed term)" in said[3]
+               and quoted_subject.returncode == 1 and "private_term: term 1 of" in said[4]
+               and unusable.returncode == 1 and "private_terms_list" in said[5]
+               and by_committer.returncode == 1 and "(committer name)" in said[6] and "(author name)" not in said[6]
+               and by_allowed_address.returncode == 1 and "(author email)" in said[7]
+               and "author_email:" not in said[7]
+               and "the list is not usable" in said[5]
+               and not any(one.lower() in s.lower() or two.lower() in s.lower() for s in said))
+            ok("the commit-msg hook does not show a listed term that the claim check quotes with a "
+               "no-break space, a tab or a zero-width space between its words, or in a trailer line",
+               all(r.returncode == 1 for r in spelled)
+               and not any(one.lower() in (r.stdout + r.stderr).lower()
+                           or two.lower() in (r.stdout + r.stderr).lower() for r in spelled))
             ok("a hook whose pinned interpreter exists but does not run falls back to a Python on PATH",
                broken_run.returncode == 1 and "session_link" in broken_run.stdout)
             ok("a stand-in python3 that reads stdin does not hold the hook, which goes on to python",

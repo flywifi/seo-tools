@@ -85,8 +85,9 @@ gates are enforced HERE, on this machine, for every surface that connects.
   is added; remove and re-add to change them. (Source:
   claude.com/docs/connectors/custom/remote-mcp, fetched 2026-09-19.)
 - **ChatGPT web (developer mode):** Settings, then Security and login, then turn on Developer
-  mode; add the server at chatgpt.com/plugins (the plus button). Available on Pro, Plus,
-  Business, Enterprise, and Education accounts on the web. On personal plans (including Pro),
+  mode; add the server at chatgpt.com/plugins (the plus button). `[NEEDS VERIFICATION: the
+  account list read earlier (Pro, Plus, Business, Enterprise, Education, on the web) is not on
+  the guide's page as read 2026-11-22.]` On personal plans (including Pro),
   developer mode connects MCP servers with read and fetch permissions only; write and modify
   actions are a workspace beta (next card). MCP apps are web only, not available on the mobile
   apps. Agent mode does not use custom apps; deep research can, for read and fetch actions only.

@@ -57,7 +57,9 @@ Invariants enforced:
       rule gaps. Fails closed in CI.
   21. Content secret scan: tools/secret_scan.py --tracked finds no API keys, private keys,
       credential values, session links, or non-allowlisted email addresses in tracked file
-      content (the filename invariants 19 and 20 are blind to content).
+      content (the filename invariants 19 and 20 are blind to content). Where the person keeps
+      a private list (creator-os-private-terms.local.json), its terms are looked for too; with
+      no list, or an empty one, a DID NOT RUN advisory says so.
   22. Frontmatter load refs: every repo-relative path named in a SKILL.md frontmatter list
       (load:, engines_required:, protocols:) exists on disk. Closes the un-backticked-ref
       hole that invariant 5's backtick-only scan cannot see.
@@ -1483,6 +1485,7 @@ except ImportError:  # imported as a module with tools/ not on sys.path
 FORBIDDEN_TRACKED_BASENAMES = re.compile(r"^\.env(\.|$)")
 # Invariant 20 (third part): audit-record file names, one rule shared with the --staged gate.
 from secret_scan import audit_exempt_problems, audit_record_findings  # noqa: E402
+from secret_scan import did_not_run_advisories, private_list_present  # noqa: E402
 
 
 def _git_ls_files():
@@ -1608,6 +1611,18 @@ def check_pipeline_allowlist():
             )
 
 
+def _scan_unfinished(exc, ci, list_held):
+    """What invariant 21 records when the scan did not finish: a problem's text in CI and on a
+    checkout that holds a private list (there a skipped scan would pass a listed name unseen),
+    else None, and the caller prints a warning."""
+    if ci:
+        return f"privacy: secret scan failed to run in CI (fail closed): {exc}"
+    if list_held:
+        return ("privacy: secret scan did not finish and this checkout holds a private list "
+                f"(fail closed): {type(exc).__name__}")
+    return None
+
+
 def check_secret_content():
     """Invariant 21: tools/secret_scan.py --tracked finds no secret content in tracked files.
 
@@ -1621,10 +1636,11 @@ def check_secret_content():
         return
     try:
         out = subprocess.run([sys.executable, str(scanner), "--tracked"],
-                             cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+                             cwd=str(ROOT), capture_output=True, text=True, timeout=300)
     except (OSError, subprocess.SubprocessError) as exc:
-        if os.environ.get("CI"):
-            problem(f"privacy: secret scan failed to run in CI (fail closed): {exc}")
+        failed = _scan_unfinished(exc, os.environ.get("CI"), private_list_present())
+        if failed:
+            problem(failed)
         else:
             print(f"  [warn] secret scan could not run; invariant 21 skipped (local): {exc}")
         return
@@ -1640,6 +1656,8 @@ def check_secret_content():
     # loud advisory the filename invariants use, so all three privacy layers report honestly.
     if "git unavailable" in out.stdout:
         _privacy_git_unavailable(21)
+    for line in did_not_run_advisories(out.stdout):
+        print(line)
 
 
 def check_construction():

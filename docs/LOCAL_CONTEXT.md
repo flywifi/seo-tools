@@ -195,6 +195,42 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
    and fine-grained GitHub tokens — credential values, session links, personal emails, and
    amount figures in pipeline files. Wired as drift invariant 21 and a CI step. Verified false
    positives go in `tools/secret-scan-allowlist.json` with a written reason.
+   **Your own private terms.** Those patterns do not know your name or your street. List them in
+   `creator-os-private-terms.local.json` at the repo root (`tools/setup.py` creates it with an
+   empty list, readable by your account): `{"terms": ["your name", "your street", "a handle"]}`,
+   each three characters or more. The scan then looks for each term in tracked text (this
+   scanner's own file included), staged lines, file paths, commit messages, and the names and
+   addresses a commit is made under. A term is found in any letter case, across a line break,
+   with spaces, dots, hyphens or underscores between its words or with its words run together,
+   and where it is not part of a longer word. It is not found in a spelling the list does not
+   hold: a letter that differs by an accent, a look-alike letter from another alphabet, a curly
+   apostrophe where the list has a straight one, another word between its words, or a nickname.
+   (Four characters are read as the plain letter: a capital I with a dot and an i with no dot
+   as i, the long s as s, the kelvin sign as k.) List each spelling you use. A finding gives the term's position in your list in place of the
+   term. Another pattern's finding (an email address, say) shows that position too when its
+   text, or the 40 characters either side of it, holds a listed term's words, also where they
+   run into other letters or digits (a handle with a number after the name); the report prints
+   no hash for such a finding, and the file is where to read the text. A file whose path holds
+   a term is named `(hidden path 1, holding term N ...)`, numbered in the order the run lists
+   them; a term whose words are split by a folder boundary (`first/last.md`) is not found in a
+   path. In the names and addresses a commit is made under, a name that runs into digits (a
+   number straight after the name in an address) is not found. An allowlist entry does not exempt it; commit messages at or before
+   the allowlist file's `commit_policy_boundary` are not scanned, as for the other patterns. A
+   list that cannot be used (it does not parse, it is a folder, it is a link that leads nowhere)
+   fails the scan, the commit-msg hook and the push preflight. A linked git worktree with no list of its
+   own reads the list at the root of the main worktree, as `git worktree list` names it; a
+   worktree of a bare repository, or of a clone whose git folder was put elsewhere
+   (`--separate-git-dir`), has no main checkout git can name, so put a list at its own root; the
+   hooks cannot be installed in those two layouts (`tools/install_hooks.py` finds no
+   `.git/hooks` folder), so run `python3 tools/secret_scan.py --staged` by hand before a commit there. If the name git commits under (`git config user.name`)
+   is on your list, the commit-msg hook refuses the commit until you set a name you publish
+   under. The file is ignored by git and refused by invariant 19 if it is ever tracked. With no
+   list or an empty one the scan prints `private terms: DID NOT RUN`, and CI, which has no list,
+   prints the same: this check runs on computers that hold the list (ADR 0089). It reads what a
+   commit carries; pull request text written on GitHub does not pass through it. Run
+   `python3 tools/install_hooks.py` again after updating, so the installed commit-msg hook is
+   the one that reads the list. With a list in place, `tools/competitor_snapshot.py`, which
+   screens competitor text with the same scan, also blanks a field that mentions a listed term.
 3. **Commit hygiene.** `python3 tools/install_hooks.py` installs a pre-commit hook (scans staged
    content) and a commit-msg hook (rejects messages carrying session links, emails, or secret
    patterns). CI re-checks commit messages and author emails after the policy boundary SHA in

@@ -992,7 +992,8 @@ def selftest():
         pinned_hops = fetch("http://shop.example/x", address="93.184.216.34", via_proxy=lambda parts: False)
         # A clock that reads one tick twice (time.monotonic on Windows before Python 3.13 steps
         # 15.6 ms): the deadline is the reading plus the fetch's time, and taking the reading
-        # away again can leave a rounding hair more than that time. 2033.001 is such a reading.
+        # away again can leave a rounding hair more than that time. 2033.001 is such a reading
+        # (the check below shows it); the hair grows with uptime, so the bound is a microsecond.
         real_clock = time.monotonic
         time.monotonic = lambda: 2033.001
         try:
@@ -1008,8 +1009,8 @@ def selftest():
        "second request, one it carries is followed, a pinned fetch follows on its own address, and each "
        "GET of a fetch is given what is left of the fetch's time",
        carried_by == [True, False, False, False, True]
-       and len(given_time) == 1 + 2 * (MAX_HOPS + 1) and given_time[0] <= TIMEOUT + 1e-9
-       and one_tick != TIMEOUT and abs(one_tick - TIMEOUT) < 1e-9
+       and len(given_time) == 1 + 2 * (MAX_HOPS + 1) and given_time[0] <= TIMEOUT + 1e-6
+       and (2033.001 + TIMEOUT) - 2033.001 > TIMEOUT and abs(one_tick - TIMEOUT) < 1e-6
        and all(later <= earlier - 0.02 for earlier, later in zip(given_time[1:5], given_time[2:5]))
        and left_proxy == (None, f"the link redirects to an address the network proxy does not carry; {BROWSER_TELL}",
                           "http://shop.example/x") and asked_once == 1

@@ -132,7 +132,14 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   for known secret formats, non-allowlisted email addresses, North American phone numbers whose
   digit groups are split by a dash, dot, single space or area-code parenthesis, and dollar
   figures in `pipeline/` files. A name, a postal address, or a phone number written as one digit
-  run, with slashes, or with spaced dashes is not detected.
+  run, with slashes, or with spaced dashes is not detected by those patterns. A term the person
+  lists in the gitignored `creator-os-private-terms.local.json` is looked for in tracked text,
+  staged lines, file paths, commit messages and the names and addresses a commit is made under
+  (`tools/secret_scan.py::load_private_terms`), in any letter case, with or without spaces, dots,
+  hyphens or underscores between its words, and where it is not part of a longer word; a
+  spelling the list does not hold (an e written for an e with an acute accent, a look-alike
+  letter from another alphabet, a nickname) is not found. On a computer without that list, or with an empty one, and in CI, which does not hold
+  it, the scan prints that the private-terms check did not run.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - **A commit subject names the mechanism it changed.** A stage pushed before its verification stage
   returns says in its subject what the code now does, not the property the stage aims at; the
