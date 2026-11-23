@@ -13,6 +13,17 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- Private terms in the secret scan (ADR 0089): `tools/secret_scan.py` reads the person's own
+  list, `creator-os-private-terms.local.json` at the repo root (`{"terms": ["...", ...]}`,
+  ignored by git, created empty by `tools/setup.py`), and reports a term found in tracked text
+  (drift invariant 21), staged lines (the battery's staged scan and the pre-commit hook) and
+  commit messages (the commit-msg hook and the range scan). A term matches in any letter case,
+  with a run of whitespace between its words, where it is not part of a longer word. A finding
+  gives the term's position in the list and not the term; the allowlist does not exempt it; a
+  list that does not parse, or holds a term under three characters, is itself a finding. With no
+  list or an empty one the scan prints `private terms: DID NOT RUN`, which the drift guard
+  repeats as an advisory; CI has no list and prints the same. `CLAUDE.md` and
+  `docs/LOCAL_CONTEXT.md` describe it.
 - P103 (Windows acceptance checklist): `docs/WINDOWS-VALIDATION.md` lists eight steps for
   running the Creator Books surfaces on a Windows PC in a scratch clone under `%TEMP%`, with a
   stand-in hub and the three switches turned on in that clone's local config: the battery, the

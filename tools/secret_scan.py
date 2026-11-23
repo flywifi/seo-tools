@@ -515,6 +515,70 @@ def allowlist_problems(allowlist, tracked, read_bytes=None):
     return out
 
 
+PRIVATE_TERMS_PATH = ROOT / "creator-os-private-terms.local.json"
+PRIVATE_TERM_MIN = 3
+# The compiled list once it has been read; the selftest swaps in its own fixtures.
+_PRIVATE_PATTERNS = None
+
+
+def load_private_terms(path=None):
+    """(terms, problem) from the person's own list of words that are to stay out of the
+    repository: a name, a street, a handle. The file is {"terms": ["...", ...]} at the repo root,
+    named *.local.json so git ignores it and drift invariant 19 refuses it as a tracked file.
+    (None, None) when there is no file. A file that does not parse, holds another shape, or holds
+    a term shorter than PRIVATE_TERM_MIN characters gives ([], problem), so a broken list fails
+    the scan in place of switching the check off."""
+    p = Path(path) if path else PRIVATE_TERMS_PATH
+    if not p.is_file():
+        return None, None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError) as exc:
+        return [], f"{p.name} cannot be read ({type(exc).__name__})"
+    terms = data.get("terms") if isinstance(data, dict) else None
+    if not isinstance(terms, list) or not all(isinstance(t, str) for t in terms):
+        return [], f'{p.name} must hold {{"terms": ["...", ...]}}'
+    terms = [" ".join(t.split()) for t in terms]
+    short = [str(i) for i, t in enumerate(terms, 1) if len(t) < PRIVATE_TERM_MIN]
+    if short:
+        return [], (f"{p.name}: term {', '.join(short)} is shorter than {PRIVATE_TERM_MIN} "
+                    f"characters")
+    return terms, None
+
+
+def private_term_patterns(terms):
+    """(position in the list, pattern) per term: the term's words in order with a run of
+    whitespace between them, in any letter case, where it is not part of a longer run of letters
+    or digits."""
+    return [(i, re.compile(r"(?<![^\W_])" + r"\s+".join(re.escape(w) for w in t.split())
+                           + r"(?![^\W_])", re.IGNORECASE))
+            for i, t in enumerate(terms, 1)]
+
+
+def _private_patterns():
+    """The patterns of the list on this computer, read once; empty with no list or a broken one
+    (main reports a broken list as a finding)."""
+    global _PRIVATE_PATTERNS
+    if _PRIVATE_PATTERNS is None:
+        terms, _problem = load_private_terms()
+        _PRIVATE_PATTERNS = private_term_patterns(terms or [])
+    return _PRIVATE_PATTERNS
+
+
+def private_terms_status(terms, problem):
+    """The line a scan prints about the private list: how many terms were checked, that the list
+    is broken, or that the check did not run because this computer has no list."""
+    if problem:
+        return f"private terms: the list is not usable ({problem})"
+    if terms is None:
+        return (f"private terms: DID NOT RUN (no {PRIVATE_TERMS_PATH.name} on this computer; "
+                f"a name or an address is then not looked for)")
+    if not terms:
+        return (f"private terms: DID NOT RUN ({PRIVATE_TERMS_PATH.name} holds no terms yet; "
+                f"a name or an address is then not looked for)")
+    return f"private terms: {len(terms)} term(s) checked"
+
+
 def _text_views(text):
     """The readings of `text` the patterns run on: the text as written, the text folded
     (fold_text), and the folded text percent-decoded (urllib.parse.unquote, then folded again)
@@ -572,6 +636,14 @@ def _scan_view(text, path, allowlist):
                 snippet = snippet[:57] + "..."
             findings.append({"path": path, "pattern_id": pid, "match": snippet,
                              "sha256": _match_sha256(m.group(0))})
+    # The person's private list. The finding names the term's position, not the term, and its
+    # hash is of that position: neither the term nor a hash of it reaches a log. The allowlist
+    # does not exempt these; the list itself is where a term is added or removed.
+    for i, rx in _private_patterns():
+        for _m in rx.finditer(text):
+            findings.append({"path": path, "pattern_id": "private_term",
+                             "match": f"term {i} of {PRIVATE_TERMS_PATH.name}",
+                             "sha256": _match_sha256(f"private_term:{i}")})
     if path.startswith("pipeline/"):
         for m in AMOUNT_RE.finditer(text):
             if _allowed(allowlist, path, "pipeline_amount", m.group(0)):
@@ -701,7 +773,86 @@ def _check(label, cond, failures, ran):
         failures.append(label)
 
 
+def _selftest_private_terms(f, ran):
+    """The private-terms checks, on lists written to a temporary folder."""
+    import tempfile
+    global _PRIVATE_PATTERNS
+    name, town = "Jordan" + " Avery", "Larkspur" + " Hollow"
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        files = {"good": json.dumps({"terms": [name, "  " + town + " ", "jav"]}),
+                 "bom": "\ufeff" + json.dumps({"terms": [name]}),
+                 "notjson": "{terms", "shape": json.dumps([name]),
+                 "notext": json.dumps({"terms": [name, 7]}),
+                 "short": json.dumps({"terms": [name, "ab", " x "]})}
+        for k, text in files.items():
+            (d / f"{k}.local.json").write_text(text, encoding="utf-8")
+        got = {k: load_private_terms(d / f"{k}.local.json") for k in files}
+        got["absent"] = load_private_terms(d / "none.local.json")
+    _check("the private list is read as its terms with spaces trimmed, with or without a byte-order "
+           "mark; no file is no list; a file that does not parse, another shape, a term that is not "
+           "text and a term under three characters are each a problem with no terms",
+           got["good"] == ([name, town, "jav"], None) and got["bom"] == ([name], None)
+           and got["absent"] == (None, None)
+           and got["notjson"] == ([], "notjson.local.json cannot be read (JSONDecodeError)")
+           and got["shape"] == ([], 'shape.local.json must hold {"terms": ["...", ...]}')
+           and got["notext"] == ([], 'notext.local.json must hold {"terms": ["...", ...]}')
+           and got["short"] == ([], "short.local.json: term 2, 3 is shorter than 3 characters"), f, ran)
+    saved = _PRIVATE_PATTERNS
+    try:
+        _PRIVATE_PATTERNS = private_term_patterns([name, town, "jav"])
+        hits = {k: [(x["pattern_id"], x["match"]) for x in scan_text(text, "docs/x.md")
+                    if x["pattern_id"] == "private_term"]
+                for k, text in (
+                    ("plain", f"written by {name}."), ("case", name.upper()),
+                    ("wrapped", name.replace(" ", "\n  ")), ("twice", f"{name}, {name}"),
+                    ("second", f"near {town}"), ("possessive", f"{name}'s notes"),
+                    ("underscore", "jav_notes"), ("inside", name + "son"),
+                    ("prefixed", "x" + name), ("short inside", "javelin"),
+                    ("one word", name.split()[0]), ("clean", "nothing here"))}
+        first = ("private_term", "term 1 of creator-os-private-terms.local.json")
+        _check("a private term is found in any letter case, across a line break, before an "
+               "apostrophe or an underscore, once per occurrence, and is named by its position; it "
+               "is not found inside a longer word, with a letter before it, or by one of its words "
+               "alone",
+               hits == {"plain": [first], "case": [first], "wrapped": [first], "twice": [first, first],
+                        "second": [("private_term", "term 2 of creator-os-private-terms.local.json")],
+                        "possessive": [first],
+                        "underscore": [("private_term", "term 3 of creator-os-private-terms.local.json")],
+                        "inside": [], "prefixed": [], "short inside": [], "one word": [], "clean": []},
+               f, ran)
+        leak = scan_text(f"by {name}", "commit-message")
+        _check("a private-term finding carries neither the term nor a hash of the term, and the "
+               "allowlist does not exempt it",
+               all(name.lower() not in json.dumps(x).lower() for x in leak)
+               and [x["sha256"] for x in leak] == [_match_sha256("private_term:1")]
+               and len(scan_text(f"by {name}", "x.md", {"entries": [
+                   {"path": "x.md", "pattern_id": "private_term", "reason": "r" * 30}]})) == 1, f, ran)
+        _PRIVATE_PATTERNS = []
+        _check("with an empty private list a name is not reported",
+               scan_text(f"by {name}", "docs/x.md") == [], f, ran)
+    finally:
+        _PRIVATE_PATTERNS = saved
+    _check("the status line counts the terms checked, names a broken list, and says DID NOT RUN "
+           "with no list and with a list that holds no terms",
+           private_terms_status([name, town], None) == "private terms: 2 term(s) checked"
+           and private_terms_status([], None).startswith("private terms: DID NOT RUN (creator-os-"
+                                                         "private-terms.local.json holds no terms")
+           and private_terms_status([], "x cannot be read") == "private terms: the list is not usable (x cannot be read)"
+           and private_terms_status(None, None).startswith("private terms: DID NOT RUN (no "
+                                                           "creator-os-private-terms.local.json"), f, ran)
+
+
 def selftest():
+    global _PRIVATE_PATTERNS
+    saved_private, _PRIVATE_PATTERNS = _PRIVATE_PATTERNS, []
+    try:
+        return _selftest_body()
+    finally:
+        _PRIVATE_PATTERNS = saved_private
+
+
+def _selftest_body():
     f = []
     ran = [0]
     al = {"entries": [{"path": "x.md", "pattern_id": "session_link", "reason": "test",
@@ -1551,6 +1702,7 @@ def selftest():
     _check("the committed commit-message boundary is written as 40 lowercase hex characters",
            re.fullmatch(r"[0-9a-f]{40}", str(_load_allowlist().get("commit_policy_boundary") or ""))
            is not None, f, ran)
+    _selftest_private_terms(f, ran)
     n = ran[0]
     print(f"selftest: {'PASS' if not f else 'FAIL'} ({n - len(f)} of {n} checks)")
     return 0 if not f else 1
@@ -1570,6 +1722,9 @@ def _report(findings, mode):
             print(f"  - {x['path']}: {x['pattern_id']}: {x['match']}{pin}")
         print("If a finding is a verified false positive, exempt it in "
               "tools/secret-scan-allowlist.json with a reason and its sha256 as match_sha256.")
+        if any(x["pattern_id"] == "private_term" for x in findings):
+            print(f"A private_term finding gives the term's position in {PRIVATE_TERMS_PATH.name}; "
+                  f"remove the text or change that list. The allowlist does not exempt it.")
         return 1
     print(f"secret-scan [{mode}]: clean")
     return 0
@@ -1585,17 +1740,27 @@ def main(argv):
     allowlist = _load_allowlist()
     if a.selftest:
         return selftest()
+    terms, problem = load_private_terms()
+    broken = ([{"path": PRIVATE_TERMS_PATH.name, "pattern_id": "private_terms_list",
+                "match": problem}] if problem else [])
+
+    def report(findings, mode):
+        if findings is not None:
+            findings = findings + broken
+        rc = _report(findings, mode)
+        print(private_terms_status(terms, problem))
+        return rc
     if a.tracked:
         findings = scan_tracked(allowlist)
         if findings is not None:
             tracked = {p.strip() for p in (_git(["ls-files"]) or "").splitlines() if p.strip()}
             findings += [{"path": "tools/secret-scan-allowlist.json", "pattern_id": "allowlist",
                           "match": msg} for msg in allowlist_problems(allowlist, tracked)]
-        return _report(findings, "tracked")
+        return report(findings, "tracked")
     if a.staged:
-        return _report(scan_staged(allowlist), "staged")
+        return report(scan_staged(allowlist), "staged")
     if a.commit_messages:
-        return _report(scan_commit_messages(a.commit_messages, allowlist), "commit-messages")
+        return report(scan_commit_messages(a.commit_messages, allowlist), "commit-messages")
     ap.print_help()
     return 0
 

@@ -321,6 +321,23 @@ def create_config_local() -> None:
     _created("creator-os-config.local.json")
 
 
+def create_private_terms_local() -> None:
+    """Create creator-os-private-terms.local.json with an empty list. tools/secret_scan.py looks
+    for each term the person adds (a name, a street, a handle) in what is about to be committed."""
+    dest = ROOT / "creator-os-private-terms.local.json"
+    if dest.exists():
+        _skip("creator-os-private-terms.local.json")
+        return
+    stub = {
+        "_comment": "Words that are to stay out of the repository: your name, a street, a handle. "
+                    "The secret scan fails a commit that carries one. git never tracks this file.",
+        "_hint": "Add each term as text inside the list, three characters or more.",
+        "terms": [],
+    }
+    dest.write_text(json.dumps(stub, indent=2) + "\n", encoding="utf-8")
+    _created("creator-os-private-terms.local.json")
+
+
 def create_voice_profile_local() -> None:
     source = ROOT / "pipeline" / "user-context" / "voice-profile.json"
     dest = ROOT / "pipeline" / "user-context" / "voice-profile.local.json"
@@ -1339,6 +1356,7 @@ def main() -> None:
 
     _say("\nCreating local data files...")
     create_config_local()
+    create_private_terms_local()
     create_voice_profile_local()
     create_content_calendar_local()
     create_channel_context_local()

@@ -195,6 +195,17 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
    and fine-grained GitHub tokens — credential values, session links, personal emails, and
    amount figures in pipeline files. Wired as drift invariant 21 and a CI step. Verified false
    positives go in `tools/secret-scan-allowlist.json` with a written reason.
+   **Your own private terms.** Those patterns do not know your name or your street. List them in
+   `creator-os-private-terms.local.json` at the repo root (`tools/setup.py` creates it with an
+   empty list): `{"terms": ["your name", "your street", "a handle"]}`, each three characters or
+   more. The scan then looks for each term in tracked text, staged lines and commit messages, in
+   any letter case, across a line break, and where it is not part of a longer word. A finding
+   gives the term's position in your list, not the term, so the term reaches no log; the
+   allowlist does not exempt it. The file is ignored by git and refused by invariant 19 if it is
+   ever tracked. With no list or an empty one the scan prints `private terms: DID NOT RUN`, and
+   CI, which has no list, prints the same: this check runs on computers that hold the list
+   (ADR 0089). It reads what is about to be published; pull request text written on GitHub does
+   not pass through it.
 3. **Commit hygiene.** `python3 tools/install_hooks.py` installs a pre-commit hook (scans staged
    content) and a commit-msg hook (rejects messages carrying session links, emails, or secret
    patterns). CI re-checks commit messages and author emails after the policy boundary SHA in

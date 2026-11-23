@@ -57,7 +57,9 @@ Invariants enforced:
       rule gaps. Fails closed in CI.
   21. Content secret scan: tools/secret_scan.py --tracked finds no API keys, private keys,
       credential values, session links, or non-allowlisted email addresses in tracked file
-      content (the filename invariants 19 and 20 are blind to content).
+      content (the filename invariants 19 and 20 are blind to content). Where the person keeps
+      a private list (creator-os-private-terms.local.json), its terms are looked for too; with
+      no list, or an empty one, a DID NOT RUN advisory says so.
   22. Frontmatter load refs: every repo-relative path named in a SKILL.md frontmatter list
       (load:, engines_required:, protocols:) exists on disk. Closes the un-backticked-ref
       hole that invariant 5's backtick-only scan cannot see.
@@ -1640,6 +1642,9 @@ def check_secret_content():
     # loud advisory the filename invariants use, so all three privacy layers report honestly.
     if "git unavailable" in out.stdout:
         _privacy_git_unavailable(21)
+    for line in out.stdout.splitlines():
+        if line.startswith("private terms: DID NOT RUN"):
+            print(f"  ~ {line}")
 
 
 def check_construction():
