@@ -346,8 +346,9 @@ def _screen_readings(raw, max_bytes):
     in each fixed byte order (_UTF16_ORDERS, and _UTF32_ORDERS behind a UTF-32 mark), then as UTF-8.
     scan_text reads each of them with a NUL dropped and as a space itself (_readings), so the UTF-8
     reading of wide text whose characters are all below U+0080 has that text's dropped reading, and
-    at a tie the reading in the byte order the text was written in is kept, and named under
-    verdict_reading when it is not the decoded text. A character from U+0080 up can read
+    at a tie for such text the reading in the byte order it was written in is kept (it folds the
+    fewest characters, scan_file), and named under verdict_reading when it is not the decoded
+    text. A character from U+0080 up can read
     there as other characters (a soft hyphen's byte 0xAD as U+FFFD, which ends a word), so the UTF-8
     reading can score higher than the decoded text does and decide the verdict (P103)."""
     truncated = len(raw) > max_bytes

@@ -374,16 +374,34 @@ def fold_text(text):
     return "".join(out)
 
 
-def audit_record_name(path):
-    """Why `path` names an audit record, or None. Pure: reads nothing."""
+def _unquote_git_path(path):
+    """A path as git prints it in a listing or a diff header, with git's C-style quoting undone
+    (a name with a byte outside ASCII, a quote, a backslash or a control character is printed in
+    double quotes with octal escapes). A path git did not quote, or one that does not decode, is
+    returned as it is."""
     if len(path) > 1 and path[0] == path[-1] == '"':
         try:
-            path = re.sub(r"\\([0-7]{3})|\\(.)",
+            return re.sub(r"\\([0-7]{3})|\\(.)",
                           lambda m: chr(int(m.group(1), 8)) if m.group(1) else
-                          {"n": "\n", "t": "\t"}.get(m.group(2), m.group(2)),
+                          {"n": "\n", "t": "\t", "r": "\r", "a": "\a", "b": "\b", "f": "\f",
+                           "v": "\v"}.get(m.group(2), m.group(2)),
                           path[1:-1]).encode("latin-1").decode("utf-8")
         except (UnicodeEncodeError, UnicodeDecodeError):
             pass
+    return path
+
+
+def _listed_paths(out):
+    """The paths in one of git's listings: NUL-separated as `-z` writes them (as stored, with
+    no quoting), else one per line as they are."""
+    if "\0" in out:
+        return [p for p in out.split("\0") if p]
+    return [p.strip() for p in out.splitlines() if p.strip()]
+
+
+def audit_record_name(path):
+    """Why `path` names an audit record, or None. Pure: reads nothing."""
+    path = _unquote_git_path(path)
     rel = fold_text(path)
     rel = rel.replace("\\", "/")
     if rel.startswith("./"):
@@ -530,15 +548,16 @@ _PRIVATE_PATTERNS = None
 
 def private_terms_file():
     """Where the person's list is read from: the root of this checkout, or, when this checkout
-    is a linked git worktree with no list of its own, the root of the checkout it was made from
-    (a commit made in a worktree is published like any other)."""
+    is a linked git worktree with no list of its own, the root of the main worktree git lists
+    first (a commit made in a worktree is published like any other). A worktree of a bare
+    repository has no main checkout, so it reads its own root alone."""
     here = PRIVATE_TERMS_PATH
     if here.exists() or here.is_symlink():
         return here
-    common = (_git(["rev-parse", "--git-common-dir"], check=False) or "").strip()
-    if common:
-        git_dir = Path(common) if Path(common).is_absolute() else ROOT / common
-        there = git_dir.resolve().parent / here.name
+    first = (_git(["worktree", "list", "--porcelain"], check=False) or "").split("\n\n", 1)[0].splitlines()
+    main = next((line[len("worktree "):] for line in first if line.startswith("worktree ")), None)
+    if main and "bare" not in first:
+        there = Path(main) / here.name
         if there != here and (there.exists() or there.is_symlink()):
             return there
     return here
@@ -575,17 +594,20 @@ def load_private_terms(path=None):
 
 
 def private_term_patterns(terms):
-    """(position in the list, pattern, quick word) per term. The pattern is the term's words in
-    order, in any letter case, with nothing or a run of whitespace, underscores, dots and hyphens
-    between them, where the whole is not part of a longer run of letters or digits. The quick
-    word is the term's longest word in lower case when the term is ASCII, else None: a text that
-    does not hold it does not hold the term (_private_hits)."""
+    """(position in the list, pattern, quick word, loose pattern) per term. The pattern is the
+    term's words in order, in any letter case, with nothing or a run of whitespace, underscores,
+    dots and hyphens between them, where the whole is not part of a longer run of letters or
+    digits. The quick word is the term's longest word in lower case when the term is ASCII, else
+    None: a text that does not hold it does not hold the term (_private_hits). The loose pattern
+    is the same words with no rule about what stands before or after them: it decides what a line
+    of output may show (held_term), where a name that runs into digits still counts."""
     out = []
     for i, t in enumerate(terms, 1):
         words = t.split()
-        rx = re.compile(r"(?<![^\W_])" + _PRIVATE_SEP.join(re.escape(w) for w in words)
-                        + r"(?![^\W_])", re.IGNORECASE)
-        out.append((i, rx, max(words, key=len).lower() if t.isascii() else None))
+        core = _PRIVATE_SEP.join(re.escape(w) for w in words)
+        out.append((i, re.compile(r"(?<![^\W_])" + core + r"(?![^\W_])", re.IGNORECASE),
+                    max(words, key=len).lower() if t.isascii() else None,
+                    re.compile(core, re.IGNORECASE)))
     return out
 
 
@@ -594,7 +616,7 @@ def _private_hits(text):
     with a quick word is looked for only when the lowered text holds that word: one substring
     search, so a long list costs little on a text that holds none of it."""
     key = None
-    for i, rx, quick in _private_patterns():
+    for i, rx, quick, _loose in _private_patterns():
         if quick is not None:
             if key is None:
                 key = text.translate(_PRIVATE_FOLD).lower()
@@ -605,18 +627,30 @@ def _private_hits(text):
 
 
 def held_term(text):
-    """The position of the first listed term a text holds in one of its readings, or None."""
+    """The position of the first listed term a text holds in one of its readings, or None. This
+    is looser than a finding: the term's words count wherever they stand, also inside a longer
+    run of letters or digits (a handle with a number after the name), because the answer decides
+    what a line of output may show."""
     for view in _text_views(text):
-        for i, _m in _private_hits(view):
-            return i
+        key = None
+        for i, _rx, quick, loose in _private_patterns():
+            if quick is not None:
+                if key is None:
+                    key = view.translate(_PRIVATE_FOLD).lower()
+                if quick not in key:
+                    continue
+            if loose.search(view):
+                return i
     return None
 
 
-def _finding(path, pid, matched, cut=False):
+def _finding(path, pid, matched, cut=False, around=None):
     """One finding of a pattern other than the private list. Matched text that holds a listed
-    term is shown as that term's position, and hashed as that position, so another pattern's
-    finding (an email address, a credential value) does not print the term."""
-    held = held_term(matched)
+    term, or that sits in text (`around`: the match and the 40 characters either side) that
+    holds one, is shown as that term's position and hashed as that position, so another
+    pattern's finding (an email address, a credential value) does not print the term or part of
+    it."""
+    held = held_term(matched if around is None else around)
     if held is not None:
         return {"path": path, "pattern_id": pid,
                 "match": f"(text holding term {held} of {PRIVATE_TERMS_PATH.name})",
@@ -756,7 +790,8 @@ def _scan_view(text, path, allowlist, private_only=False):
                 continue
             if _allowed(allowlist, path, pid, m.group(0)):
                 continue
-            findings.append(_finding(path, pid, m.group(0), cut=True))
+            findings.append(_finding(path, pid, m.group(0), cut=True,
+                                     around=text[max(0, m.start() - 40):m.end() + 40]))
     # The person's private list. The finding names the term's position, not the term, and its
     # hash is of that position. The allowlist's entries do not exempt these; the list itself is
     # where a term is added or removed.
@@ -795,14 +830,11 @@ def _git(args, check=True):
 
 
 def scan_tracked(allowlist):
-    listing = _git(["ls-files"])
+    listing = _git(["ls-files", "-z"])
     if listing is None:
         return None
     findings, paths = [], []
-    for path in listing.splitlines():
-        path = path.strip()
-        if not path:
-            continue
+    for path in _listed_paths(listing):
         paths.append(path)
         # This file defines the patterns and its selftest fixtures are concatenated, so the
         # other patterns are not run on it; the private list is.
@@ -824,21 +856,22 @@ def scan_staged(allowlist):
     """Scan only staged ADDED lines plus staged filenames (the pre-commit surface). Staged
     deletions are not names being added, so --diff-filter=d leaves them out: deleting a forbidden
     file or an audit record is the fix, not a finding."""
-    names = _git(["diff", "--cached", "--name-only", "--diff-filter=d"])
+    names = _git(["diff", "--cached", "--name-only", "-z", "--diff-filter=d"])
     if names is None:
         return None
+    names = _listed_paths(names)
     findings = []
-    for path in names.splitlines():
-        path = path.strip()
-        if not path:
-            continue
+    for path in names:
         base = path.rsplit("/", 1)[-1].lower()
         if re.search(r"\.local(\.|$)", base) or base.endswith(FORBIDDEN_DATA_SUFFIXES) \
                 or re.match(r"^\.env(\.|$)", base):
             findings.append({"path": path, "pattern_id": "forbidden_staged_file",
                              "match": base})
-    findings.extend(audit_record_findings([p.strip() for p in names.splitlines() if p.strip()]))
-    diff = _git(["diff", "--cached", "--unified=0"])
+    findings.extend(audit_record_findings(names))
+    # Read as git writes it by default, whatever this computer's diff settings are (colours,
+    # other prefixes, an external diff program or a text conversion would change the lines).
+    diff = _git(["diff", "--cached", "--unified=0", "--no-color", "--no-ext-diff", "--no-textconv",
+                 "--src-prefix=a/", "--dst-prefix=b/"])
     if diff is None:
         return findings
     current = "(staged)"
@@ -852,14 +885,18 @@ def scan_staged(allowlist):
         elif line.startswith("@@"):
             in_hunk = True
         elif not in_hunk:
-            if line.startswith("+++ b/"):
-                current = line[6:]
+            # git ends the header of a name that holds a space with a tab, and quotes a name
+            # with a byte outside ASCII or a special character.
+            if line.startswith("+++ "):
+                name = _unquote_git_path(line[4:].rstrip("\t"))
+                if name.startswith("b/"):
+                    current = name[2:]
         elif line.startswith("+"):
             added.setdefault(current, []).append(line[1:])
     for path, lines in added.items():
         findings.extend(scan_text("\n".join(lines), path, allowlist,
                                   private_only=path == "tools/secret_scan.py"))
-    return _veil_paths(findings, [p.strip() for p in names.splitlines() if p.strip()])
+    return _veil_paths(findings, names)
 
 
 def scan_commit_messages(rng, allowlist):
@@ -923,7 +960,8 @@ def _selftest_private_terms(f, ran):
                  "bom": "\ufeff" + json.dumps({"terms": [name]}),
                  "notjson": "{terms", "shape": json.dumps([name]),
                  "notext": json.dumps({"terms": [name, 7]}),
-                 "short": json.dumps({"terms": [name, "ab", " x "]})}
+                 "short": json.dumps({"terms": [name, "ab", " x "]}),
+                 "deep": "[" * 100000 + "]" * 100000}
         for k, text in files.items():
             (d / f"{k}.local.json").write_text(text, encoding="utf-8")
         got = {k: load_private_terms(d / f"{k}.local.json") for k in files}
@@ -936,7 +974,8 @@ def _selftest_private_terms(f, ran):
            and got["notjson"] == ([], "notjson.local.json cannot be read (JSONDecodeError)")
            and got["shape"] == ([], 'shape.local.json must hold {"terms": ["...", ...]}')
            and got["notext"] == ([], 'notext.local.json must hold {"terms": ["...", ...]}')
-           and got["short"] == ([], "short.local.json: term 2, 3 is shorter than 3 characters"), f, ran)
+           and got["short"] == ([], "short.local.json: term 2, 3 is shorter than 3 characters")
+           and got["deep"] == ([], "deep.local.json cannot be read (RecursionError)"), f, ran)
     saved = _PRIVATE_PATTERNS
     try:
         _PRIVATE_PATTERNS = private_term_patterns([name, town, "jav"])
@@ -999,7 +1038,8 @@ def _selftest_private_terms(f, ran):
                    town.replace("k", chr(0x212A)), town.replace("s", chr(0x17F)),
                    "JAV x", "see C.D+E", "nothing")] == [[2], [2], [3], [4], []]
                and dotted == [1, 1]
-               and [q for _i, _rx, q in private_term_patterns(["Li" + chr(0x130) + "a", "LINA"])] == [None, "lina"],
+               and [q for _i, _rx, q, _loose in private_term_patterns(["Li" + chr(0x130) + "a", "LINA"])]
+               == [None, "lina"],
                f, ran)
         addr = (one + "." + two).lower() + "@" + "mail.invalid"
         veiled = scan_text("write to " + addr, "docs/x.md")
@@ -1012,6 +1052,21 @@ def _selftest_private_terms(f, ran):
                and [x["sha256"] for x in veiled if x["pattern_id"] == "email_address"]
                == [_match_sha256("email_address:private_term:1")]
                and held_term("near " + wide) == 1 and held_term("nothing") is None, f, ran)
+        kept_patterns = _PRIVATE_PATTERNS
+        _PRIVATE_PATTERNS = private_term_patterns([name, town, "Zo" + chr(0xEB) + " Quillfeather"])
+        near = {k: scan_text(text, "docs/x.md") for k, text in (
+            ("digits after", "write to " + (one + "." + two).lower() + "99@" + "mail.invalid now"),
+            ("past the cut", '"api_key": "' + "x" * 50 + "-" + one + "-" + two + '"'),
+            ("part of a term", "mail zo" + chr(0xEB) + ".quillfeather@" + "mail.invalid"))}
+        _PRIVATE_PATTERNS = kept_patterns
+        _check("another pattern's finding does not show a listed term that runs into digits, that "
+               "sits past the 60 characters a finding shows, or of which the match holds a part",
+               [sorted(x["pattern_id"] for x in near[k]) for k in ("digits after", "past the cut", "part of a term")]
+               == [["email_address"], ["credential_value", "private_term"], ["email_address", "private_term"]]
+               and all(x["match"].startswith("(text holding term ") for v in near.values() for x in v
+                       if x["pattern_id"] != "private_term")
+               and not any(w in json.dumps(near).lower() for w in (one.lower(), two.lower(), "quillfeather")),
+               f, ran)
         pinned = {"entries": [
             {"path": "x.md", "pattern_id": "private_term", "reason": "r" * 30,
              "match_sha256": _match_sha256("private_term:1")},
@@ -1021,54 +1076,77 @@ def _selftest_private_terms(f, ran):
                "private-term finding",
                len([x for x in scan_text("near " + name, "x.md", pinned)
                     if x["pattern_id"] == "private_term"]) == 1, f, ran)
-        # The three scans, on a stand-in for git and a folder of three files: text that names a
-        # term, a path that names one, and this file itself.
+        # The three scans, on a stand-in for git and a folder of files: text that names a term,
+        # paths that name one (one with a space, which git ends with a tab in a diff header), a
+        # path git quotes, this file itself and a file that shares its name.
         real_git, real_root = globals()["_git"], globals()["ROOT"]
         sha, ok_addr = "a" * 40, "x@users.noreply.github.com"
+        other_addr = "jane" + "@" + "mail.invalid"
         log_rec = sha + chr(0) + ok_addr + chr(0) + "near " + town + "\n" + chr(1)
-        people_rec = chr(0).join((sha, name, "Creator OS", ok_addr, ok_addr)) + chr(1)
+        people_rec = chr(0).join((sha, wide, "Creator OS", ok_addr,
+                                  (one + "." + two).lower() + "@" + "mail.invalid")) + chr(1)
         named = "docs/" + town + ".md"
-        listing = "docs/n.md\n" + named + "\ntools/secret_scan.py\n"
-        own_line = "# kept by " + name + " jane" + "@" + "mail.invalid"
-        hunk = ("diff --git a/docs/n.md b/docs/n.md\n--- /dev/null\n+++ b/docs/n.md\n@@ -0,0 +1,2 @@\n"
-                "+near " + name + "\n+++ b/docs/" + town + "\n"
-                "diff --git a/tools/secret_scan.py b/tools/secret_scan.py\n--- a/tools/secret_scan.py\n"
-                "+++ b/tools/secret_scan.py\n@@ -1 +1,2 @@\n+" + own_line + "\n")
+        spaced = "docs/" + name + " notes.md"
+        local = "docs/" + town + ".local.md"
+        quoted = "pipeline/accounts/caf" + chr(0xE9) + ".md"
+        files = (("docs/n.md", "near " + name), (named, "clean"), (spaced, "write " + other_addr),
+                 (quoted, "fee $" + "5000"), ("tools/secret_scan.py", "# kept by " + name + " " + other_addr),
+                 ("docs/secret_scan.py", "write " + other_addr))
+        listing = chr(0).join(rel for rel, _text in files) + chr(0)
+        hunk = "".join(
+            "diff --git a/x b/x\n--- /dev/null\n+++ " + header + "\n@@ -0,0 +1 @@\n+" + text + "\n"
+            for header, text in (
+                ("b/docs/n.md", "near " + name + "\n+++ b/docs/" + town),
+                ("b/" + spaced + chr(9), "write " + other_addr),
+                ('"b/pipeline/accounts/caf' + chr(92) + "303" + chr(92) + '251.md"', "fee $" + "5000"),
+                ("b/tools/secret_scan.py", "# kept by " + name + " " + other_addr),
+                ("b/docs/secret_scan.py", "write " + other_addr)))
+        plain_diff = ("--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/")
 
         def _pt_git(args, check=True):
+            if args[0] == "diff" and "--name-only" in args:
+                return listing + local + chr(0) if "-z" in args else "not a NUL-separated listing"
             if args[0] == "diff":
-                return listing if "--name-only" in args else hunk
+                return hunk if all(a in args for a in plain_diff) else chr(27) + "[32m+near " + name
             if args[0] == "ls-files":
-                return listing
+                return listing if "-z" in args else "not a NUL-separated listing"
             if args[0] == "log":
                 return people_rec if any("%an" in a for a in args) else log_rec
             return ""
         with tempfile.TemporaryDirectory() as td2:
-            for rel, text in (("docs/n.md", "near " + name + "\n"), (named, "clean\n"),
-                              ("tools/secret_scan.py", own_line + "\n")):
+            for rel, text in files:
                 (Path(td2) / rel).parent.mkdir(parents=True, exist_ok=True)
-                (Path(td2) / rel).write_text(text, encoding="utf-8")
+                (Path(td2) / rel).write_text(text + "\n", encoding="utf-8")
             globals()["_git"], globals()["ROOT"] = _pt_git, Path(td2)
             try:
                 via = {"staged": scan_staged({"entries": []}), "tracked": scan_tracked({"entries": []}),
                        "messages": scan_commit_messages("a..b", {"entries": []})}
             finally:
                 globals()["_git"], globals()["ROOT"] = real_git, real_root
-        in_path = "(a path holding " + t2 + ")"
-        seen = {k: sorted((x["path"], x["match"]) for x in v if x["pattern_id"] == "private_term")
-                for k, v in via.items()}
+        in_path = {n: "(a path holding " + t + ")" for n, t in ((1, t1), (2, t2))}
+        seen = {k: sorted((x["path"], x["pattern_id"], x["match"]) for x in v) for k, v in via.items()}
+        tracked_rows = [("docs/n.md", "private_term", t1), ("tools/secret_scan.py", "private_term", t1),
+                        (in_path[2], "private_term", t2 + " (in a file's path)"),
+                        (in_path[1], "private_term", t1 + " (in a file's path)"),
+                        (in_path[1], "email_address", other_addr),
+                        (quoted, "pipeline_amount", "$" + "5000"),
+                        ("docs/secret_scan.py", "email_address", other_addr)]
         _check("the staged scan, the tracked scan and the commit-message range scan each report a "
                "private term: in a file's text, in an added line that begins with two plus signs, in "
-               "this file itself, in a file's path (shown by the term's position) and in the name a "
-               "commit is made under; the other patterns are not run on this file",
-               seen == {"staged": sorted([("docs/n.md", t1), ("docs/n.md", t2), ("tools/secret_scan.py", t1),
-                                          (in_path, t2 + " (in a file's path)")]),
-                        "tracked": sorted([("docs/n.md", t1), ("tools/secret_scan.py", t1),
-                                           (in_path, t2 + " (in a file's path)")]),
-                        "messages": sorted([("commit:" + sha[:12], t2),
-                                            ("commit:" + sha[:12], t1 + " (author name)")])}
-               and not any(x["pattern_id"] == "email_address" for v in via.values() for x in v)
-               and all(town.lower() not in json.dumps(v).lower() for v in via.values()), f, ran)
+               "this file itself, in a file's path (shown by the term's position, for each finding "
+               "in that file), and in the names and addresses a commit is made under, a fullwidth "
+               "name included; a path with a space and a path git quotes keep their own findings; "
+               "the other patterns run on a file that shares this file's name and not on this file",
+               seen == {"staged": sorted(tracked_rows + [
+                            ("docs/n.md", "private_term", t2),
+                            (in_path[2], "private_term", t2 + " (in a file's path)"),
+                            (in_path[2], "forbidden_staged_file",
+                             "(text holding term 2 of creator-os-private-terms.local.json)")]),
+                        "tracked": sorted(tracked_rows),
+                        "messages": sorted([("commit:" + sha[:12], "private_term", t2),
+                                            ("commit:" + sha[:12], "private_term", t1 + " (author name)"),
+                                            ("commit:" + sha[:12], "private_term", t1 + " (committer email)")])}
+               and not any(w in json.dumps(via).lower() for w in (town.lower(), name.lower())), f, ran)
         _PRIVATE_PATTERNS = []
         _check("with an empty private list a name is not reported",
                scan_text(f"by {name}", "docs/x.md") == [], f, ran)
@@ -1132,21 +1210,52 @@ def _selftest_private_terms(f, ran):
         linked_root.mkdir()
         (main_root / saved_path.name).write_text(json.dumps({"terms": [name]}), encoding="utf-8")
         globals()["PRIVATE_TERMS_PATH"], globals()["ROOT"] = linked_root / saved_path.name, linked_root
+        def _worktrees(first, bare=False):
+            entry = "worktree " + str(first) + "\n" + ("bare\n" if bare else "HEAD " + "a" * 40 + "\n")
+            listed = entry + "\nworktree " + str(linked_root) + "\nHEAD " + "b" * 40 + "\n"
+            return lambda args, check=True: listed if args[:2] == ["worktree", "list"] else ""
         try:
-            globals()["_git"] = lambda args, check=True: str(main_root / ".git") + "\n"
+            globals()["_git"] = _worktrees(main_root)
             from_main = (private_terms_file(), load_private_terms(), private_list_present())
-            globals()["_git"] = lambda args, check=True: ".git\n"
+            globals()["_git"] = _worktrees(main_root, bare=True)
+            from_bare = (private_terms_file(), load_private_terms(), private_list_present())
+            globals()["_git"] = _worktrees(linked_root)
             alone = (private_terms_file(), load_private_terms(), private_list_present())
+            (main_root / saved_path.name).unlink()
+            try:
+                os.symlink(str(main_root / "nowhere.json"), str(main_root / saved_path.name))
+                globals()["_git"] = _worktrees(main_root)
+                dangling = (load_private_terms(), private_list_present())
+            except (OSError, NotImplementedError):
+                dangling = None  # a system that does not let this account make a link
             (linked_root / saved_path.name).write_text(json.dumps({"terms": [town]}), encoding="utf-8")
-            globals()["_git"] = lambda args, check=True: str(main_root / ".git") + "\n"
+            globals()["_git"] = _worktrees(main_root)
             own_first = load_private_terms()
         finally:
             globals()["PRIVATE_TERMS_PATH"], globals()["_git"], globals()["ROOT"] = saved_path, saved_git, saved_root
-    _check("a linked worktree with no list of its own reads the list of the checkout it was made "
-           "from, a checkout's own list is read first, and a checkout with neither has no list",
+    _check("a linked worktree with no list of its own reads the list at the root of the main "
+           "worktree git lists first, a link there that leads nowhere included; a worktree of a bare "
+           "repository and a checkout that is the main worktree read their own root; a checkout's own "
+           "list is read first",
            from_main == (main_root / saved_path.name, ([name], None), True)
+           and from_bare == (linked_root / saved_path.name, (None, None), False)
            and alone == (linked_root / saved_path.name, (None, None), False)
+           and dangling in (None, (([], saved_path.name + " links to a file that is not there"), True))
            and own_first == ([town], None), f, ran)
+    import sync_check as _sc_pt
+    _check("drift invariant 21 records a problem for a scan that did not finish in CI and on a "
+           "checkout that holds a private list, and a warning elsewhere",
+           [(_sc_pt._scan_unfinished(TimeoutError("t"), ci, held) or "")[:60] for ci, held in (
+               ("true", False), (None, True), ("", True), (None, False), ("", False))]
+           == ["privacy: secret scan failed to run in CI (fail closed): t",
+               "privacy: secret scan did not finish and this checkout holds ",
+               "privacy: secret scan did not finish and this checkout holds ", "", ""], f, ran)
+    _check("a path as git quotes it is read back as stored, and a listing is split on NUL when it "
+           "holds one",
+           _unquote_git_path('"b/caf' + chr(92) + "303" + chr(92) + '251 ' + chr(92) + '"x' + chr(92) + '".md"')
+           == "b/caf" + chr(0xE9) + ' "x".md' and _unquote_git_path("b/plain.md") == "b/plain.md"
+           and _listed_paths("a b.md" + chr(0) + "c.md" + chr(0)) == ["a b.md", "c.md"]
+           and _listed_paths(" a.md\nb.md\n\n") == ["a.md", "b.md"], f, ran)
     marker = private_term_patterns([name])
     saved = _PRIVATE_PATTERNS
     _PRIVATE_PATTERNS = marker

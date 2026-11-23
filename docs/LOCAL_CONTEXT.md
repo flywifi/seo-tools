@@ -203,15 +203,19 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
    addresses a commit is made under. A term is found in any letter case, across a line break,
    with spaces, dots, hyphens or underscores between its words or with its words run together,
    and where it is not part of a longer word. It is not found in a spelling the list does not
-   hold: an accent dropped or added, a look-alike letter from another alphabet, a curly
+   hold: a letter that differs by an accent, a look-alike letter from another alphabet, a curly
    apostrophe where the list has a straight one, another word between its words, or a nickname.
    List each spelling you use. A finding gives the term's position in your list in place of the
-   term, and another pattern's finding (an email address, say) whose text holds a listed term
-   shows that position too. An allowlist entry does not exempt it; commit messages at or before
+   term. Another pattern's finding (an email address, say) shows that position too when its
+   text, or the 40 characters either side of it, holds a listed term's words, also where they
+   run into other letters or digits (a handle with a number after the name); so does a finding
+   in a file whose path holds one. An allowlist entry does not exempt it; commit messages at or before
    the allowlist file's `commit_policy_boundary` are not scanned, as for the other patterns. A
    list that cannot be used (it does not parse, it is a folder, it is a link that leads nowhere)
-   fails the scan, the commit-msg hook and the push preflight. A linked git worktree reads the
-   list of the checkout it was made from. If the name git commits under (`git config user.name`)
+   fails the scan, the commit-msg hook and the push preflight. A linked git worktree with no list of its
+   own reads the list at the root of the main worktree, as `git worktree list` names it; a
+   worktree of a bare repository, or of a clone whose git folder was put elsewhere
+   (`--separate-git-dir`), has no main checkout git can name, so put a list at its own root. If the name git commits under (`git config user.name`)
    is on your list, the commit-msg hook refuses the commit until you set a name you publish
    under. The file is ignored by git and refused by invariant 19 if it is ever tracked. With no
    list or an empty one the scan prints `private terms: DID NOT RUN`, and CI, which has no list,

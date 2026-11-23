@@ -191,6 +191,17 @@ def _print_human(results):
 
 # --------------------------------------------------------------------------- #
 def selftest():
+    """The checks below, run with the private-terms list of this checkout set aside, so their
+    result does not depend on it."""
+    real_list = secret_scan.private_list_findings
+    secret_scan.private_list_findings = lambda: ([], "")
+    try:
+        return _selftest_body()
+    finally:
+        secret_scan.private_list_findings = real_list
+
+
+def _selftest_body():
     checks = []
 
     def ok(name, cond):
@@ -245,15 +256,14 @@ def selftest():
     ok("strict exits 0 when only skips/passes",
        overall_exit([_result("x", [], "h"), _result("y", [], "h", status="skip")], strict=True) == 0)
     ok("non-strict always exits 0", overall_exit([_result("x", ["p"], "h")], strict=False) == 0)
-    real_list = secret_scan.private_list_findings
+    set_aside = secret_scan.private_list_findings
     try:
         secret_scan.private_list_findings = lambda: (
             [{"path": "list.json", "pattern_id": "private_terms_list", "match": "cannot be read"}], "")
         broken_list = check_staged_hygiene(scanner=lambda al: [], allowlist=al)
-        secret_scan.private_list_findings = lambda: ([], "")
-        usable_list = check_staged_hygiene(scanner=lambda al: [], allowlist=al)
     finally:
-        secret_scan.private_list_findings = real_list
+        secret_scan.private_list_findings = set_aside
+    usable_list = check_staged_hygiene(scanner=lambda al: [], allowlist=al)
     ok("a private-terms list that cannot be used fails a hygiene check that found nothing else",
        broken_list["status"] == "fail" and usable_list["status"] != "fail")
 

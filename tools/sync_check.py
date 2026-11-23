@@ -1611,6 +1611,18 @@ def check_pipeline_allowlist():
             )
 
 
+def _scan_unfinished(exc, ci, list_held):
+    """What invariant 21 records when the scan did not finish: a problem's text in CI and on a
+    checkout that holds a private list (there a skipped scan would pass a listed name unseen),
+    else None, and the caller prints a warning."""
+    if ci:
+        return f"privacy: secret scan failed to run in CI (fail closed): {exc}"
+    if list_held:
+        return ("privacy: secret scan did not finish and this checkout holds a private list "
+                f"(fail closed): {type(exc).__name__}")
+    return None
+
+
 def check_secret_content():
     """Invariant 21: tools/secret_scan.py --tracked finds no secret content in tracked files.
 
@@ -1626,13 +1638,9 @@ def check_secret_content():
         out = subprocess.run([sys.executable, str(scanner), "--tracked"],
                              cwd=str(ROOT), capture_output=True, text=True, timeout=300)
     except (OSError, subprocess.SubprocessError) as exc:
-        # A scan that did not finish is a failure in CI, and on a computer that holds a private
-        # list: there a skipped scan would pass a listed name unseen.
-        if os.environ.get("CI"):
-            problem(f"privacy: secret scan failed to run in CI (fail closed): {exc}")
-        elif private_list_present():
-            problem(f"privacy: secret scan did not finish and this checkout holds a private "
-                    f"list (fail closed): {type(exc).__name__}")
+        failed = _scan_unfinished(exc, os.environ.get("CI"), private_list_present())
+        if failed:
+            problem(failed)
         else:
             print(f"  [warn] secret scan could not run; invariant 21 skipped (local): {exc}")
         return
