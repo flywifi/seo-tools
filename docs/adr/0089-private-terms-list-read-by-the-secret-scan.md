@@ -26,9 +26,9 @@ the words a creator most wants kept out of a public repository.
    that is not UTF-8 kept, so a file whose name is outside UTF-8 is scanned under its own name.
    git's output is decoded from its bytes, so a carriage return in a name or a line stays one.
    The patterns then read a carriage return as a line end, so a credential on a line that ends
-   in CR LF is found in staged lines, tracked text and commit messages; a quoted value with a
-   carriage return inside its quotes is read as broken across two lines, as with a line feed,
-   and is not matched. A tracked file's bytes are decoded the same way as git's output, so a
+   in CR LF is found in staged lines, tracked text and commit messages; a single-quoted value
+   with a carriage return inside its quotes is read as broken across two lines, as with a line
+   feed, and is not matched (a double-quoted value may span a line break and is matched). A tracked file's bytes are decoded the same way as git's output, so a
    match that holds a byte outside UTF-8 has one pin in staged lines and in tracked text.
    The staged diff is read with fixed options: colour off, git's own diff program, the stored
    text and not a converted one, the `a/` and `b/` prefixes, and a file read as text where an
@@ -50,7 +50,9 @@ the words a creator most wants kept out of a public repository.
    hidden paths of the run, and a message about an allowlist entry with such a path is shown
    by position. The commit-msg hook veils the lines it prints the same way; a line of the
    claim check, which quotes the subject in its own spelling, is veiled when the message holds
-   a term. A name is short enough to be guessed from its hash, so the term is not hashed
+   a term. A report prints a character that does not print as an escape; a matched text, or a
+   file name with such a character, whose printed form would hold a term's words is shown by
+   position too. A name is short enough to be guessed from its hash, so the term is not hashed
    either.
 4. An allowlist entry does not exempt a private-term finding. The list is where a term is added
    or removed. The allowlist file's `commit_policy_boundary` applies as it does to the other

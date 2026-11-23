@@ -650,8 +650,9 @@ def held_term(text):
     """The position of the first listed term a text holds in one of its readings, or None. This
     is looser than a finding: the term's words count wherever they stand, also inside a longer
     run of letters or digits (a handle with a number after the name), because the answer decides
-    what a line of output may show."""
-    for view in _text_views(text):
+    what a line of output may show. The text is also read as a report line prints it
+    (printable): the letters of an escape can complete a term's word."""
+    for view in _text_views(text) + [printable(text)]:
         key = None
         for i, _rx, quick, loose in _private_patterns():
             if quick is not None:
@@ -699,6 +700,13 @@ def _veil_paths(findings, paths):
         if found:
             veiled[p] = f"(hidden path {len(veiled) + 1}, holding {found[0]['match'].split(' (')[0]})"
             findings.extend(dict(x, path=veiled[p]) for x in found)
+        elif printable(p) != p:
+            # A name with a character that does not print is shown with an escape, whose letters
+            # can complete a term's word: such a name is hidden when its printed form holds a
+            # term. No finding is added, since the name itself does not hold the term.
+            held = held_term(p)
+            if held is not None:
+                veiled[p] = f"(hidden path {len(veiled) + 1}, holding term {held} of {PRIVATE_TERMS_PATH.name})"
     for x in findings:
         if x.get("path") in veiled:
             x["path"] = veiled[x["path"]]
@@ -786,9 +794,10 @@ def scan_text(text, path, allowlist=None, private_only=False):
     One occurrence whose raw and folded readings match as DIFFERENT text (a digit run written
     with non-ASCII digits, say) is keyed by each text, so it can be reported once per reading.
     A carriage return, alone or before a line feed, is read as a line feed: a pattern that ends
-    at a line's end (a YAML or .env credential) then finds a line that ends in CR LF. A quoted
-    value that holds a carriage return inside its quotes is read as broken across two lines, as
-    one that holds a line feed is, and is not matched."""
+    at a line's end (a YAML or .env credential) then finds a line that ends in CR LF. A
+    single-quoted value that holds a carriage return inside its quotes is read as broken across
+    two lines, as one that holds a line feed is, and is not matched; a double-quoted value may
+    span a line break and is matched in both forms."""
     allowlist = allowlist or {"entries": []}
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     findings, counted = [], {}
@@ -1999,9 +2008,34 @@ def _selftest_body():
            and [x["pattern_id"] for x in scan_text('{"pass' + 'word": "abc' + chr(0xDCFF) + 'defghijk"}', "a.json")]
            == ["credential_value"], f, ran)
     _check("a single-quoted value that holds a carriage return or a line feed inside its quotes is "
-           "read as broken across two lines and is not matched; the same value on one line is",
+           "read as broken across two lines and is not matched; the same value on one line is; a "
+           "double-quoted value is matched with a carriage return, a line feed or neither inside it",
            [[x["pattern_id"] for x in scan_text("{'pass" + "word': 'abcd" + sep + "efghijkl'}", "a.py")]
-            for sep in ("\r", "\n", "")] == [[], [], ["credential_value"]], f, ran)
+            for sep in ("\r", "\n", "")] == [[], [], ["credential_value"]]
+           and [[x["pattern_id"] for x in scan_text('{"pass' + 'word": "abcd' + sep + 'efghijkl"}', "a.json")]
+                for sep in ("\r", "\n", "")] == [["credential_value"]] * 3, f, ran)
+    _split = ["Author" + "ization:" + sep + " Bear" + "er " + "a" * 24 for sep in ("\r\n", "\n", "\r")]
+    _pins = [sorted((x["pattern_id"], x["sha256"]) for x in scan_text(h, "a.txt")) for h in _split]
+    _check("a match that spans a line break has one pin whether the break is CR LF, a line feed or "
+           "a carriage return",
+           _pins[0] and _pins[0] == _pins[1] == _pins[2], f, ran)
+    _saved_terms = globals()["_PRIVATE_PATTERNS"]
+    try:
+        globals()["_PRIVATE_PATTERNS"] = private_term_patterns(["Ru" + "dy", "No" + "ra"])
+        _odd_name = "docs/x" + chr(13) + "udy.md"
+        _escaped = _veil_paths(
+            scan_text('{"pass' + 'word": "x' + chr(10) + 'ora12345"}', _odd_name), [_odd_name])
+        _plain = _veil_paths(scan_text("write q@" + "corp-mail.invalid", "docs/ru" + "dyard.md"), ["docs/ru" + "dyard.md"])
+    finally:
+        globals()["_PRIVATE_PATTERNS"] = _saved_terms
+    _check("a matched text and a file name whose printed escapes would complete a listed term are "
+           "shown by the term's position, with no finding added for the term; a name that prints "
+           "as it is stored and holds a term inside a longer word is shown",
+           [(x["path"], x["pattern_id"], x["match"]) for x in _escaped]
+           == [("(hidden path 1, holding term 1 of " + PRIVATE_TERMS_PATH.name + ")", "credential_value",
+                "(text holding term 2 of " + PRIVATE_TERMS_PATH.name + ")")]
+           and not any(w in printable(json.dumps(_escaped)).lower() for w in ("ru" + "dy", "no" + "ra"))
+           and [(x["path"], x["pattern_id"]) for x in _plain] == [("docs/ru" + "dyard.md", "email_address")], f, ran)
     _check("credential values under camelCase, upper-case and other credential keys, in a "
            "single-quoted dict, a YAML line and a .env line are detected",
            all(any(x["pattern_id"] == "credential_value" for x in scan_text(s, "a.txt")) for s in (
