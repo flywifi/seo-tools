@@ -25,6 +25,8 @@ the words a creator most wants kept out of a public repository.
    quoting and the tab git puts after a name with a space are undone) and as UTF-8 with a byte
    that is not UTF-8 kept, so a file whose name is outside UTF-8 is scanned under its own name.
    git's output is decoded from its bytes, so a carriage return in a name or a line stays one.
+   The patterns then read a carriage return as a line end, so a credential on a line that ends
+   in CR LF is found in staged lines, tracked text and commit messages.
    The staged diff is read with fixed options: colour off, git's own diff program, the stored
    text and not a converted one, the `a/` and `b/` prefixes, and a file read as text where an
    attribute marks it `binary` or `-diff`. Run with git on 2026-11-23, the staged findings were
@@ -50,7 +52,8 @@ the words a creator most wants kept out of a public repository.
 4. An allowlist entry does not exempt a private-term finding. The list is where a term is added
    or removed. The allowlist file's `commit_policy_boundary` applies as it does to the other
    patterns: commits at or before it are not scanned.
-5. A list that does not parse, holds another shape, holds a term under three characters, is not
+5. A list that does not parse, holds another shape, holds a term under three characters
+   (counted in composed form), is not
    a file, or is a link that leads nowhere is a finding in the scan's own run, in the commit-msg
    hook and in the push preflight, so a broken list fails them.
 6. With no list, or an empty one, the scan prints `private terms: DID NOT RUN`, and the drift

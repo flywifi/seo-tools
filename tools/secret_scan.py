@@ -472,8 +472,12 @@ def _load_allowlist():
 
 
 def _match_sha256(text):
-    """The pin an allowlist entry stores for the one match it exempts (its full matched text)."""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    """The pin an allowlist entry stores for the one match it exempts (its full matched text). A
+    byte outside UTF-8 that _git kept is hashed as that byte."""
+    try:
+        return hashlib.sha256(text.encode("utf-8", "surrogateescape")).hexdigest()
+    except UnicodeEncodeError:
+        return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
 
 
 def _allowed(allowlist, path, pattern_id, text=None):
@@ -587,7 +591,10 @@ def load_private_terms(path=None):
     terms = data.get("terms") if isinstance(data, dict) else None
     if not isinstance(terms, list) or not all(isinstance(t, str) for t in terms):
         return [], f'{p.name} must hold {{"terms": ["...", ...]}}'
-    terms = [" ".join(t.split()) for t in terms]
+    import unicodedata
+    # Composed form (NFKC), the form private_term_patterns builds from, so the length rule and
+    # the pattern read one spelling.
+    terms = [" ".join(unicodedata.normalize("NFKC", t).split()) for t in terms]
     short = [str(i) for i, t in enumerate(terms, 1) if len(t) < PRIVATE_TERM_MIN]
     if short:
         return [], (f"{p.name}: term {', '.join(short)} is shorter than {PRIVATE_TERM_MIN} "
@@ -771,8 +778,11 @@ def scan_text(text, path, allowlist=None, private_only=False):
     patterns run on every reading _text_views gives; a match (pattern id and matched text) found
     in more than one reading is reported as often as the one reading that holds it most often.
     One occurrence whose raw and folded readings match as DIFFERENT text (a digit run written
-    with non-ASCII digits, say) is keyed by each text, so it can be reported once per reading."""
+    with non-ASCII digits, say) is keyed by each text, so it can be reported once per reading.
+    A carriage return, alone or before a line feed, is read as a line feed: a pattern that ends
+    at a line's end (a YAML or .env credential) then finds a line that ends in CR LF."""
     allowlist = allowlist or {"entries": []}
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     findings, counted = [], {}
     for view in _text_views(text):
         here = {}
@@ -990,20 +1000,25 @@ def _selftest_private_terms(f, ran):
                  "notjson": "{terms", "shape": json.dumps([name]),
                  "notext": json.dumps({"terms": [name, 7]}),
                  "short": json.dumps({"terms": [name, "ab", " x "]}),
+                 "apart": json.dumps({"terms": [name, "e" + chr(0x301) + "e"]}),
+                 "apart_ok": json.dumps({"terms": ["Zoe" + chr(0x301) + " Kestrel"]}),
                  "deep": "[" * 100000 + "]" * 100000}
         for k, text in files.items():
             (d / f"{k}.local.json").write_text(text, encoding="utf-8")
         got = {k: load_private_terms(d / f"{k}.local.json") for k in files}
         got["absent"] = load_private_terms(d / "none.local.json")
     _check("the private list is read as its terms with spaces trimmed, with or without a byte-order "
-           "mark; no file is no list; a file that does not parse, another shape, a term that is not "
-           "text and a term under three characters are each a problem with no terms",
+           "mark, in composed form; no file is no list; a file that does not parse, another shape, "
+           "a term that is not text and a term under three characters, counted in composed form, "
+           "are each a problem with no terms",
            got["good"] == ([name, town, "jav"], None) and got["bom"] == ([name], None)
            and got["absent"] == (None, None)
            and got["notjson"] == ([], "notjson.local.json cannot be read (JSONDecodeError)")
            and got["shape"] == ([], 'shape.local.json must hold {"terms": ["...", ...]}')
            and got["notext"] == ([], 'notext.local.json must hold {"terms": ["...", ...]}')
            and got["short"] == ([], "short.local.json: term 2, 3 is shorter than 3 characters")
+           and got["apart"] == ([], "apart.local.json: term 2 is shorter than 3 characters")
+           and got["apart_ok"] == (["Zo" + chr(0xE9) + " Kestrel"], None)
            and got["deep"] in (([], "deep.local.json cannot be read (RecursionError)"),
                                ([], 'deep.local.json must hold {"terms": ["...", ...]}')), f, ran)
     saved = _PRIVATE_PATTERNS
@@ -1239,7 +1254,22 @@ def _selftest_private_terms(f, ran):
             listed = _git(["ls-files", "-z"])
         finally:
             subprocess.run = real_run
-        shown = io.StringIO()
+        shown, odd_path = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(odd_path):
+            _report([_finding("docs/a" + chr(13) + "b" + chr(10) + "c" + chr(9) + "d" + chr(0x85) + "e"
+                              + chr(0x2028) + "f" + chr(0xA0) + "g" + chr(0xDCE9) + " h" + chr(0xE9) + ".md",
+                              "email_address", other_addr)], "staged")
+        _check("a report prints a character in a file's name that does not print (a carriage "
+               "return, a line feed, a tab, a next-line character, a line separator, a no-break "
+               "space, a byte outside UTF-8) as its escape, on one line, and a space and an "
+               "accented letter as they are; "
+               "a match that holds a byte outside UTF-8 is pinned by its bytes",
+               ("  - docs/a" + chr(92) + "rb" + chr(92) + "nc" + chr(92) + "td" + chr(92) + "x85e"
+                + chr(92) + "u2028f" + chr(92) + "xa0g" + chr(92) + "udce9 h" + chr(0xE9)
+                + ".md: email_address: ") in odd_path.getvalue()
+               and len(odd_path.getvalue().splitlines()) == 3
+               and _match_sha256("abc" + chr(0xDCFF)) == hashlib.sha256(b"abc" + bytes([0xFF])).hexdigest()
+               and len(_match_sha256("abc" + chr(0xD800))) == 64, f, ran)
         with contextlib.redirect_stdout(shown):
             reported = _report([_finding("docs/x.md", "email_address", (one + "." + two).lower() + "9@" + "mail.invalid"),
                                 _finding("docs/x.md", "email_address", other_addr)], "staged")
@@ -1375,15 +1405,18 @@ def _selftest_private_terms(f, ran):
     saved = _PRIVATE_PATTERNS
     try:
         both_ways = []
+        wide_listed = "".join(chr(ord(c) + 0xFEE0) if "!" <= c <= "~" else c for c in "Zoe Kestrel")
         for listed_as, written_as in ((apart, composed), (composed, apart), (apart, apart),
-                                      (apart, "Zoe Kestrel")):
+                                      (apart, "Zoe Kestrel"), (wide_listed, "Zoe Kestrel")):
             _PRIVATE_PATTERNS = private_term_patterns([listed_as])
             both_ways.append([x["pattern_id"] for x in scan_text("by " + written_as, "docs/x.md")])
     finally:
         _PRIVATE_PATTERNS = saved
     _check("a term saved with a separate accent mark finds the composed spelling, and the other "
-           "way round; the letter with its accent left off is another spelling",
-           both_ways == [["private_term"], ["private_term"], ["private_term"], []], f, ran)
+           "way round; the letter with its accent left off is another spelling; a term saved in "
+           "fullwidth letters finds the plain spelling",
+           both_ways == [["private_term"], ["private_term"], ["private_term"], [], ["private_term"]],
+           f, ran)
     marker = private_term_patterns([name])
     saved = _PRIVATE_PATTERNS
     _PRIVATE_PATTERNS = marker
@@ -1905,6 +1938,15 @@ def _selftest_body():
                "Authorization: " + "k" * 32, "Authorization: " + "Custom " + "t" * 32,
                "curl -H 'X-Auth-" + "Token: " + "k" * 32 + "'") for x in scan_text(s, "a.md")), f, ran)
     _sv = "s" * 16
+    _check("a YAML or .env credential on a line that ends in CR LF, or in a carriage return alone, "
+           "is detected as on a line that ends in a line feed; a staged line with such an end "
+           "and a match with a byte outside UTF-8 are reported, not raised",
+           [[x["pattern_id"] for x in scan_text(s, "a.txt")] for s in (
+               "api" + "_key: " + _sv + "\r\n", "export GITHUB" + "_TOKEN=" + _sv + "\r\nnext\r\n",
+               "API" + "_KEY=" + _sv + "\rnext", "Subject\r\n\r\nAPI" + "_TOKEN=" + _sv + "\r\n",
+               "api" + "_key: " + _sv + "\n")] == [["credential_value"]] * 5
+           and [x["pattern_id"] for x in scan_text('{"pass' + 'word": "abc' + chr(0xDCFF) + 'defghijk"}', "a.json")]
+           == ["credential_value"], f, ran)
     _check("credential values under camelCase, upper-case and other credential keys, in a "
            "single-quoted dict, a YAML line and a .env line are detected",
            all(any(x["pattern_id"] == "credential_value" for x in scan_text(s, "a.txt")) for s in (
@@ -2289,7 +2331,12 @@ def _report(findings, mode):
         veiled = [x for x in findings if str(x.get("match", "")).startswith("(text holding ")]
         for x in findings:
             pin = f" [sha256 {x['sha256']}]" if x.get("sha256") and x not in veiled else ""
-            print(f"  - {x['path']}: {x['pattern_id']}: {x['match']}{pin}")
+            # A character in a file's name that does not print (a carriage return, a line feed,
+            # a tab, a line separator, a no-break space, a byte outside UTF-8) is printed as its
+            # escape, so one finding stays one line.
+            where = "".join(c if c.isprintable() else c.encode("unicode_escape").decode("ascii")
+                            for c in str(x["path"]))
+            print(f"  - {where}: {x['pattern_id']}: {x['match']}{pin}")
         if veiled:
             print("A finding shown as (text holding term N ...) has text that holds, or stands "
                   "beside, a listed term, so the text and its sha256 are not printed: find it in "
