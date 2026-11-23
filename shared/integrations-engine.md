@@ -763,8 +763,9 @@ server to host, because Google Drive is the one substrate all of those surfaces 
 - **Concurrency safety:** because the task history is an append-only event log, two surfaces editing the same
   Drive store are reconciled by `reconcile()` (union of events, then re-fold), not last-writer-wins clobber.
 - **Provider-neutral exports:** the `.ics` calendar (`register_to_ics`), a portable JSON/CSV, and the Sheet
-  make the same data usable in Google/Apple Calendar and in other AI systems (Gemini reads Drive natively;
-  ChatGPT via an app/Drive), so the tracker is not locked to one vendor.
+  make the same data usable in Google/Apple Calendar (import the `.ics`) and in other AI systems (upload the
+  JSON or CSV to the chat where it accepts the type; the Sheet through a connected Drive app where
+  available), so the tracker is not locked to one vendor. docs/TASK-TRACKER.md names the vendor pages.
 
 Enable it by connecting the native Google Drive connector and setting `task_store_backend: "google_drive"`
 in `creator-os-config.local.json`. The `local_fs` backend remains the full-fidelity Claude Desktop mode; the

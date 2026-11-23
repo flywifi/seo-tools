@@ -517,6 +517,58 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   which is not repeated. `tools/file_hash.py` carries rows G5-WZ1 to G5-WZ34, G5-RB1 to G5-RB28
   and G5-SW1 to G5-SW23 for these checks. The guard's selftest prints and scores a skipped run
   through `_hook_skip_outcome`, which reads `CI` from the process environment at the call.
+- Google connector wording (docs): the passages on what ChatGPT's and claude.ai's Google
+  integrations do with the Drive hub's files are reworded to what the vendor pages document, as read
+  on 2026-11-16. `docs/DRIVE-HUB.md`: the local lane's markdown copies serve the computer and a Drive
+  for desktop mirror, and a web chat uses the Google Docs lane or uploaded pack files; the
+  self-updating Project section is stated for claude.ai, with uploads for a ChatGPT Project; a
+  boundary names the connected account's Drive permissions and ChatGPT's Library coverage.
+  `docs/TASK-TRACKER.md`, `shared/tasks-engine.md` and knowledge
+  file `07-pipeline-spokes.md`: Calendar and Gmail are described as read paths, nudge text is drafted
+  in the chat for the person to send, and the `.ics`, JSON/CSV and Sheet exports say how each
+  reaches another AI; `shared/integrations-engine.md` carries the exports sentence. `docs/SURFACE-WORKFLOWS.md` and the W4 live step in
+  `skills/creator-core/evals/surface-workflows.json`: the person saves the profile export into the
+  synced Profile folder. `docs/DEPLOYMENT.md`: a note on what "No" means for ChatGPT in the Google
+  Workspace row. `shared/connectors/connectors.json` is unchanged. Five pages join the source
+  registry (Claude's Gmail, Calendar and Drive connector reference, OpenAI's Library and ChatGPT Work
+  help articles), declared in the docs' `sources` blocks. `docs/MAC-VALIDATION.md` gains four
+  connector checks to run on real accounts (C1 to C4: ChatGPT's Drive app saving and reading a hub
+  file, ChatGPT's Gmail app and claude.ai's Gmail connector drafting), with what to have ready,
+  the outcomes to record and their lines in the results log; they have not been run. Projects fed by uploads: replace
+  `07-pipeline-spokes.md` and `creator-os-combined.md` after the next re-export.
+- OpenAI surface files (connector runbook, API function specs, ChatGPT instruction packs).
+  `implementation/gpt/mcp-connector/README.md`: the Responses API example passes the
+  `authorization` value as the access token alone; the hosting requirements say a static bearer
+  token serves Codex and the Responses API, that claude.ai lists a fixed request header as beta
+  for a limited set of organizations (Anthropic's connector authentication page, registered as a
+  source), and that a ChatGPT custom MCP app takes OAuth, no authentication, or both; the ChatGPT card says ChatGPT may prompt on annotated write tools
+  and that the confirmation Creator OS relies on is its own `human_review_required` step; the
+  Codex card names `startup_timeout_sec` (default 10 s) and `tool_timeout_sec` (default 60 s);
+  the developer-mode guide citations point to the custom MCP server guide its address now leads
+  to (also in `docs/TRANSITIONS.md` and the registry entry `openai-developer-mode`).
+  `implementation/gpt/api/README.md`: the Python example runs the function-calling loop
+  (`function_call` items run through a `HANDLERS` map the integrator supplies, results returned
+  as `function_call_output` with `previous_response_id`) and sets `strict: False` explicitly,
+  with the reason; `keyword_compare.yaml` and `seo_keywords.yaml` each say which of the two to
+  use; `video_development.yaml` is ASCII (two em dashes replaced by a comma and a colon).
+  `implementation/gpt/project/project-instructions.md`, `implementation/gpt/web/custom-instructions.md`
+  and `custom-instructions-compact.md`: the em dash rule covers each reply; added rules against
+  posting, publishing, scheduling or sending, against saying a lookup is under way when no tool
+  is connected, against describing the creator's own work as AI generated (the chat says so
+  when a platform requires an AI-content label for something it drafted), and for treating stats,
+  rates and deal facts as unknown unless they are in the chat or the files; the two custom
+  files gain a deal-stage rule and the compact file names the upgrade path; the Project file
+  lists Core rules and Capability awareness before the routing steps. Four sources are added to
+  the registry (`openai-plugin-auth`, `openai-plugin-mcp-server`, `codex-config-reference`,
+  `openai-function-calling`).
+- `tools/mcp_server.py` selftest: `_citable_url_problem` tests a connector result's `url` (an
+  object with a `url` that is a string holding more than whitespace), with its cases in
+  `_CITABLE_URL_CASES`, two of which record that a non-URL string and a zero-width character are
+  accepted. The package-independent tier fetches its three fixture records (titled, untitled,
+  stored with backslashes) and fails when a fetch url does not pass that test or differs from
+  the url search returned for the record. The full tier does the same for one live record, as
+  returned and as `call_tool` delivers it, when the cache index is built and the query has a
+  hit; otherwise its result line says the fetch url was not checked.
 - P103 (file_hash stalled-child report): a `file_hash --selftest` child (`--run-rows`) writes a line
   to stderr naming each mutation row before it runs it, a line before and after each module's
   unmutated baseline run, and a done line after its rows, and arms `faulthandler` to dump its
@@ -725,6 +777,11 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   On Windows with Python 3.12 the clock those checks read moves in steps of about 0.016 s, and
   with a step served late the measured drop fell under the old margins. A try given the whole
   time measures no drop and still fails both checks.
+- P103 (price reader selftest, first request's time): the check that the first GET of a fetch is
+  given at most the fetch's time compares to within 1e-9 s, and one fetch in that check runs under
+  a clock held at one reading (2033.001 s). On Windows with Python 3.12 two clock reads inside one
+  step return the same number, and the deadline less that reading can round to a hair above the
+  fetch's time; the comparison had asked for an exact bound. `fetch` is unchanged.
 - P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge
   checks run with the seconds stamp the `.corrupt.<stamp>.bak` copies are named by fixed to one
   second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always

@@ -11,7 +11,7 @@
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
         "tools/surface_workflow_check.py": "7b4939bb7258b93f7bc92ebfb97b15a0d48ccc65df125d60d4bb5f52f0fe9a36",
-        "skills/creator-core/evals/surface-workflows.json": "8f2a12501f9778d386be9eed62b0d68336ebf54f32c28d5414b9546936cdb5fc"
+        "skills/creator-core/evals/surface-workflows.json": "a5e961cc9249af2ce4ffb702b1a20ff59babb7d9e9fed5384475d8f8be900472"
       }
     },
     "docs/AUDIT-PROTOCOL.md": {
@@ -58,14 +58,14 @@
       "sources": {
         "implementation/gpt/api/competitor_analysis.yaml": "f0276e9e14505fd6bce361a9c89b227c23fe03a841abd610b62a4067f2bb9693",
         "implementation/gpt/api/creator_core.yaml": "eca20983095ff6af889432ed174d841ff1fdcc74b60c044da60712526f0d2c9b",
-        "implementation/gpt/api/keyword_compare.yaml": "2a3a6eca0e2539d1c75df5c7ae2183d3291cba8a46d3e57e3082e666cdce5066",
-        "implementation/gpt/api/seo_keywords.yaml": "15665406daa68b4982486dba66d708feff134a8f6f4340412a4b93b149e47b42",
-        "implementation/gpt/api/video_development.yaml": "5028babdadb4cebb3e89945540b972f94581f8ab0a768f35f492eb77fbc8d0b7"
+        "implementation/gpt/api/keyword_compare.yaml": "5f7f57f429a6cadd53dca0093490ebf03a05aa435eb163afe2b2d8df33dda75a",
+        "implementation/gpt/api/seo_keywords.yaml": "9207adb919118a3d90f40f382531511c974b118285dfa6d56194533eeb772be1",
+        "implementation/gpt/api/video_development.yaml": "51747473c5f5c158224233675766b23929bbde67e137483c68e2bbe77baded03"
       }
     },
     "implementation/gpt/mcp-connector/README.md": {
       "sources": {
-        "tools/mcp_server.py": "87e89abd01266abb56bd21bb008216672bff7a34279a9cbc4e4c93634b619f65"
+        "tools/mcp_server.py": "bbdf1c8d189578dc53959d4161c73a3758fc72a8c99e12ed26bf0884bfcefff5"
       }
     },
     "docs/TRANSITIONS.md": {

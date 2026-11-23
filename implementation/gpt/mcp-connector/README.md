@@ -38,6 +38,17 @@ proxy. Never expose it without the protections below: the endpoint reads your pr
 3. Authentication in front of the endpoint (an OAuth layer or at minimum a long random bearer
    token enforced by the proxy). The MCP server binds to loopback and trusts the proxy; optionally
    set `CREATOR_OS_MCP_TOKEN` so it ALSO enforces the bearer token in-process (defense in depth).
+   A static bearer token works for Codex (`bearer_token_env_var`) and the Responses API. On
+   claude.ai a fixed request header (an API key or bearer token that an organization Owner
+   enters when adding the connector) is in beta for a limited set of organizations; the other
+   types Anthropic's page lists are OAuth sign-in and no authentication
+   (claude.com/docs/connectors/building/authentication, read 2026-11-22). A static bearer token
+   does not work for ChatGPT on the web or in the desktop app: a custom MCP app
+   there offers OAuth, no authentication, or OAuth or no authentication, and ChatGPT cannot
+   present a custom API key, so the bearer it sends is the OAuth access token; it registers as a
+   client through a Client ID Metadata Document (CIMD), Dynamic Client Registration (DCR) or a
+   predefined client, with PKCE. (Sources: developers.openai.com/api/docs/guides/custom-mcp-server
+   and developers.openai.com/plugins/build/auth, read 2026-11-16.)
    If you
    implement full OAuth to satisfy a provider's connector requirements, the MCP spec's
    Authorization model expects an OAuth 2.1 resource server: OAuth 2.0 Protected Resource
@@ -79,8 +90,9 @@ gates are enforced HERE, on this machine, for every surface that connects.
   developer mode connects MCP servers with read and fetch permissions only; write and modify
   actions are a workspace beta (next card). MCP apps are web only, not available on the mobile
   apps. Agent mode does not use custom apps; deep research can, for read and fetch actions only.
-  (Sources: developers.openai.com/api/docs/guides/developer-mode, fetched 2026-09-19;
-  help.openai.com article 12584461, read in full 2026-09-19.)
+  (Sources: developers.openai.com/api/docs/guides/custom-mcp-server, read 2026-11-16, where
+  the earlier developer-mode guide address now leads; help.openai.com article 12584461, read in
+  full 2026-09-19.)
 - **ChatGPT workspaces (Business, Enterprise, Edu) -- custom MCP apps with write actions
   (beta):** an admin or owner must enable developer mode first (Business: each admin toggles it
   for themselves under Workspace Settings, then Permissions and Roles, then Connected Data;
@@ -176,11 +188,15 @@ Two tiers, same server:
   2026-09-19). Add the connector by URL `https://YOUR-HOST/mcp`.
 - **Developer mode (full tool set):** Settings -> Security and login -> turn on Developer mode,
   then add `https://YOUR-HOST/mcp` at chatgpt.com/plugins (available on
-  Pro/Plus/Business/Enterprise/Edu on the web; developers.openai.com/api/docs/guides/developer-mode,
-  fetched 2026-09-19, first-party documented). Write tools carry accurate
-  `destructiveHint`/`readOnlyHint` annotations, so ChatGPT prompts for confirmation on
-  `schedule_post` and friends -- that is the Creator OS human-confirmation invariant surfacing in
-  ChatGPT's own UX.
+  Pro/Plus/Business/Enterprise/Edu on the web; help.openai.com article 12584461, read in full
+  2026-09-19). Write tools carry `destructiveHint`/`readOnlyHint` annotations, so ChatGPT may
+  prompt for confirmation on `schedule_post` and friends. OpenAI's plugin guide says
+  `readOnlyHint` is for a tool that cannot change state and `destructiveHint` for irreversible
+  or hard-to-reverse outcomes, that annotations help ChatGPT and Codex choose confirmation and
+  safety behavior, and that they do not replace authorization, validation or confirmation in
+  the server (developers.openai.com/plugins/build/mcp-server, read 2026-11-16). The
+  confirmation Creator OS relies on is its own: `schedule_post` sets `human_review_required`
+  and posts nothing.
 
 ### OpenAI Responses API (maintainer automation)
 ```json
@@ -189,7 +205,7 @@ Two tiers, same server:
             "server_url": "https://YOUR-HOST/mcp",
             "allowed_tools": ["search", "fetch", "cache_query", "quality_score"],
             "require_approval": "always",
-            "authorization": "Bearer <token>"}]}
+            "authorization": "<oauth access token>"}]}
 ```
 `require_approval: "always"` maps the human-confirmation invariant onto the API: the model emits
 `mcp_approval_request` and nothing runs until your code replies with an approval
@@ -197,6 +213,8 @@ Two tiers, same server:
 never stored by OpenAI. No fee beyond tokens. Note: `connector_id` is deprecated for models
 released after 2026-09-01; use `server_url` (or `tunnel_id` for a Secure MCP Tunnel), and pass an
 OAuth token via `authorization` when the server requires one (same page, fetched 2026-09-19).
+The `authorization` value is the access token alone: the page's example passes
+`"<oauth access token>"` with no `Bearer ` prefix (same page, read 2026-11-16).
 
 ### OpenAI Agents SDK
 ```python
@@ -223,6 +241,10 @@ args = ["/ABSOLUTE/PATH/seo-tools/tools/mcp_server.py"]
 ```
 Or: `codex mcp add creator-os -- /ABSOLUTE/PATH/.venv/bin/python3 /ABSOLUTE/PATH/tools/mcp_server.py`
 
+On a slow computer, add `startup_timeout_sec = 30` under `[mcp_servers.creator-os]`: Codex
+waits 10 seconds by default for an MCP server to start and 60 seconds per tool call
+(`tool_timeout_sec`) (learn.chatgpt.com/docs/config-file/config-reference, read 2026-11-16).
+
 The setup wizard writes this entry for you: on its Install the Creator OS tools screen, press
 **Add to Codex and verify** (P103, ADR 0085). It keeps the file's other settings and runs the same
 handshake check as the Claude Desktop button.
@@ -236,6 +258,21 @@ handshake check as the Claude Desktop button.
    "url": "https://learn.chatgpt.com/docs/extend/mcp",
    "category": "ai-surface-spec", "tier": "T1"},
   {"id": "openai-responses-mcp",
-   "url": "https://developers.openai.com/api/docs/guides/tools-connectors-mcp"}
+   "url": "https://developers.openai.com/api/docs/guides/tools-connectors-mcp"},
+  {"id": "openai-developer-mode", "name": "Add custom MCP server (ChatGPT app setup and authentication options)",
+   "url": "https://developers.openai.com/api/docs/guides/custom-mcp-server",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-plugin-auth", "name": "Authentication for plugin MCP servers",
+   "url": "https://developers.openai.com/plugins/build/auth",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-plugin-mcp-server", "name": "Build an MCP server for plugins (tool annotations)",
+   "url": "https://developers.openai.com/plugins/build/mcp-server",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "codex-config-reference", "name": "Codex configuration reference (config.toml)",
+   "url": "https://learn.chatgpt.com/docs/config-file/config-reference",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "claude-connector-auth-docs", "name": "Claude connector docs - Authentication for connectors",
+   "url": "https://claude.com/docs/connectors/building/authentication",
+   "category": "ai-surface-spec", "tier": "T1"}
 ]
 ```

@@ -331,6 +331,13 @@ python3 tools/competitor_snapshot.py --export-summary
 | Retention x transcript join (most-watched parts with words) | Yes (local, YouTube only) | Partial (model reasons over pasted data) | Partial (connected files) | Partial | No | No |
 | Back-catalog analysis (top tags, retention cliffs, themes) | Yes (local) | Partial (paste library) | Partial (connected files) | Partial | No | No |
 
+ChatGPT has Gmail and Google Calendar apps where your plan and workspace allow them (OpenAI's
+Google app data controls FAQ lists their Google permissions), and the Responses API's
+`connector_gmail` and `connector_googlecalendar` list read tools (`connector_id` is deprecated for
+models released after 2026-09-01). Creator OS does not route mail or calendar through ChatGPT; its
+Gmail path is the Claude connector or workspace-mcp on the computer. That is what "No" means in the
+Google Workspace row. (Both OpenAI pages checked 2026-11-16.)
+
 claude.ai agentic task column notes (this column described Claude Cowork's remote sandbox before
 Cowork and chat became one Claude (a staged rollout from 2026-09-16); work on this computer follows the Claude Desktop
 column). The column reflects the ephemeral Anthropic-hosted sandbox: plugin skills carry the knowledge tier
@@ -436,3 +443,14 @@ If the system is updated (new atom, spoke, or engine), re-upload only the affect
 
 You do not need to re-upload all 9 files for a small change. A GitHub-connected Project skips
 re-uploads entirely: press "Sync now" instead.
+
+## Where the connector facts come from
+
+The ChatGPT Gmail and Calendar note under the capability table cites these registered pages.
+
+```sources
+[
+  {"id": "openai-google-app-data-controls", "url": "https://help.openai.com/en/articles/10408842-google-app-data-controls-faq"},
+  {"id": "openai-responses-mcp", "url": "https://developers.openai.com/api/docs/guides/tools-connectors-mcp"}
+]
+```

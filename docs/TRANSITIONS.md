@@ -147,7 +147,7 @@ connected Creator OS to ChatGPT:
 - **Developer-mode MCP connector (ChatGPT web or desktop):** the tools run against your live endpoint,
   so their output updates server-side. If you change the tool list or descriptions, ChatGPT needs a
   manual **Refresh** on the connector. `[NEEDS VERIFICATION: developer-mode availability, plan gating,
-  and the read-only vs write split; see developers.openai.com/api/docs/guides/developer-mode.]`
+  and the read-only vs write split; see developers.openai.com/api/docs/guides/custom-mcp-server.]`
 - **Agent mode:** it can browse your public repo, read the version, and assemble an updated pack in
   its own workspace, but it **cannot** write it into your Project (no management API) and
   it does not use custom connectors for actions. Treat it as a helper that prepares the pack; a human
@@ -178,7 +178,7 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
 | ChatGPT custom instructions | daily chat, any tier | `implementation/gpt/web/custom-instructions.md` (full, under 5,000 combined) or `-compact.md` (Free/Go, under 1,500) | caps per help/8096356; per-field vs combined not documented |
 | ChatGPT Project | RECOMMENDED home | `implementation/gpt/project/` + the shared knowledge files (the single combined file on Free) | project-only memory chosen at creation and changeable later in the project's settings, and it turns off ChatGPT Work in that project; file caps 5 Free / 25 Go-Plus / 40 Edu-Pro-Business-Enterprise, max 10 files per upload; project instructions replace global custom instructions inside the project (help/10169521, read in full 2026-09-19) |
 | ChatGPT connector (no dev mode) | chat + deep research | server `search`/`fetch` tools | exact contract per developers.openai.com/api/docs/mcp |
-| ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | Pro/Plus/Biz/Ent/Edu web; Settings, then Security and login; servers at chatgpt.com/plugins (developers.openai.com developer-mode guide, 2026-09-19) |
+| ChatGPT developer mode | full 60-tool set | `implementation/gpt/mcp-connector/README.md` | ChatGPT on the web; a server is added at ChatGPT Plugins with the plus button, then Add custom MCP server; workspace permissions and security restrictions apply (developers.openai.com/api/docs/guides/custom-mcp-server, read 2026-11-22). `[NEEDS VERIFICATION: the plan list (Pro, Plus, Business, Enterprise, Edu) and the Settings path read on 2026-09-19 are not on that page]` |
 | ChatGPT desktop | convenience | same as web | Work with Apps is macOS-only and reads a fixed app list; no general file access (help/10119604) |
 | Responses API `mcp` tool | maintainer automation | request card in the connector runbook | approval loop maps the human-confirmation invariant; no fee beyond tokens |
 | Agents SDK | maintainer pipelines | `HostedMCPTool` card | openai.github.io/openai-agents-python/mcp/ |
@@ -225,6 +225,9 @@ help.openai.com figures are excerpt-confidence (the site refuses direct fetches)
    "category": "ai-surface-spec", "tier": "T1"},
   {"id": "openai-work-with-apps", "name": "Work with Apps on macOS (help center)",
    "url": "https://help.openai.com/en/articles/10119604-work-with-apps-on-macos",
+   "category": "ai-surface-spec", "tier": "T1"},
+  {"id": "openai-developer-mode", "name": "Add custom MCP server (ChatGPT app setup and authentication options)",
+   "url": "https://developers.openai.com/api/docs/guides/custom-mcp-server",
    "category": "ai-surface-spec", "tier": "T1"},
   {"id": "openai-connector-contract", "name": "Connect ChatGPT to MCP servers (search/fetch contract)",
    "url": "https://developers.openai.com/api/docs/mcp",
