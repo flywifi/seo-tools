@@ -599,12 +599,17 @@ def private_term_patterns(terms):
     """(position in the list, pattern, quick word, loose pattern) per term. The pattern is the
     term's words in order, in any letter case, with nothing or a run of whitespace, underscores,
     dots and hyphens between them, where the whole is not part of a longer run of letters or
-    digits. The quick word is the term's longest word in lower case when the term is ASCII, else
+    digits. A term is read in composed form (NFKC). The quick word is the term's longest word in
+    lower case when the term is ASCII, else
     None: a text that does not hold it does not hold the term (_private_hits). The loose pattern
     is the same words with no rule about what stands before or after them: it decides what a line
     of output may show (held_term), where a name that runs into digits still counts."""
+    import unicodedata
     out = []
     for i, t in enumerate(terms, 1):
+        # NFKC, as fold_text reads the text: a term saved with a separate accent mark (a name
+        # copied from a macOS file name) is the same term as its usual spelling.
+        t = unicodedata.normalize("NFKC", t)
         words = t.split()
         core = _PRIVATE_SEP.join(re.escape(w) for w in words)
         out.append((i, re.compile(r"(?<![^\W_])" + core + r"(?![^\W_])", re.IGNORECASE),
@@ -825,16 +830,17 @@ def _git(args, check=True):
     when not, so a caller reads it as git unavailable. Arguments that are not a list of strings,
     bytes or paths raise TypeError."""
     try:
-        # git writes paths and text as stored bytes. They are read as UTF-8 whatever this
-        # computer's locale is, and a byte that is not UTF-8 is kept (surrogateescape), so a
-        # file name outside UTF-8 still names its file.
-        out = subprocess.run(["git"] + args, cwd=str(ROOT), capture_output=True, encoding="utf-8",
-                             errors="surrogateescape", timeout=60)
+        # git writes paths and text as stored bytes. They are taken as bytes and decoded below:
+        # subprocess's text mode would turn each carriage return into a line feed, so a name or
+        # an added line that holds one would be read as two.
+        out = subprocess.run(["git"] + args, cwd=str(ROOT), capture_output=True, timeout=60)
     except OSError:
         return None if check else ""
     if check and out.returncode != 0:
         return None
-    return out.stdout
+    # UTF-8 whatever this computer's locale is; a byte that is not UTF-8 is kept
+    # (surrogateescape), so a file name outside UTF-8 still names its file.
+    return out.stdout.decode("utf-8", "surrogateescape")
 
 
 def scan_tracked(allowlist):
@@ -1124,6 +1130,7 @@ def _selftest_private_terms(f, ran):
         local = "docs/" + town + ".local.md"
         quoted = "pipeline/accounts/caf" + chr(0xE9) + ".md"
         paged = "intro" + chr(12) + "by " + name
+        cr_named = "docs/" + name + chr(13) + "x.md"
         files = (("docs/n.md", "near " + name), (named, "clean"), (spaced, "write " + other_addr),
                  (quoted, "fee $" + "5000"), ("tools/secret_scan.py", "# kept by " + name + " " + other_addr),
                  ("docs/secret_scan.py", "write " + other_addr), ("docs/ff.md", paged))
@@ -1137,7 +1144,9 @@ def _selftest_private_terms(f, ran):
                 ("b/tools/secret_scan.py", "# kept by " + name + " " + other_addr),
                 ("b/docs/secret_scan.py", "write " + other_addr), ("b/docs/ff.md", paged),
                 ("b/docs/sp.md " + chr(9), "write " + other_addr),
-                ('"b/docs/caf' + chr(92) + '351.md"', "write " + other_addr)))
+                ('"b/docs/caf' + chr(92) + '351.md"', "write " + other_addr),
+                ('"b/' + cr_named.replace(chr(13), chr(92) + "r") + '"', "write " + other_addr),
+                ("b/docs/cr.md", "intro" + chr(13) + "by " + name)))
         plain_diff = ("--no-color", "--no-ext-diff", "--no-textconv", "--text", "--src-prefix=a/",
                       "--dst-prefix=b/")
         allow = {"entries": [
@@ -1148,7 +1157,8 @@ def _selftest_private_terms(f, ran):
 
         def _pt_git(args, check=True):
             if args[0] == "diff" and "--name-only" in args:
-                return listing + local + chr(0) if "-z" in args else "not a NUL-separated listing"
+                return (listing + local + chr(0) + cr_named + chr(0) if "-z" in args
+                        else "not a NUL-separated listing")
             if args[0] == "diff":
                 return hunk if all(a in args for a in plain_diff) else chr(27) + "[32m+near " + name
             if args[0] == "ls-files":
@@ -1167,7 +1177,8 @@ def _selftest_private_terms(f, ran):
                 with_allowlist = tracked_findings(allow)
             finally:
                 globals()["_git"], globals()["ROOT"] = real_git, real_root
-        in_path = {n: "(hidden path %d, holding %s)" % (n, t) for n, t in ((1, t2), (2, t1), (3, t2))}
+        in_path = {n: "(hidden path %d, holding %s)" % (n, t)
+                   for n, t in ((1, t2), (2, t1), (3, t2), (4, t1))}
         seen = {k: sorted((x["path"], x["pattern_id"], x["match"]) for x in v) for k, v in via.items()}
         tracked_rows = [("docs/n.md", "private_term", t1), ("tools/secret_scan.py", "private_term", t1),
                         (in_path[1], "private_term", t2 + " (in a file's path)"),
@@ -1181,13 +1192,17 @@ def _selftest_private_terms(f, ran):
                "this file itself, in a file's path (shown by the term's position, for each finding "
                "in that file), and in the names and addresses a commit is made under, a fullwidth "
                "name included; a path with a space, one that ends in a space, a path git quotes and "
-               "a name outside UTF-8 keep their own findings; text after a form feed in an added "
-               "line is read; the other "
+               "a name outside UTF-8 keep their own findings, and a name with a carriage return "
+               "that holds a term is hidden; text after a form feed or a carriage return in an "
+               "added line is read; the other "
                "patterns run on a file that shares this file's name and not on this file",
                seen == {"staged": sorted(tracked_rows + [
                             ("docs/n.md", "private_term", t2),
                             ("docs/sp.md ", "email_address", other_addr),
                             ("docs/caf" + chr(0xDCE9) + ".md", "email_address", other_addr),
+                            ("docs/cr.md", "private_term", t1),
+                            (in_path[4], "private_term", t1 + " (in a file's path)"),
+                            (in_path[4], "email_address", other_addr),
                             (in_path[3], "private_term", t2 + " (in a file's path)"),
                             (in_path[3], "forbidden_staged_file",
                              "(text holding term 2 of creator-os-private-terms.local.json)")]),
@@ -1208,9 +1223,17 @@ def _selftest_private_terms(f, ran):
         import types
         real_run, asked = subprocess.run, {}
 
+        git_bytes = (b"docs/caf" + bytes([0xE9]) + b".md" + bytes([0]) + b"docs/a" + bytes([13])
+                     + b"b.md" + bytes([0]) + b"+one" + bytes([13, 10]) + b"+two" + bytes([10]))
+
         def _fake_run(cmd, **kw):
             asked.update(kw)
-            return types.SimpleNamespace(returncode=0, stdout="caf" + chr(0xDCE9) + ".md")
+            if kw.get("text") or kw.get("encoding") or kw.get("errors") or kw.get("universal_newlines"):
+                # What subprocess does in text mode: decode, then read CR LF and CR as LF.
+                text = git_bytes.decode(kw.get("encoding") or "utf-8", kw.get("errors") or "strict")
+                return types.SimpleNamespace(returncode=0, stdout=text.replace(chr(13) + chr(10), chr(10))
+                                             .replace(chr(13), chr(10)))
+            return types.SimpleNamespace(returncode=0, stdout=git_bytes)
         subprocess.run = _fake_run
         try:
             listed = _git(["ls-files", "-z"])
@@ -1220,10 +1243,12 @@ def _selftest_private_terms(f, ran):
         with contextlib.redirect_stdout(shown):
             reported = _report([_finding("docs/x.md", "email_address", (one + "." + two).lower() + "9@" + "mail.invalid"),
                                 _finding("docs/x.md", "email_address", other_addr)], "staged")
-        _check("git's output is read as UTF-8 with a byte outside it kept; a report prints no sha256 "
+        _check("git's output is read as UTF-8 with a byte outside it kept and a carriage return "
+               "left as one, in a name and in a line; a report prints no sha256 "
                "for a finding shown by a term's position and says how to exempt it",
-               listed == "caf" + chr(0xDCE9) + ".md" and asked.get("encoding") == "utf-8"
-               and asked.get("errors") == "surrogateescape" and "text" not in asked
+               listed == ("docs/caf" + chr(0xDCE9) + ".md" + chr(0) + "docs/a" + chr(13) + "b.md" + chr(0)
+                          + "+one" + chr(13) + chr(10) + "+two" + chr(10))
+               and asked.get("capture_output") is True
                and reported == 1 and shown.getvalue().count("[sha256 ") == 1
                and _match_sha256(other_addr) in shown.getvalue()
                and "pin the sha256 of the matched text" in shown.getvalue(), f, ran)
@@ -1346,6 +1371,19 @@ def _selftest_private_terms(f, ran):
            == "b/" + chr(0x65E5) + ' "x".md'
            and _listed_paths("a b.md" + chr(0) + "c.md" + chr(0)) == ["a b.md", "c.md"]
            and _listed_paths(" a.md\nb.md\n\n") == ["a.md", "b.md"], f, ran)
+    composed, apart = "Zo" + chr(0xE9) + " Kestrel", "Zoe" + chr(0x301) + " Kestrel"
+    saved = _PRIVATE_PATTERNS
+    try:
+        both_ways = []
+        for listed_as, written_as in ((apart, composed), (composed, apart), (apart, apart),
+                                      (apart, "Zoe Kestrel")):
+            _PRIVATE_PATTERNS = private_term_patterns([listed_as])
+            both_ways.append([x["pattern_id"] for x in scan_text("by " + written_as, "docs/x.md")])
+    finally:
+        _PRIVATE_PATTERNS = saved
+    _check("a term saved with a separate accent mark finds the composed spelling, and the other "
+           "way round; the letter with its accent left off is another spelling",
+           both_ways == [["private_term"], ["private_term"], ["private_term"], []], f, ran)
     marker = private_term_patterns([name])
     saved = _PRIVATE_PATTERNS
     _PRIVATE_PATTERNS = marker

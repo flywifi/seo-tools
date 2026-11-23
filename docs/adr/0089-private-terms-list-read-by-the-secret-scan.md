@@ -24,13 +24,16 @@ the words a creator most wants kept out of a public repository.
    hook and the range scan). Paths are read as git stores them (`-z` listings; a diff header's
    quoting and the tab git puts after a name with a space are undone) and as UTF-8 with a byte
    that is not UTF-8 kept, so a file whose name is outside UTF-8 is scanned under its own name.
+   git's output is decoded from its bytes, so a carriage return in a name or a line stays one.
    The staged diff is read with fixed options: colour off, git's own diff program, the stored
    text and not a converted one, the `a/` and `b/` prefixes, and a file read as text where an
    attribute marks it `binary` or `-diff`. Run with git on 2026-11-23, the staged findings were
    the same under `color.ui`, `diff.noprefix`, `diff.mnemonicPrefix`, `diff.srcPrefix`,
    `diff.external`, `diff.context`, `diff.renames`, `core.quotePath` and those two attributes;
    other settings were not run. An added line is ended by a line feed alone, so text after a
-   form feed or a line separator inside it is read.
+   form feed, a carriage return or a line separator inside it is read. A term is read in
+   composed form (NFKC), as the text is, so a term saved with a separate accent mark and its
+   usual spelling are one term.
 3. A finding names the term's position in the list and carries a hash of that position. A
    finding of another pattern is shown by that position too when its matched text, or the 40
    characters either side of it, holds a listed term's words; for this the words count
