@@ -102,7 +102,8 @@ def _findings_to_problems(findings):
     """One line per finding, and one more when the private-terms list in this checkout cannot be
     used: the scan functions called here do not go through secret_scan.main, which reports it."""
     broken, _status = secret_scan.private_list_findings()
-    return [f"{f['path']}: {f['pattern_id']}: {f['match']}" for f in list(findings) + broken]
+    return [f"{secret_scan.printable(f['path'])}: {f['pattern_id']}: {secret_scan.printable(f['match'])}"
+            for f in list(findings) + broken]
 
 
 def check_commit_hygiene(rng=None, scanner=secret_scan.scan_commit_messages, allowlist=None):
@@ -266,6 +267,14 @@ def _selftest_body():
     usable_list = check_staged_hygiene(scanner=lambda al: [], allowlist=al)
     ok("a private-terms list that cannot be used fails a hygiene check that found nothing else",
        broken_list["status"] == "fail" and usable_list["status"] != "fail")
+    odd = check_staged_hygiene(
+        scanner=lambda al: [{"path": "docs/a" + chr(13) + "b" + chr(0xDCE9) + " c" + chr(0xE9) + ".md",
+                             "pattern_id": "email_address", "match": "x" + chr(10) + "y" + chr(0xDCFF)}],
+        allowlist=al)
+    ok("a finding's line prints a character that does not print, in the file's name or the matched "
+       "text, as its escape, and a space and an accented letter as they are",
+       odd["problems"] == ["docs/a" + chr(92) + "rb" + chr(92) + "udce9 c" + chr(0xE9) + ".md: email_address: x"
+                           + chr(92) + "ny" + chr(92) + "udcff"])
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:
@@ -279,6 +288,9 @@ def main(argv):
     if "--selftest" in argv:
         return selftest()
     strict = "--strict" in argv
+    if hasattr(sys.stdout, "reconfigure"):
+        # A character this terminal's encoding does not hold is printed as its escape, not raised.
+        sys.stdout.reconfigure(errors="backslashreplace")
     results = run_all()
     if "--json" in argv:
         print(json.dumps({"results": results,

@@ -212,7 +212,8 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
    run into other letters or digits (a handle with a number after the name); the report prints
    no hash for such a finding, and the file is where to read the text. A file whose path holds
    a term is named `(hidden path 1, holding term N ...)`, numbered in the order the run lists
-   them. In the names and addresses a commit is made under, a name that runs into digits (a
+   them; a term whose words are split by a folder boundary (`first/last.md`) is not found in a
+   path. In the names and addresses a commit is made under, a name that runs into digits (a
    number straight after the name in an address) is not found. An allowlist entry does not exempt it; commit messages at or before
    the allowlist file's `commit_policy_boundary` are not scanned, as for the other patterns. A
    list that cannot be used (it does not parse, it is a folder, it is a link that leads nowhere)

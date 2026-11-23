@@ -26,7 +26,10 @@ the words a creator most wants kept out of a public repository.
    that is not UTF-8 kept, so a file whose name is outside UTF-8 is scanned under its own name.
    git's output is decoded from its bytes, so a carriage return in a name or a line stays one.
    The patterns then read a carriage return as a line end, so a credential on a line that ends
-   in CR LF is found in staged lines, tracked text and commit messages.
+   in CR LF is found in staged lines, tracked text and commit messages; a quoted value with a
+   carriage return inside its quotes is read as broken across two lines, as with a line feed,
+   and is not matched. A tracked file's bytes are decoded the same way as git's output, so a
+   match that holds a byte outside UTF-8 has one pin in staged lines and in tracked text.
    The staged diff is read with fixed options: colour off, git's own diff program, the stored
    text and not a converted one, the `a/` and `b/` prefixes, and a file read as text where an
    attribute marks it `binary` or `-diff`. Run with git on 2026-11-23, the staged findings were
@@ -97,3 +100,6 @@ the words a creator most wants kept out of a public repository.
 - The names and addresses a commit is made under are checked with the term's own pattern, so a
   name that runs into digits in an address (a number straight after the name) is not found
   there.
+- In a file's path a term is found within one folder or file name, or across the separators
+  item 2 lists. A term whose words are split by a folder boundary (one word a folder, the next
+  the file inside it) is not found, and that path is printed.

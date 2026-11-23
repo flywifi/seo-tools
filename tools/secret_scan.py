@@ -471,6 +471,14 @@ def _load_allowlist():
     return json.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
 
 
+def printable(text):
+    """`text` as a report line prints it: each character that does not print (a carriage return,
+    a line feed, a tab, a line separator, a no-break space, a byte outside UTF-8 that was kept)
+    as its escape. A file's name and a matched text then stay on the finding's one line."""
+    return "".join(c if c.isprintable() else c.encode("unicode_escape").decode("ascii")
+                   for c in str(text))
+
+
 def _match_sha256(text):
     """The pin an allowlist entry stores for the one match it exempts (its full matched text). A
     byte outside UTF-8 that _git kept is hashed as that byte."""
@@ -527,7 +535,7 @@ def allowlist_problems(allowlist, tracked, read_bytes=None):
             out.append(f"{where}: the path is not tracked; drop the entry")
             continue
         try:
-            text = read_bytes(path).decode("utf-8", errors="replace")
+            text = read_bytes(path).decode("utf-8", errors="surrogateescape")
         except OSError:
             out.append(f"{where}: the file cannot be read")
             continue
@@ -591,7 +599,6 @@ def load_private_terms(path=None):
     terms = data.get("terms") if isinstance(data, dict) else None
     if not isinstance(terms, list) or not all(isinstance(t, str) for t in terms):
         return [], f'{p.name} must hold {{"terms": ["...", ...]}}'
-    import unicodedata
     # Composed form (NFKC), the form private_term_patterns builds from, so the length rule and
     # the pattern read one spelling.
     terms = [" ".join(unicodedata.normalize("NFKC", t).split()) for t in terms]
@@ -611,7 +618,6 @@ def private_term_patterns(terms):
     None: a text that does not hold it does not hold the term (_private_hits). The loose pattern
     is the same words with no rule about what stands before or after them: it decides what a line
     of output may show (held_term), where a name that runs into digits still counts."""
-    import unicodedata
     out = []
     for i, t in enumerate(terms, 1):
         # NFKC, as fold_text reads the text: a term saved with a separate accent mark (a name
@@ -780,7 +786,9 @@ def scan_text(text, path, allowlist=None, private_only=False):
     One occurrence whose raw and folded readings match as DIFFERENT text (a digit run written
     with non-ASCII digits, say) is keyed by each text, so it can be reported once per reading.
     A carriage return, alone or before a line feed, is read as a line feed: a pattern that ends
-    at a line's end (a YAML or .env credential) then finds a line that ends in CR LF."""
+    at a line's end (a YAML or .env credential) then finds a line that ends in CR LF. A quoted
+    value that holds a carriage return inside its quotes is read as broken across two lines, as
+    one that holds a line feed is, and is not matched."""
     allowlist = allowlist or {"entries": []}
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     findings, counted = [], {}
@@ -871,7 +879,9 @@ def scan_tracked(allowlist):
         # credential file with an unlisted extension sail through invisible to this scan.
         if not _is_probably_text(data):
             continue
-        text = data.decode("utf-8", errors="replace")
+        # A byte that is not UTF-8 is kept, as _git keeps it, so a match that holds one has the
+        # same pin in a tracked file as in a staged line.
+        text = data.decode("utf-8", errors="surrogateescape")
         findings.extend(scan_text(text, path, allowlist, private_only=own))
     return _veil_paths(findings, paths)
 
@@ -1002,13 +1012,15 @@ def _selftest_private_terms(f, ran):
                  "short": json.dumps({"terms": [name, "ab", " x "]}),
                  "apart": json.dumps({"terms": [name, "e" + chr(0x301) + "e"]}),
                  "apart_ok": json.dumps({"terms": ["Zoe" + chr(0x301) + " Kestrel"]}),
+                 "wide": json.dumps({"terms": [chr(0xFB00) + "a", chr(0xFF2A) + chr(0xFF41) + chr(0xFF56)]}),
                  "deep": "[" * 100000 + "]" * 100000}
         for k, text in files.items():
             (d / f"{k}.local.json").write_text(text, encoding="utf-8")
         got = {k: load_private_terms(d / f"{k}.local.json") for k in files}
         got["absent"] = load_private_terms(d / "none.local.json")
     _check("the private list is read as its terms with spaces trimmed, with or without a byte-order "
-           "mark, in composed form; no file is no list; a file that does not parse, another shape, "
+           "mark, in composed form (a ligature and fullwidth letters as plain ones); no file is "
+           "no list; a file that does not parse, another shape, "
            "a term that is not text and a term under three characters, counted in composed form, "
            "are each a problem with no terms",
            got["good"] == ([name, town, "jav"], None) and got["bom"] == ([name], None)
@@ -1019,6 +1031,7 @@ def _selftest_private_terms(f, ran):
            and got["short"] == ([], "short.local.json: term 2, 3 is shorter than 3 characters")
            and got["apart"] == ([], "apart.local.json: term 2 is shorter than 3 characters")
            and got["apart_ok"] == (["Zo" + chr(0xE9) + " Kestrel"], None)
+           and got["wide"] == (["ffa", "Jav"], None)
            and got["deep"] in (([], "deep.local.json cannot be read (RecursionError)"),
                                ([], 'deep.local.json must hold {"terms": ["...", ...]}')), f, ran)
     saved = _PRIVATE_PATTERNS
@@ -1233,6 +1246,33 @@ def _selftest_private_terms(f, ran):
                == ["(text holding term 2 of creator-os-private-terms.local.json)"]
                and not any(x["pattern_id"] == "pipeline_amount" for x in with_allowlist)
                and town.lower() not in json.dumps(with_allowlist).lower(), f, ran)
+        odd_line = '{"pass' + 'word": "abc' + chr(0xDCFF) + 'defghijk"}'
+        odd_pin = [x["sha256"] for x in scan_text(odd_line, "docs/odd.json")]
+
+        def _odd_git(args, check=True):
+            if args[0] == "diff" and "--name-only" in args:
+                return "docs/odd.json" + chr(0)
+            if args[0] == "diff":
+                return ("diff --git a/docs/odd.json b/docs/odd.json\n--- /dev/null\n+++ b/docs/odd.json\n"
+                        "@@ -0,0 +1 @@\n+" + odd_line + "\n")
+            return "docs/odd.json" + chr(0) if args[0] == "ls-files" else ""
+        with tempfile.TemporaryDirectory() as td_odd:
+            (Path(td_odd) / "docs").mkdir()
+            (Path(td_odd) / "docs" / "odd.json").write_bytes(odd_line.encode("utf-8", "surrogateescape") + b"\n")
+            globals()["_git"], globals()["ROOT"] = _odd_git, Path(td_odd)
+            try:
+                odd_allow = {"entries": [{"path": "docs/odd.json", "pattern_id": "credential_value",
+                                          "reason": "r" * 40, "match_sha256": (odd_pin or [""])[0]}]}
+                odd = {"staged": [x["sha256"] for x in scan_staged({"entries": []})],
+                       "tracked": [x["sha256"] for x in scan_tracked({"entries": []})],
+                       "pinned": [scan_staged(odd_allow), tracked_findings(odd_allow)]}
+            finally:
+                globals()["_git"], globals()["ROOT"] = real_git, real_root
+        _check("a match that holds a byte outside UTF-8 has one pin as a staged line and in a "
+               "tracked file, and one allowlist entry with that pin exempts it in both with no "
+               "message about the entry",
+               len(odd_pin) == 1 and odd["staged"] == odd_pin and odd["tracked"] == odd_pin
+               and odd["pinned"] == [[], []], f, ran)
         import contextlib
         import io
         import types
@@ -1259,17 +1299,28 @@ def _selftest_private_terms(f, ran):
             _report([_finding("docs/a" + chr(13) + "b" + chr(10) + "c" + chr(9) + "d" + chr(0x85) + "e"
                               + chr(0x2028) + "f" + chr(0xA0) + "g" + chr(0xDCE9) + " h" + chr(0xE9) + ".md",
                               "email_address", other_addr)], "staged")
+        across = io.StringIO()
+        with contextlib.redirect_stdout(across):
+            _report([_finding("docs/x.md", "bearer_header", "authorization:" + chr(13) + chr(10) + " b" + chr(0xDCFF))],
+                    "staged")
+        _check("a report prints a matched text that holds a line break or a byte outside UTF-8 "
+               "with those as escapes, on the finding's one line",
+               ("  - docs/x.md: bearer_header: authorization:" + chr(92) + "r" + chr(92) + "n b"
+                + chr(92) + "udcff [sha256 ") in across.getvalue()
+               and len(across.getvalue().splitlines()) == 3, f, ran)
         _check("a report prints a character in a file's name that does not print (a carriage "
                "return, a line feed, a tab, a next-line character, a line separator, a no-break "
                "space, a byte outside UTF-8) as its escape, on one line, and a space and an "
                "accented letter as they are; "
-               "a match that holds a byte outside UTF-8 is pinned by its bytes",
+               "a match that holds a byte outside UTF-8 is pinned by its bytes, and another lone "
+               "surrogate by its own encoding",
                ("  - docs/a" + chr(92) + "rb" + chr(92) + "nc" + chr(92) + "td" + chr(92) + "x85e"
                 + chr(92) + "u2028f" + chr(92) + "xa0g" + chr(92) + "udce9 h" + chr(0xE9)
                 + ".md: email_address: ") in odd_path.getvalue()
                and len(odd_path.getvalue().splitlines()) == 3
                and _match_sha256("abc" + chr(0xDCFF)) == hashlib.sha256(b"abc" + bytes([0xFF])).hexdigest()
-               and len(_match_sha256("abc" + chr(0xD800))) == 64, f, ran)
+               and _match_sha256("abc" + chr(0xD800))
+               == hashlib.sha256(b"abc" + chr(0xD800).encode("utf-8", "surrogatepass")).hexdigest(), f, ran)
         with contextlib.redirect_stdout(shown):
             reported = _report([_finding("docs/x.md", "email_address", (one + "." + two).lower() + "9@" + "mail.invalid"),
                                 _finding("docs/x.md", "email_address", other_addr)], "staged")
@@ -1947,6 +1998,10 @@ def _selftest_body():
                "api" + "_key: " + _sv + "\n")] == [["credential_value"]] * 5
            and [x["pattern_id"] for x in scan_text('{"pass' + 'word": "abc' + chr(0xDCFF) + 'defghijk"}', "a.json")]
            == ["credential_value"], f, ran)
+    _check("a single-quoted value that holds a carriage return or a line feed inside its quotes is "
+           "read as broken across two lines and is not matched; the same value on one line is",
+           [[x["pattern_id"] for x in scan_text("{'pass" + "word': 'abcd" + sep + "efghijkl'}", "a.py")]
+            for sep in ("\r", "\n", "")] == [[], [], ["credential_value"]], f, ran)
     _check("credential values under camelCase, upper-case and other credential keys, in a "
            "single-quoted dict, a YAML line and a .env line are detected",
            all(any(x["pattern_id"] == "credential_value" for x in scan_text(s, "a.txt")) for s in (
@@ -2331,12 +2386,7 @@ def _report(findings, mode):
         veiled = [x for x in findings if str(x.get("match", "")).startswith("(text holding ")]
         for x in findings:
             pin = f" [sha256 {x['sha256']}]" if x.get("sha256") and x not in veiled else ""
-            # A character in a file's name that does not print (a carriage return, a line feed,
-            # a tab, a line separator, a no-break space, a byte outside UTF-8) is printed as its
-            # escape, so one finding stays one line.
-            where = "".join(c if c.isprintable() else c.encode("unicode_escape").decode("ascii")
-                            for c in str(x["path"]))
-            print(f"  - {where}: {x['pattern_id']}: {x['match']}{pin}")
+            print(f"  - {printable(x['path'])}: {x['pattern_id']}: {printable(x['match'])}{pin}")
         if veiled:
             print("A finding shown as (text holding term N ...) has text that holds, or stands "
                   "beside, a listed term, so the text and its sha256 are not printed: find it in "

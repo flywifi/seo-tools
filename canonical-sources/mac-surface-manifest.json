@@ -107,7 +107,7 @@
     "tools/profile-mirror.sh": "dc92b6ee3e8381973309e0e8fdd24748846dd62aa2642aa5c69352213d618da8",
     "tools/profile_mirror.py": "d6297bde987097313a808c40140ac97a3850ab87b0efce324c70d8dbce564435",
     "tools/readonly_bash_guard.py": "8d27fd0716489d286fc8b9f3827f31934446e2bfa3c307d2ad90b57c1d361967",
-    "tools/secret_scan.py": "222f9ccad49ea2609790b38e459f68fa8aae52f391d332be39a76597d69a31e9",
+    "tools/secret_scan.py": "1ed3c3a821f35dda9a0ed17663efa74861f83ba70d6c1b7a7045d26ae17a9a85",
     "tools/setup.py": "458031b64c5b2985388a9a6ff66fce6b76359c75eb51102e4690753bcdb759c9",
     "tools/surface_workflow_check.py": "7b4939bb7258b93f7bc92ebfb97b15a0d48ccc65df125d60d4bb5f52f0fe9a36",
     "tools/transcribe.py": "deca9966ca3d64da1dbee47fb555c3533f2d428f01e46d16f766db18ed4ae270",

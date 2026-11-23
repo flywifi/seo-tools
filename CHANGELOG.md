@@ -28,8 +28,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   and the staged diff with fixed options, a file that an attribute marks as binary read as text.
   A term saved with a separate accent mark is read as its composed spelling. The content
   patterns read a carriage return as a line end, so a YAML or .env credential on a line that
-  ends in CR LF is found; a report prints a character in a file's name that does not print as its
-  escape.
+  ends in CR LF is found. A finding's line in the scan's report and in the push preflight prints
+  a character that does not print, in the file's name or the matched text, as its escape. A
+  tracked file's bytes are read as git's output is, so a match that holds a byte outside UTF-8
+  has one pin staged and tracked.
   With no list or an empty one the scan prints `private terms: DID NOT RUN`, which the drift
   guard repeats as an advisory; CI has no list and prints the same. The staged scan reads an
   added line that begins with two plus signs as text. Run `python3 tools/install_hooks.py`
