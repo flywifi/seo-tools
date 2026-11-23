@@ -651,7 +651,10 @@ def held_term(text):
     is looser than a finding: the term's words count wherever they stand, also inside a longer
     run of letters or digits (a handle with a number after the name), because the answer decides
     what a line of output may show. The text is also read as a report line prints it
-    (printable): the letters of an escape can complete a term's word."""
+    (printable): the letters of an escape can complete a term's word. That printed form is read
+    as it stands. Not read: the same form with fullwidth letters folded, and an escape that a
+    later layer writes for a character printable() leaves as it is (a terminal whose encoding
+    does not hold an accented letter, JSON output)."""
     for view in _text_views(text) + [printable(text)]:
         key = None
         for i, _rx, quick, loose in _private_patterns():
@@ -2028,6 +2031,27 @@ def _selftest_body():
         _plain = _veil_paths(scan_text("write q@" + "corp-mail.invalid", "docs/ru" + "dyard.md"), ["docs/ru" + "dyard.md"])
     finally:
         globals()["_PRIVATE_PATTERNS"] = _saved_terms
+    try:
+        globals()["_PRIVATE_PATTERNS"] = private_term_patterns(
+            ["Tan" + "ya", "x85" + "ab", "udcff" + "o", "u2028" + "cd", "A" + "be", "No" + "ra"])
+        _by_escape = [held_term("q" + c + rest) for c, rest in (
+            (chr(9), "anya"), (chr(0x85), "ab"), (chr(0xDCFF), "o"), (chr(0x2028), "cd"))]
+        _hidden_names = [x["path"] for x in _veil_paths(
+            [{"path": "docs/q" + c + rest + ".md", "pattern_id": "email_address", "match": "q@" + "corp-mail.invalid"}
+             for c, rest in ((chr(9), "anya"), (chr(0x85), "ab"))],
+            ["docs/q" + chr(9) + "anya.md", "docs/q" + chr(0x85) + "ab.md"])]
+        _not_read = [held_term("q" + chr(0xEA) + "be"),
+                     held_term("q" + chr(10) + chr(0xFF4F) + chr(0xFF52) + chr(0xFF41))]
+    finally:
+        globals()["_PRIVATE_PATTERNS"] = _saved_terms
+    _check("a term that a tab's, a next-line character's, a kept byte's or a line separator's "
+           "escape would complete is held, in a text and in a file name; a term that only a "
+           "terminal's or JSON's escape of an accented letter would complete, and fullwidth "
+           "letters after an escape, are not read",
+           _by_escape == [1, 2, 3, 4]
+           and _hidden_names == ["(hidden path %d, holding term %d of %s)" % (n, n, PRIVATE_TERMS_PATH.name)
+                                 for n in (1, 2)]
+           and _not_read == [None, None], f, ran)
     _check("a matched text and a file name whose printed escapes would complete a listed term are "
            "shown by the term's position, with no finding added for the term; a name that prints "
            "as it is stored and holds a term inside a longer word is shown",

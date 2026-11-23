@@ -51,8 +51,11 @@ the words a creator most wants kept out of a public repository.
    by position. The commit-msg hook veils the lines it prints the same way; a line of the
    claim check, which quotes the subject in its own spelling, is veiled when the message holds
    a term. A report prints a character that does not print as an escape; a matched text, or a
-   file name with such a character, whose printed form would hold a term's words is shown by
-   position too. A name is short enough to be guessed from its hash, so the term is not hashed
+   file name with such a character, is shown by position too when the form the report itself
+   writes (`printable`) would hold a term's words. That form is read as it stands: fullwidth
+   letters after an escape are not folded, and an escape added later for a character the
+   report leaves as it is (by a terminal whose encoding does not hold an accented letter, or
+   by `tools/preflight_push.py --json`) is not read. A name is short enough to be guessed from its hash, so the term is not hashed
    either.
 4. An allowlist entry does not exempt a private-term finding. The list is where a term is added
    or removed. The allowlist file's `commit_policy_boundary` applies as it does to the other

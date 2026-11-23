@@ -31,8 +31,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   ends in CR LF is found. A finding's line in the scan's report and in the push preflight prints
   a character that does not print, in the file's name or the matched text, as its escape. A
   tracked file's bytes are read as git's output is, so a match that holds a byte outside UTF-8
-  has one pin staged and tracked. A matched text or a file name whose printed escapes would
-  complete a listed term is shown by the term's position.
+  has one pin staged and tracked. A matched text or a file name is shown by the term's position
+  when the escapes the report itself writes would complete a listed term; an escape a terminal's
+  encoding or the preflight's `--json` output adds, and fullwidth letters after an escape, are
+  not read for this.
   With no list or an empty one the scan prints `private terms: DID NOT RUN`, which the drift
   guard repeats as an advisory; CI has no list and prints the same. The staged scan reads an
   added line that begins with two plus signs as text. Run `python3 tools/install_hooks.py`
