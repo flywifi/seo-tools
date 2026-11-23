@@ -187,7 +187,8 @@ def _fold_tables():
     characters (Cc) outside WHITESPACE, dropped by the first and each a space in the second, so one
     used between a word's letters or in place of a space is read past; a word both laced and separated
     by the same character reads as split or run-together words in both and can be missed outside the
-    gaps the OVERRIDE and REDIRECT patterns allow, which read run-together words as word characters
+    gaps the OVERRIDE and REDIRECT patterns allow, which read run-together words as word characters,
+    and inside one when the spaces that stand for the lacing take the gap past its 80 characters
     (P103)."""
     if not _FOLD:
         drop, space = {}, {}
@@ -345,7 +346,8 @@ def _screen_readings(raw, max_bytes):
     in each fixed byte order (_UTF16_ORDERS, and _UTF32_ORDERS behind a UTF-32 mark), then as UTF-8.
     scan_text reads each of them with a NUL dropped and as a space itself (_readings), so the UTF-8
     reading of wide text whose characters are all below U+0080 has that text's dropped reading, and
-    at a tie the byte order the text was written in is named. A character from U+0080 up can read
+    at a tie the reading in the byte order the text was written in is kept, and named under
+    verdict_reading when it is not the decoded text. A character from U+0080 up can read
     there as other characters (a soft hyphen's byte 0xAD as U+FFFD, which ends a word), so the UTF-8
     reading can score higher than the decoded text does and decide the verdict (P103)."""
     truncated = len(raw) > max_bytes

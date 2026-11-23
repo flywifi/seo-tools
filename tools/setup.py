@@ -10,6 +10,7 @@ Usage:
 Nothing is overwritten if it already exists.
 """
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -325,16 +326,22 @@ def create_private_terms_local() -> None:
     """Create creator-os-private-terms.local.json with an empty list. tools/secret_scan.py looks
     for each term the person adds (a name, a street, a handle) in what is about to be committed."""
     dest = ROOT / "creator-os-private-terms.local.json"
-    if dest.exists():
-        _skip("creator-os-private-terms.local.json")
-        return
     stub = {
         "_comment": "Words that are to stay out of the repository: your name, a street, a handle. "
-                    "The secret scan fails a commit that carries one. git never tracks this file.",
+                    "The secret scan reports a listed term in committed text, file names, commit "
+                    "messages and the names a commit is made under. git ignores this file.",
         "_hint": "Add each term as text inside the list, three characters or more.",
         "terms": [],
     }
-    dest.write_text(json.dumps(stub, indent=2) + "\n", encoding="utf-8")
+    # Created only when nothing is at that path (a link that leads nowhere counts as something),
+    # and readable by this account alone where the system keeps file modes.
+    try:
+        fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        _skip("creator-os-private-terms.local.json")
+        return
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(stub, indent=2) + "\n")
     _created("creator-os-private-terms.local.json")
 
 
@@ -1110,6 +1117,27 @@ def _selftest() -> int:
     # setup.py run alone).
     ok(_selftest_location() == 0, "repo-location checks failed (listed above)")
     ok(_selftest_fw() == 0, "faster-whisper install checks failed (listed above)")
+
+    # The private-terms list: created with an empty list for this account alone, and left as it
+    # is once something is at its path.
+    import inspect
+    import tempfile as _tempfile_pt
+    with _tempfile_pt.TemporaryDirectory() as td_pt:
+        saved_root = globals()["ROOT"]
+        globals()["ROOT"] = Path(td_pt)
+        try:
+            lp = Path(td_pt) / "creator-os-private-terms.local.json"
+            create_private_terms_local()
+            first, mode = json.loads(lp.read_text(encoding="utf-8")), lp.stat().st_mode & 0o777
+            lp.write_text("[1]", encoding="utf-8")
+            create_private_terms_local()
+            kept = lp.read_text(encoding="utf-8")
+        finally:
+            globals()["ROOT"] = saved_root
+    ok(first.get("terms") == [] and kept == "[1]" and (os.name == "nt" or mode == 0o600),
+       "setup writes an empty private-terms list readable by this account alone and leaves an "
+       "existing one as it is")
+    ok("create_private_terms_local()" in inspect.getsource(main), "setup's main creates the private-terms list")
 
     passed = sum(1 for c, _ in checks if c)
     for c, m in checks:

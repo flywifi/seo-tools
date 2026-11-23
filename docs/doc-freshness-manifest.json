@@ -24,7 +24,7 @@
       "sources": {
         "tools/dependency_currency.py": "4b0854d9e4b5c2626e7a30c0fdee372e0286d4ab5cbbb246c1e4f32850a32ee0",
         "tools/source_currency.py": "4dc2ccb3e0ce88df3eae527ed36155db4c53508743a106b468132f8092d869a8",
-        "tools/sync_check.py": "65ba448f53d942696b9063c1b0a9a9b17d605d664d8b6a1379316d025242ae1a"
+        "tools/sync_check.py": "074ef0a6606bbe1d1b41209bbab3eb853864ab063de8052252de3dba5e0c035d"
       }
     },
     "tools/publishing/MAINTAINER_README.md": {
@@ -86,7 +86,7 @@
     },
     "shared/injection-guard-engine.md": {
       "sources": {
-        "tools/injection_scan.py": "21542984f141e63fab3c8c74de4bbbe8e92a2b2f4d183e70130dac50799d7270"
+        "tools/injection_scan.py": "e35618ea4b5f2989d95dd6d1e5308dfe4a57783d182bd32f5d3c2e316cd9cefb"
       }
     },
     "skills/finance-desk/MAINTAINER_README.md": {

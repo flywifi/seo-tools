@@ -197,15 +197,29 @@ Financial data and PII are kept out of git by layered, machine-enforced controls
    positives go in `tools/secret-scan-allowlist.json` with a written reason.
    **Your own private terms.** Those patterns do not know your name or your street. List them in
    `creator-os-private-terms.local.json` at the repo root (`tools/setup.py` creates it with an
-   empty list): `{"terms": ["your name", "your street", "a handle"]}`, each three characters or
-   more. The scan then looks for each term in tracked text, staged lines and commit messages, in
-   any letter case, across a line break, and where it is not part of a longer word. A finding
-   gives the term's position in your list, not the term, so the term reaches no log; the
-   allowlist does not exempt it. The file is ignored by git and refused by invariant 19 if it is
-   ever tracked. With no list or an empty one the scan prints `private terms: DID NOT RUN`, and
-   CI, which has no list, prints the same: this check runs on computers that hold the list
-   (ADR 0089). It reads what is about to be published; pull request text written on GitHub does
-   not pass through it.
+   empty list, readable by your account): `{"terms": ["your name", "your street", "a handle"]}`,
+   each three characters or more. The scan then looks for each term in tracked text (this
+   scanner's own file included), staged lines, file paths, commit messages, and the names and
+   addresses a commit is made under. A term is found in any letter case, across a line break,
+   with spaces, dots, hyphens or underscores between its words or with its words run together,
+   and where it is not part of a longer word. It is not found in a spelling the list does not
+   hold: an accent dropped or added, a look-alike letter from another alphabet, a curly
+   apostrophe where the list has a straight one, another word between its words, or a nickname.
+   List each spelling you use. A finding gives the term's position in your list in place of the
+   term, and another pattern's finding (an email address, say) whose text holds a listed term
+   shows that position too. An allowlist entry does not exempt it; commit messages at or before
+   the allowlist file's `commit_policy_boundary` are not scanned, as for the other patterns. A
+   list that cannot be used (it does not parse, it is a folder, it is a link that leads nowhere)
+   fails the scan, the commit-msg hook and the push preflight. A linked git worktree reads the
+   list of the checkout it was made from. If the name git commits under (`git config user.name`)
+   is on your list, the commit-msg hook refuses the commit until you set a name you publish
+   under. The file is ignored by git and refused by invariant 19 if it is ever tracked. With no
+   list or an empty one the scan prints `private terms: DID NOT RUN`, and CI, which has no list,
+   prints the same: this check runs on computers that hold the list (ADR 0089). It reads what a
+   commit carries; pull request text written on GitHub does not pass through it. Run
+   `python3 tools/install_hooks.py` again after updating, so the installed commit-msg hook is
+   the one that reads the list. With a list in place, `tools/competitor_snapshot.py`, which
+   screens competitor text with the same scan, also blanks a field that mentions a listed term.
 3. **Commit hygiene.** `python3 tools/install_hooks.py` installs a pre-commit hook (scans staged
    content) and a commit-msg hook (rejects messages carrying session links, emails, or secret
    patterns). CI re-checks commit messages and author emails after the policy boundary SHA in

@@ -65,12 +65,14 @@ knows what it is.
   byte-order mark, tag characters) and the invisible characters the screen folds before the patterns
   run, keeps the zero-width joiner and non-joiner after a virama or between two characters outside
   ASCII letters and digits, one in a row, judging a run of joiners by the character after it, and one
-  variation selector after a symbol other than a currency sign, after a keycap's base (a digit, # or *
-  before U+20E3), after one of the five emoji whose base is punctuation or a letter, an ideographic
-  one after a CJK ideograph, a Mongolian one
-  after a Mongolian letter, none after a
-  joiner or another selector (a tag-sequence flag loses its tags and a run of selectors keeps none past
-  the first, since both can carry hidden text), and the invoice rule reads the text
+  variation selector (U+FE00 to U+FE0F) after a symbol other than a currency sign, after a
+  keycap's base (an ASCII digit, # or * before U+20E3), after one of the five emoji whose base is
+  punctuation or a letter, an ideographic one after a character from U+3400 to U+9FFF, U+F900 to
+  U+FAFF or U+20000 to U+3FFFF (the CJK ideographs, and the hexagram symbols inside the first
+  range), a Mongolian one after a Mongolian letter, and otherwise none after a joiner or another
+  selector (a tag-sequence flag loses its tags and a run of selectors keeps at most one: the
+  first after a symbol, the one just before U+20E3 after a keycap's base, since both can carry
+  hidden text), and the invoice rule reads the text
   once more with its control characters other than a tab, a line end or a page break dropped, so a
   keyword such as Bill to or Invoice, and a name in ASCII letters, read the same with or without them;
   the offline pattern tier reads a text with those characters dropped and, when it holds any of them,

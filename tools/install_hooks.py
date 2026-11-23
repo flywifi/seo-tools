@@ -94,6 +94,23 @@ if email and not secret_scan.EMAIL_ALLOW_RE.search(email) \\
         and not secret_scan._allowed(allowlist, "commit-message", "author_email"):
     problems.append({"pattern_id": "author_email", "match": email})
 
+# The person's private list (ADR 0089): a list that cannot be used is a finding, the names and
+# addresses the commit is published under are read against it, and the line about the list is
+# printed. A secret_scan from before the list has none of this and is left to the rules above.
+if hasattr(secret_scan, "private_list_findings"):
+    extra, status = secret_scan.private_list_findings()
+    problems += extra
+    committer = subprocess.run(["git", "var", "GIT_COMMITTER_IDENT"], capture_output=True,
+                               text=True).stdout.strip()
+    for who, ident in (("author", author), ("committer", committer)):
+        person = ident.rpartition(">")[0]
+        problems += secret_scan.private_name_findings(person.partition("<")[0], "", who + " name")
+        problems += secret_scan.private_name_findings(person.partition("<")[2], "", who + " email")
+    for f in problems:
+        if f["pattern_id"] == "author_email" and secret_scan.held_term(f["match"]) is not None:
+            f["match"] = "(an address holding a listed term)"
+    print("commit-msg hook: " + status)
+
 # Commit-subject claims (tools/commit_claims.py): a subject the invariant-60 detector flags needs a
 # resolving Claim-Proof: trailer. This check fails open, with a DID-NOT-RUN line, when it cannot be
 # imported; the CI commit hygiene step over the pushed commits fails closed.
@@ -111,6 +128,9 @@ if problems:
     if any(f["pattern_id"].startswith("claim_") for f in problems):
         print("  Name the mechanism the commit changed, or add a Claim-Proof: trailer naming the")
         print("  invariant or selftest pin that proves the claim (tools/commit_claims.py).")
+    if any(f["pattern_id"] == "private_term" and " name)" in f["match"] for f in problems):
+        print("  The name this commit is made under is on your private list. Set a name you")
+        print("  publish under:  git config user.name '<name>'")
     if any(f["pattern_id"] == "author_email" for f in problems):
         print("  Set the repo-local noreply address:")
         print("    git config user.email '<your-github-noreply-address>'")
@@ -199,6 +219,11 @@ def selftest() -> int:
        not any(line.lstrip().startswith("python3") for body in (PRE_COMMIT, COMMIT_MSG)
                for line in body.splitlines()))
     ok("the commit-msg hook still runs the claim check", "commit_claims.message_problems(msg)" in COMMIT_MSG)
+    ok("the commit-msg hook reports a private list that cannot be used, prints the line about the "
+       "list, and reads the author's and the committer's name and address against it",
+       all(piece in COMMIT_MSG for piece in (
+           "secret_scan.private_list_findings()", "problems += extra", 'print("commit-msg hook: " + status)',
+           '"GIT_COMMITTER_IDENT"', 'who + " name"', 'who + " email"')))
     with tempfile.TemporaryDirectory() as td:
         hooks = Path(td) / "hooks"
         hooks.mkdir()
@@ -224,7 +249,9 @@ def selftest() -> int:
             skips.append("running the hook: " + ("no POSIX sh found" if not sh else "not a git checkout"))
         else:
             env = dict(os.environ, GIT_AUTHOR_NAME="Hook Selftest",
-                       GIT_AUTHOR_EMAIL="hook-selftest@users.noreply.github.com")
+                       GIT_AUTHOR_EMAIL="hook-selftest@users.noreply.github.com",
+                       GIT_COMMITTER_NAME="Hook Selftest",
+                       GIT_COMMITTER_EMAIL="hook-selftest@users.noreply.github.com")
 
             def run_hook(hook, message):
                 msg = Path(td) / "msg.txt"

@@ -99,7 +99,10 @@ def _resolve_commit_range():
 
 
 def _findings_to_problems(findings):
-    return [f"{f['path']}: {f['pattern_id']}: {f['match']}" for f in findings]
+    """One line per finding, and one more when the private-terms list in this checkout cannot be
+    used: the scan functions called here do not go through secret_scan.main, which reports it."""
+    broken, _status = secret_scan.private_list_findings()
+    return [f"{f['path']}: {f['pattern_id']}: {f['match']}" for f in list(findings) + broken]
 
 
 def check_commit_hygiene(rng=None, scanner=secret_scan.scan_commit_messages, allowlist=None):
@@ -242,6 +245,17 @@ def selftest():
     ok("strict exits 0 when only skips/passes",
        overall_exit([_result("x", [], "h"), _result("y", [], "h", status="skip")], strict=True) == 0)
     ok("non-strict always exits 0", overall_exit([_result("x", ["p"], "h")], strict=False) == 0)
+    real_list = secret_scan.private_list_findings
+    try:
+        secret_scan.private_list_findings = lambda: (
+            [{"path": "list.json", "pattern_id": "private_terms_list", "match": "cannot be read"}], "")
+        broken_list = check_staged_hygiene(scanner=lambda al: [], allowlist=al)
+        secret_scan.private_list_findings = lambda: ([], "")
+        usable_list = check_staged_hygiene(scanner=lambda al: [], allowlist=al)
+    finally:
+        secret_scan.private_list_findings = real_list
+    ok("a private-terms list that cannot be used fails a hygiene check that found nothing else",
+       broken_list["status"] == "fail" and usable_list["status"] != "fail")
 
     passed = sum(1 for _, c in checks if c)
     for name, c in checks:

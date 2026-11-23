@@ -1485,6 +1485,7 @@ except ImportError:  # imported as a module with tools/ not on sys.path
 FORBIDDEN_TRACKED_BASENAMES = re.compile(r"^\.env(\.|$)")
 # Invariant 20 (third part): audit-record file names, one rule shared with the --staged gate.
 from secret_scan import audit_exempt_problems, audit_record_findings  # noqa: E402
+from secret_scan import did_not_run_advisories, private_list_present  # noqa: E402
 
 
 def _git_ls_files():
@@ -1623,10 +1624,15 @@ def check_secret_content():
         return
     try:
         out = subprocess.run([sys.executable, str(scanner), "--tracked"],
-                             cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+                             cwd=str(ROOT), capture_output=True, text=True, timeout=300)
     except (OSError, subprocess.SubprocessError) as exc:
+        # A scan that did not finish is a failure in CI, and on a computer that holds a private
+        # list: there a skipped scan would pass a listed name unseen.
         if os.environ.get("CI"):
             problem(f"privacy: secret scan failed to run in CI (fail closed): {exc}")
+        elif private_list_present():
+            problem(f"privacy: secret scan did not finish and this checkout holds a private "
+                    f"list (fail closed): {type(exc).__name__}")
         else:
             print(f"  [warn] secret scan could not run; invariant 21 skipped (local): {exc}")
         return
@@ -1642,9 +1648,8 @@ def check_secret_content():
     # loud advisory the filename invariants use, so all three privacy layers report honestly.
     if "git unavailable" in out.stdout:
         _privacy_git_unavailable(21)
-    for line in out.stdout.splitlines():
-        if line.startswith("private terms: DID NOT RUN"):
-            print(f"  ~ {line}")
+    for line in did_not_run_advisories(out.stdout):
+        print(line)
 
 
 def check_construction():

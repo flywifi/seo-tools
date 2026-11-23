@@ -17,17 +17,29 @@ the words a creator most wants kept out of a public repository.
 2. `secret_scan.scan_text` looks for each term in every reading it already scans (tracked text
    through drift invariant 21, staged lines through the battery's staged scan and the pre-commit
    hook, commit messages through the commit-msg hook and the range scan). A term matches in any
-   letter case, with a run of whitespace between its words, where it is not part of a longer run
-   of letters or digits.
-3. A finding names the term's position in the list and carries a hash of that position. The
-   term, and a hash of the term, are not printed: a name is short enough to be guessed from its
-   hash.
-4. The allowlist does not exempt a private-term finding. The list is where a term is added or
-   removed.
-5. A list that does not parse, holds another shape, or holds a term under three characters is a
-   finding, so a broken list fails the scan.
+   letter case, with nothing or a run of whitespace, dots, hyphens and underscores between its
+   words, where it is not part of a longer run of letters or digits. The same look is made at
+   the paths of tracked and staged files, at `tools/secret_scan.py` itself (whose other patterns
+   are not run on it), and at the author's and the committer's name and address (the commit-msg
+   hook and the range scan).
+3. A finding names the term's position in the list and carries a hash of that position. A
+   finding of another pattern whose matched text holds a listed term, and a path that holds one,
+   are shown and hashed by that position too. These findings print neither the term nor a hash
+   of it: a name is short enough to be guessed from its hash.
+4. An allowlist entry does not exempt a private-term finding. The list is where a term is added
+   or removed. The allowlist file's `commit_policy_boundary` applies as it does to the other
+   patterns: commits at or before it are not scanned.
+5. A list that does not parse, holds another shape, holds a term under three characters, is not
+   a file, or is a link that leads nowhere is a finding in the scan's own run, in the commit-msg
+   hook and in the push preflight, so a broken list fails them.
 6. With no list, or an empty one, the scan prints `private terms: DID NOT RUN`, and the drift
-   guard repeats it as an advisory.
+   guard repeats it as an advisory. Where a checkout holds a list and the tracked scan does not
+   finish, drift invariant 21 fails.
+7. A linked git worktree with no list of its own reads the list at the root of the checkout it
+   was made from.
+8. A term's longest word is looked for first as plain text, and the term's pattern runs on a
+   text that holds that word. Measured on this repository on 2026-11-23, the tracked scan took
+   8.0 s with an empty list, 10.1 s with 200 terms and 57.7 s with 5000.
 
 ## Consequences
 
@@ -38,5 +50,13 @@ the words a creator most wants kept out of a public repository.
   set aside, so its result does not depend on that list.
 - Pull request titles, descriptions and comments are written on GitHub and do not pass through
   the scan.
+- The commit-msg hook's text changed with this decision; `python3 tools/install_hooks.py`
+  installs it. A hook installed earlier still scans the message, and does not read the names or
+  report a broken list.
+- A person whose git `user.name` is on their list is refused at commit until they set a name
+  they publish under.
 - A term inside a longer word is not found, and a term is found only as its listed words in
-  order: a name split across other words, or a nickname not on the list, is not found.
+  order. Not found: a spelling the list does not hold (an accent dropped or added, a look-alike
+  letter from another alphabet, a curly apostrophe for a straight one), another word or a plus
+  sign between the term's words, a line wrapped with a comment or quote mark between them, and
+  a nickname not on the list.
