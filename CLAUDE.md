@@ -137,8 +137,8 @@ Then edit `SKILL.md` (specific, pushy, scoped description with a "Do NOT use for
   staged lines, file paths, commit messages and the names and addresses a commit is made under
   (`tools/secret_scan.py::load_private_terms`), in any letter case, with or without spaces, dots,
   hyphens or underscores between its words, and where it is not part of a longer word; a
-  spelling the list does not hold (a dropped accent, a look-alike letter, a nickname) is not
-  found. On a computer without that list, or with an empty one, and in CI, which does not hold
+  spelling the list does not hold (an e written for an e with an acute accent, a look-alike
+  letter from another alphabet, a nickname) is not found. On a computer without that list, or with an empty one, and in CI, which does not hold
   it, the scan prints that the private-terms check did not run.
 - Nothing is released until it passes the Quality Gates (`protocols/quality-gates.md`).
 - **A commit subject names the mechanism it changed.** A stage pushed before its verification stage

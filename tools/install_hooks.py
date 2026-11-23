@@ -121,9 +121,14 @@ except Exception as exc:  # noqa: BLE001
 # A line this hook prints does not show a listed term: a finding of another check (the address,
 # the claim words quoted from the subject) whose text holds one says so in place of the text.
 if hasattr(secret_scan, "held_term"):
+    # The claim check quotes the message in its own spelling (a no-break space as an escape),
+    # so its lines are judged by the message, not by the quoted text.
+    message_holds = secret_scan.held_term(msg) is not None
     for f in problems:
-        if f["pattern_id"] not in ("private_term", "private_terms_list") \\
-                and secret_scan.held_term(str(f["match"])) is not None:
+        if f["pattern_id"] in ("private_term", "private_terms_list"):
+            continue
+        if secret_scan.held_term(str(f["match"])) is not None \\
+                or (message_holds and f["pattern_id"].startswith("claim_")):
             f["match"] = "(text holding a listed term)"
 
 if problems:
@@ -298,6 +303,11 @@ def selftest() -> int:
             by_allowed_address = run_hook(hooks / "commit-msg", "Add a selftest line\n")
             env.update(env_kept)
             quoted_subject = run_hook(hooks / "commit-msg", "Every note by " + one + " " + two + " is removed\n")
+            # The claim check quotes the subject in its own spelling, and a trailer line too.
+            spelled = [run_hook(hooks / "commit-msg", "Every note by " + one + between + two + " is removed\n")
+                       for between in (chr(0xA0), chr(9), chr(0x200B) + " ")]
+            spelled.append(run_hook(hooks / "commit-msg", "Every note is removed\n\nClaim-Proof: "
+                                    + (one + "-" + two).lower() + "::selftest::x\n"))
             terms_file.write_text("{terms", encoding="utf-8")
             unusable = run_hook(hooks / "commit-msg", "Add a selftest line\n")
             terms_file.unlink()
@@ -386,6 +396,11 @@ def selftest() -> int:
                and "author_email:" not in said[7]
                and "the list is not usable" in said[5]
                and not any(one.lower() in s.lower() or two.lower() in s.lower() for s in said))
+            ok("the commit-msg hook does not show a listed term that the claim check quotes with a "
+               "no-break space, a tab or a zero-width space between its words, or in a trailer line",
+               all(r.returncode == 1 for r in spelled)
+               and not any(one.lower() in (r.stdout + r.stderr).lower()
+                           or two.lower() in (r.stdout + r.stderr).lower() for r in spelled))
             ok("a hook whose pinned interpreter exists but does not run falls back to a Python on PATH",
                broken_run.returncode == 1 and "session_link" in broken_run.stdout)
             ok("a stand-in python3 that reads stdin does not hold the hook, which goes on to python",

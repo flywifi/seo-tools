@@ -24,7 +24,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   as does another pattern's finding whose text holds a listed term; an allowlist entry does not
   exempt it; a list that cannot be used is itself a finding in the scan, the commit-msg hook and
   the push preflight. A linked git worktree with no list of its own reads the main worktree's.
-  Paths are read as git stores them, and the staged diff with fixed options.
+  Paths are read as git stores them, a name outside UTF-8 among them, and the staged diff with
+  fixed options, a file that an attribute marks as binary read as text.
   With no list or an empty one the scan prints `private terms: DID NOT RUN`, which the drift
   guard repeats as an advisory; CI has no list and prints the same. The staged scan reads an
   added line that begins with two plus signs as text. Run `python3 tools/install_hooks.py`
