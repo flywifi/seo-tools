@@ -646,26 +646,47 @@ def _private_hits(text):
             yield i, m
 
 
-def held_term(text):
-    """The position of the first listed term a text holds in one of its readings, or None. This
-    is looser than a finding: the term's words count wherever they stand, also inside a longer
-    run of letters or digits (a handle with a number after the name), because the answer decides
-    what a line of output may show. The text is also read as a report line prints it
-    (printable): the letters of an escape can complete a term's word. That printed form is read
-    as it stands. Not read: the same form with fullwidth letters folded, and an escape that a
-    later layer writes for a character printable() leaves as it is (a terminal whose encoding
-    does not hold an accented letter, JSON output)."""
-    for view in _text_views(text) + [printable(text)]:
+def _held_terms(readings):
+    """The positions of the listed terms that one of `readings` holds, by the loose pattern."""
+    held = set()
+    for view in readings:
         key = None
         for i, _rx, quick, loose in _private_patterns():
+            if i in held:
+                continue
             if quick is not None:
                 if key is None:
                     key = view.translate(_PRIVATE_FOLD).lower()
                 if quick not in key:
                     continue
             if loose.search(view):
-                return i
-    return None
+                held.add(i)
+    return held
+
+
+def _printed_forms(text):
+    """The forms a finding's line can be written in: as printable() writes it; that form with
+    compatibility letters folded (fold_text: fullwidth, mathematical, a ligature); that form as
+    a terminal that holds ASCII alone writes it (each other character as its backslash escape,
+    which this module's and the preflight's output do); and as JSON writes it (the preflight's
+    --json). The letters and digits of an escape can complete a term's word in each."""
+    shown = printable(text)
+    return [shown, fold_text(shown), shown.encode("ascii", "backslashreplace").decode("ascii"),
+            json.dumps(shown)[1:-1]]
+
+
+def held_term(text):
+    """The position of the first listed term a text holds in one of its readings, or None. This
+    is looser than a finding: the term's words count wherever they stand, also inside a longer
+    run of letters or digits (a handle with a number after the name), because the answer decides
+    what a line of output may show. The text is read as written, folded, and in the forms a
+    finding's line can be written in (_printed_forms). Not read: the form a terminal writes
+    whose encoding holds some characters outside ASCII and not others, where it differs from
+    both the UTF-8 and the ASCII form."""
+    if not _private_patterns():
+        return None
+    held = _held_terms(dict.fromkeys(_text_views(text) + _printed_forms(text)))
+    return min(held) if held else None
 
 
 def _finding(path, pid, matched, cut=False, around=None):
@@ -703,13 +724,19 @@ def _veil_paths(findings, paths):
         if found:
             veiled[p] = f"(hidden path {len(veiled) + 1}, holding {found[0]['match'].split(' (')[0]})"
             findings.extend(dict(x, path=veiled[p]) for x in found)
-        elif printable(p) != p:
-            # A name with a character that does not print is shown with an escape, whose letters
-            # can complete a term's word: such a name is hidden when its printed form holds a
-            # term. No finding is added, since the name itself does not hold the term.
-            held = held_term(p)
-            if held is not None:
-                veiled[p] = f"(hidden path {len(veiled) + 1}, holding term {held} of {PRIVATE_TERMS_PATH.name})"
+        elif _private_patterns():
+            # A name can be written in a form that differs from the name as stored (an escape for
+            # a character that does not print, or for a character an ASCII terminal or JSON does
+            # not hold; a compatibility letter folded after an escape). The letters of an escape
+            # can complete a term's word: the name is hidden when such a form holds a term that
+            # the name as stored does not. No finding is added, since the name does not hold the
+            # term; a name that holds a term inside a longer word as stored stays shown.
+            views = _text_views(p)
+            forms = [x for x in dict.fromkeys(_printed_forms(p)) if x not in views]
+            extra = _held_terms(forms) - _held_terms(views) if forms else set()
+            if extra:
+                veiled[p] = (f"(hidden path {len(veiled) + 1}, holding term {min(extra)} of "
+                             f"{PRIVATE_TERMS_PATH.name})")
     for x in findings:
         if x.get("path") in veiled:
             x["path"] = veiled[x["path"]]
@@ -2040,18 +2067,36 @@ def _selftest_body():
             [{"path": "docs/q" + c + rest + ".md", "pattern_id": "email_address", "match": "q@" + "corp-mail.invalid"}
              for c, rest in ((chr(9), "anya"), (chr(0x85), "ab"))],
             ["docs/q" + chr(9) + "anya.md", "docs/q" + chr(0x85) + "ab.md"])]
-        _not_read = [held_term("q" + chr(0xEA) + "be"),
-                     held_term("q" + chr(10) + chr(0xFF4F) + chr(0xFF52) + chr(0xFF41))]
+        _other_forms = [held_term("q" + chr(0xEA) + "be"),
+                        held_term("q" + chr(10) + chr(0xFF4F) + chr(0xFF52) + chr(0xFF41)),
+                        held_term("q" + chr(9) + chr(0x1D41A) + chr(0x1D427) + chr(0x1D432) + chr(0x1D41A)),
+                        held_term("q" + chr(0xEA) + "bx"), held_term("qbe")]
+        _odd = ["docs/q" + chr(0xEA) + "be.md", "docs/q" + chr(10) + chr(0xFF4F) + chr(0xFF52) + chr(0xFF41) + ".md",
+                "docs/q" + chr(0xEA) + "bx.md", "docs/n" + "ora" + "h" + chr(0xE9) + ".md"]
+        _odd_names = [x["path"] for x in _veil_paths(
+            [{"path": p, "pattern_id": "email_address", "match": "q@" + "corp-mail.invalid"} for p in _odd], _odd)]
+        _two = "docs/q" + chr(0xEA) + "be" + chr(9) + "anya.md"
+        _two_held = [held_term("no" + "ra a" + "be"), held_term(_two)]
+        _two_name = [x["path"] for x in _veil_paths(
+            [{"path": _two, "pattern_id": "email_address", "match": "q@" + "corp-mail.invalid"}], [_two])]
     finally:
         globals()["_PRIVATE_PATTERNS"] = _saved_terms
+    _check("a text and a file name that hold two listed terms are shown by the lower position",
+           _two_held == [5, 1]
+           and _two_name == ["(hidden path 1, holding term 1 of %s)" % PRIVATE_TERMS_PATH.name], f, ran)
     _check("a term that a tab's, a next-line character's, a kept byte's or a line separator's "
-           "escape would complete is held, in a text and in a file name; a term that only a "
-           "terminal's or JSON's escape of an accented letter would complete, and fullwidth "
-           "letters after an escape, are not read",
+           "escape would complete is held, in a text and in a file name; so is a term that an "
+           "ASCII terminal's or JSON's escape of an accented letter would complete, and one in "
+           "fullwidth or mathematical letters after an escape; an escape that completes no term "
+           "hides nothing, and a name that holds a term inside a longer word as stored stays "
+           "shown though it has an accented letter",
            _by_escape == [1, 2, 3, 4]
            and _hidden_names == ["(hidden path %d, holding term %d of %s)" % (n, n, PRIVATE_TERMS_PATH.name)
                                  for n in (1, 2)]
-           and _not_read == [None, None], f, ran)
+           and _other_forms == [5, 6, 1, None, None]
+           and _odd_names == ["(hidden path 1, holding term 5 of %s)" % PRIVATE_TERMS_PATH.name,
+                              "(hidden path 2, holding term 6 of %s)" % PRIVATE_TERMS_PATH.name,
+                              _odd[2], _odd[3]], f, ran)
     _check("a matched text and a file name whose printed escapes would complete a listed term are "
            "shown by the term's position, with no finding added for the term; a name that prints "
            "as it is stored and holds a term inside a longer word is shown",
