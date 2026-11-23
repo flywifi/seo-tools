@@ -778,8 +778,8 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   with a step served late the measured drop fell under the old margins. A try given the whole
   time measures no drop and still fails both checks.
 - P103 (price reader selftest, first request's time): the check that the first GET of a fetch is
-  given at most the fetch's time compares to within 1e-9 s, and one fetch in that check runs under
-  a clock held at one reading (2033.001 s). On Windows with Python 3.12 two clock reads inside one
+  given at most the fetch's time compares to within 1e-6 s, and one fetch in that check runs under
+  a clock held at one reading (2033.001 s, shown in the check to be one that rounds up). On Windows with Python 3.12 two clock reads inside one
   step return the same number, and the deadline less that reading can round to a hair above the
   fetch's time; the comparison had asked for an exact bound. `fetch` is unchanged.
 - P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge

@@ -19,7 +19,7 @@ so the model never needs a local GIS engine. The offline `tools/geo_overlay.py` 
 | **Claude Desktop (local MCP)** | Yes | Yes | `tools/mcp_server.py` -> `jurisdiction_resolve` (offline) + consent-gated live | `implementation/claude/desktop/` | <!-- verify: tools/mcp_server.py::jurisdiction_resolve -->
 | **Claude Code / CLI** | Yes | Yes | Runs the tools directly, or `geo_source_fetch.py resolve` | native |
 | **claude.ai web + mobile** | Sandbox-only | Yes | A hosted **remote-MCP** connector (`tools/mcp_server.py --serve-remote`) fronting the same tools | transport defined; you host it |
-| **ChatGPT (developer-mode connector)** | No | Yes | The deployed remote-MCP endpoint added as a developer-mode connector (documented for Business, Enterprise and Edu workspaces on ChatGPT web) | `implementation/gpt/mcp-connector/README.md` |
+| **ChatGPT (developer-mode connector)** | No | Yes | The deployed remote-MCP endpoint added as a developer-mode connector (documented for ChatGPT on the web; `[NEEDS VERIFICATION: the plan list (Business, Enterprise, Edu) is not on the guide's page as read 2026-11-22]`) | `implementation/gpt/mcp-connector/README.md` |
 | **Gemini API (developer)** | No (your backend does) | Yes | **Function calling**: Gemini emits the call, your app executes the HTTPS request | `implementation/gemini/jurisdiction-function-declarations.json` |
 | **Gemini web app** | No | Yes, with a deployed endpoint | The same remote-MCP endpoint connected as a custom app (US personal accounts, support.google.com/gemini/answer/17209137) | `implementation/gpt/mcp-connector/README.md` |
 | **Gemini desktop app** | No | **No** | No custom-tool / outbound-call surface | dead end |

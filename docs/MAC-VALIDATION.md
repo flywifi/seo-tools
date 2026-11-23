@@ -135,16 +135,20 @@ outside the local-only tier; run them when convenient and record each outcome in
 
 Before you start: a hub set up through the wizard's `/drive-hub` screen, so `Creator OS/Profile`
 and `Creator OS/Store` exist in your Drive (if `Store` holds no `.json` file yet, use any `.json`
-file in the hub for C2), and one test message in Gmail that is safe to answer. Each check leaves
-at most one test file or one draft; delete it afterwards.
+file in the hub for C2), and one test message in Gmail that is safe to answer. For C2, open
+that `.json` file in Drive's preview first and note its first key. For C4, set Claude to ask
+before it acts (not Auto mode), or set the Gmail connector to always ask. Each check leaves at
+most one test file or one draft; delete it afterwards. If an app or connector is not offered on
+your account, record "not available on this account" and the plan.
 
 - **C1. ChatGPT's Drive app saves a file.** In ChatGPT on the web with the Google Drive app
   connected, ask it to save a short JSON reply as a new file in `Creator OS/Profile`.
-  - Record: a file appeared there / it said it saved a file and none is there / it was refused /
-    it was saved somewhere else.
+  - Record: a file appeared there / it asked to confirm, then a file appeared / it said it saved
+    a file and none is there / it was refused / it was saved somewhere else.
 - **C2. ChatGPT's Drive app reads a hub file.** In the same chat, ask it to open one `.json`
   file in `Creator OS/Store` and name its first key.
-  - Record: it read the contents / it found the name only / it could not.
+  - Record: it named the key you noted / it named another key / it found the name only / it
+    could not.
 - **C3. ChatGPT's Gmail app drafts.** With the Gmail app connected, ask for a draft reply to the
   test message, not sent.
   - Record: a draft appeared in Gmail / it asked for approval, then a draft appeared / the text
