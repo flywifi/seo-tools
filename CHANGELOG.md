@@ -793,6 +793,10 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
   a clock held at one reading (2033.001 s, shown in the check to be one that rounds up). On Windows with Python 3.12 two clock reads inside one
   step return the same number, and the deadline less that reading can round to a hair above the
   fetch's time; the comparison had asked for an exact bound. `fetch` is unchanged.
+- P103 (injection screen wording, docs): the `_fold_tables` and `_screen_readings` docstrings in
+  `tools/injection_scan.py`, ADR 0080, ADR 0083 and `shared/injection-guard-engine.md` state the
+  lacing, keycap, wide-reading and line-break limits as the code runs them. Code paths are
+  unchanged.
 - P102 (wizard credential-copy checks on one second): the wizard selftest's credential-merge
   checks run with the seconds stamp the `.corrupt.<stamp>.bak` copies are named by fixed to one
   second (`_selftest_p101`), so the check that a second unreadable file keeps its own copy always

@@ -65,8 +65,9 @@ knows what it is.
   byte-order mark, tag characters) and the invisible characters the screen folds before the patterns
   run, keeps the zero-width joiner and non-joiner after a virama or between two characters outside
   ASCII letters and digits, one in a row, judging a run of joiners by the character after it, and one
-  variation selector after a symbol other than a currency sign, one of the five emoji whose base is
-  punctuation or a letter or a keycap base, an ideographic one after a CJK ideograph, a Mongolian one
+  variation selector after a symbol other than a currency sign, after a keycap's base (a digit, # or *
+  before U+20E3), after one of the five emoji whose base is punctuation or a letter, an ideographic
+  one after a CJK ideograph, a Mongolian one
   after a Mongolian letter, none after a
   joiner or another selector (a tag-sequence flag loses its tags and a run of selectors keeps none past
   the first, since both can carry hidden text), and the invoice rule reads the text
@@ -78,8 +79,9 @@ knows what it is.
   the higher score; a space in its patterns reads a run of whitespace other than a line feed, a
   carriage return, a page break or a line or paragraph separator. A word laced with one such character
   and separated from the next by the same or another can be missed, as ADR 0080 notes for NUL bytes; a
-  soft hyphen alone in place of the space before or after a phrase, and a phrase whose words a line
-  break separates outside an OVERRIDE or REDIRECT gap or a TEMPLATE delimiter, can be missed; a soft hyphen inside a word in a
+  soft hyphen alone in place of the space before or after a phrase, and a phrase whose words one of
+  those five line breaks separates outside an OVERRIDE or REDIRECT gap or a TEMPLATE delimiter, can
+  be missed; a soft hyphen inside a word in a
   phrase's middle, or one next to another such character at a word's edge, can complete a phrase and
   raise the verdict (a QUARANTINE withholds the record); the
   session guard stays authoritative. An amount that

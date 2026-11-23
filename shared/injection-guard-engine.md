@@ -246,8 +246,9 @@ other than a line feed, a carriage return, a page break or a line or paragraph s
 character between a word's letters, or one other than a soft hyphen in place of its spaces, does not
 hide a phrase from the patterns; a word laced with one such character and separated from the next by
 the same or another reads as split or run-together words and can be missed, and a soft hyphen alone
-in place of the space before or after a phrase (read as a hyphenation point) or a line break between a
-phrase's words outside an OVERRIDE or REDIRECT gap or a TEMPLATE delimiter can hide it (P103). The
+in place of the space before or after a phrase (read as a hyphenation point) or one of those five line
+breaks between a phrase's words outside an OVERRIDE or REDIRECT gap or a TEMPLATE delimiter can hide
+it (P103). The
 tool's selftest asserts its category set equals this document's `### <NAME>` headings, so the two
 cannot drift apart silently; changing a category here means updating the tool in the same change.
 

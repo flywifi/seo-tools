@@ -186,7 +186,9 @@ def _fold_tables():
     """(drop, space): the format characters (Unicode Cf), the INVISIBLE characters and the control
     characters (Cc) outside WHITESPACE, dropped by the first and each a space in the second, so one
     used between a word's letters or in place of a space is read past; a word both laced and separated
-    by the same character reads as split or run-together words in both and is missed (P103)."""
+    by the same character reads as split or run-together words in both and can be missed outside the
+    gaps the OVERRIDE and REDIRECT patterns allow, which read run-together words as word characters
+    (P103)."""
     if not _FOLD:
         drop, space = {}, {}
         for cp in range(0x110000):
@@ -341,9 +343,11 @@ def _screen_readings(raw, max_bytes):
     encoding. When they start with a UTF-16 or UTF-32 byte-order mark, the other readings of the
     bytes after the mark follow, each kept only when its text differs from every reading before it:
     in each fixed byte order (_UTF16_ORDERS, and _UTF32_ORDERS behind a UTF-32 mark), then as UTF-8.
-    scan_text reads each of them with a NUL dropped and as a space itself (_readings), so a UTF-8
-    reading of wide text scores as the text does and the byte order it was written in is named
-    (P103)."""
+    scan_text reads each of them with a NUL dropped and as a space itself (_readings), so the UTF-8
+    reading of wide text whose characters are all below U+0080 has that text's dropped reading, and
+    at a tie the byte order the text was written in is named. A character from U+0080 up can read
+    there as other characters (a soft hyphen's byte 0xAD as U+FFFD, which ends a word), so the UTF-8
+    reading can score higher than the decoded text does and decide the verdict (P103)."""
     truncated = len(raw) > max_bytes
     part = raw[:max_bytes]
     text, encoding = _td.decode_text(part, complete=not truncated)
