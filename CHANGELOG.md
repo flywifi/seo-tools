@@ -14,21 +14,32 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 
 ### Added
 - Gap ledger entry SW-G13 (P103): the surface-workflow contract records, for each surface that
-  reaches the hub through a vendor's Drive connector, what the vendor's page says about reading
+  writes to the hub through a vendor's Drive connector, what the vendor's page says about reading
   the hub's text formats (`hub_text_read`: `documented_yes`, `documented_no` or `undocumented`;
   pages read 2026-11-23). `tools/surface_workflow_check.py` refuses a value outside those three,
-  a connector surface without the record and a record on a local surface, and the probe
+  a connector surface without the record and a record on a surface whose mode is `none` or
+  `local_folder_edit`, and the probe
   `hub_formats_unread` holds while the recorded values show none of the connector surfaces
-  documented as reading them. The probe reads the contract, not the pages. Seven workflows list
-  the gap; `docs/SURFACE-WORKFLOWS.md` carries the ledger row and declares Google's page.
+  documented as reading them. The probe reads the contract, not the pages. Eight workflows list
+  the gap: each one in which a connector surface writes into a hub area, and a selftest case
+  keeps that list in step with the contract's steps. `docs/SURFACE-WORKFLOWS.md` carries the
+  ledger row and declares the two pages it newly cites; `docs/MAC-VALIDATION.md` gains live
+  checks C5 and C6, a hub JSON file read by claude.ai and by Gemini. No step simulates a web
+  chat reading a hub file.
 - Stall output in the selftest sweep (P103): a tool that `tools/selftest_sweep.py` stops at its
   cap has its last eight output lines printed under its `[FAIL]` line, stdout then stderr
   (`output_tail`; the bytes POSIX leaves on the timeout and the text Windows leaves are both
-  read). `tools/file_hash.py` writes the row a stopped mutation-run child was running to its own
-  stderr when the child is stopped, as `file_hash: child stopped at its limit: <the stall
-  report's first line>` (`note_stall`, called by `run_chunk`), so a run the sweep stops before
-  file_hash's closing report has that line in the printed tail. A child still inside its own
-  limit when the sweep's cap is reached has written no such line.
+  read; a stopped tool's `DID NOT RUN:` lines are not repeated or counted). A failing tool's tail
+  goes through the same helper, so a stdout cut inside a line ends before stderr starts. The
+  sweep reads a tool's output with undecodable bytes replaced and writes a character its own
+  stdout encoding does not hold as a backslash escape (`tolerant`); on Linux, a failing tool's
+  output with either ended the sweep in a traceback before. `tools/file_hash.py` writes the first
+  line of a stopped mutation-run child's stall report to its own stderr when the child is stopped, as
+  `file_hash: child stopped at its limit: <line>` (`note_stall`, called by `run_chunk`): the row
+  the child was running, or the chunk's first row with the short reason for a child stopped
+  before it named one. A run the sweep stops before file_hash's closing report has that line in
+  the printed tail. Not covered: a child still inside its own limit when the sweep's cap is
+  reached, and a run with one worker, which starts no child; neither writes such a line.
 - Private terms in the secret scan (ADR 0089): `tools/secret_scan.py` reads the person's own
   list, `creator-os-private-terms.local.json` at the repo root (`{"terms": ["...", ...]}`,
   ignored by git, created empty by `tools/setup.py` for the account that runs it), and reports a

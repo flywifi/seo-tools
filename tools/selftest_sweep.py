@@ -217,6 +217,18 @@ def did_not_run_lines(text) -> list:
     return [ln.strip() for ln in str(text).splitlines() if ln.strip().startswith(DID_NOT_RUN)]
 
 
+def tolerant(stream):
+    """Set a text stream to write a character its encoding does not hold as a backslash escape, so
+    a line of tool output that holds one is printed and the sweep goes on to its next tool. A
+    stream that cannot be set (it has no reconfigure, or is closed) is left as it is. Returns
+    the stream."""
+    try:
+        stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError, OSError):
+        pass
+    return stream
+
+
 def run_sweep():
     import os
     targets = [(p.relative_to(ROOT).as_posix(), [str(p)] + args) for p, args in discover()]
@@ -228,11 +240,12 @@ def run_sweep():
             env["PYTHONPATH"] = str(ROOT / "tools")
         limit = _tool_timeout(rel)
         try:
-            out = subprocess.run([sys.executable] + argv, cwd=str(ROOT), env=env,
+            out = subprocess.run([sys.executable] + argv, cwd=str(ROOT), env=env, errors="replace",
                                  capture_output=True, text=True, timeout=limit)
         except subprocess.TimeoutExpired as exc:
             # What the tool had written when it was stopped: file_hash names a stopped child's row
             # on its stderr as it goes (file_hash.note_stall), and prints its checks at the end.
+            # A stopped tool's DID NOT RUN: lines are not repeated or counted: the tool has failed.
             print(f"  [FAIL] {rel} (timeout after {limit}s)")
             for line in output_tail(exc.stdout, exc.stderr):
                 print(f"         {line}")
@@ -410,7 +423,7 @@ def selftest():
                    "pair": (0, ["         DID NOT RUN: a1", "         DID NOT RUN: b1",
                                 "         DID NOT RUN: b2",
                                 "selftest-sweep: PASS (2 of 2 selftests); 3 DID NOT RUN line(s) above"])})
-    stopped, real_enrol = {}, globals()["enrolment_problems"]
+    stopped, failed_out, read_as, real_enrol = {}, {}, set(), globals()["enrolment_problems"]
     nine = "".join(f"row {i}\n" for i in range(9))
     try:
         globals()["enrolment_problems"] = lambda: []
@@ -425,12 +438,19 @@ def selftest():
                 ("cut line", (b"  [ok] a\npartial", b"from stderr\n")),
                 ("long", (nine.encode("utf-8"), b"last\n"))):
             def stops(argv, _h=held, **kw):
+                read_as.add((kw.get("text"), kw.get("errors")))
                 raise subprocess.TimeoutExpired(argv, kw.get("timeout"), output=_h[0], stderr=_h[1])
             subprocess.run = stops
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 rc_stop = run_sweep()
             stopped[name] = (rc_stop, buf.getvalue().splitlines()[:-2])
+        for name, left in (("cut line", ("  [ok] a\npartial", "from stderr\n")), ("nothing", (None, None))):
+            subprocess.run = lambda argv, _l=left, **kw: subprocess.CompletedProcess(argv, 1, _l[0], _l[1])
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc_fail = run_sweep()
+            failed_out[name] = (rc_fail, buf.getvalue().splitlines()[:-2])
     finally:
         subprocess.run, globals()["discover"] = real_run, real_discover
         globals()["enrolment_problems"] = real_enrol
@@ -439,7 +459,9 @@ def selftest():
     check("a tool the sweep stops at its cap fails the sweep and its last eight lines are printed under "
           "it, stdout then stderr: bytes (as POSIX leaves them) and text (as Windows does), a stream "
           "with nothing read, a byte outside UTF-8 replaced, a stdout cut inside a line ended before "
-          "stderr, and of ten lines the last eight",
+          "stderr, and of ten lines the last eight; the tool is run with its output read as text, "
+          "undecodable bytes replaced; a failing tool's tail is read the same way (a stdout cut inside "
+          "a line, streams with nothing read)",
           stopped == {"bytes": (1, [head, "         [ok] a",
                                     "         file_hash: child stopped at its limit: WZ01 (worker failed)"]),
                       "text": (1, [head, "         [ok] a", "         stopped in caf\u00e9"]),
@@ -447,11 +469,37 @@ def selftest():
                       "stderr alone": (1, [head, "         only this"]),
                       "not UTF-8": (1, [head, "         caf\ufffd line"]),
                       "cut line": (1, [head, "         [ok] a", "         partial", "         from stderr"]),
-                      "long": (1, [head] + [f"         row {i}" for i in range(2, 9)] + ["         last"])})
+                      "long": (1, [head] + [f"         row {i}" for i in range(2, 9)] + ["         last"])}
+          and read_as == {(True, "replace")}
+          and failed_out == {"cut line": (1, ["  [FAIL] tools/secret_scan.py (exit 1)", "         [ok] a",
+                                              "         partial", "         from stderr"]),
+                             "nothing": (1, ["  [FAIL] tools/secret_scan.py (exit 1)"])})
     check("the tail of a tool's output is its last eight lines, stdout before stderr",
           TAIL_LINES == 8 and output_tail("a\nb\n", "c\n") == ["a", "b", "c"]
           and output_tail(nine, "") == [f"row {i}" for i in range(1, 9)]
           and output_tail("", "") == [] and output_tail(None, None) == [])
+    plain = io.TextIOWrapper(io.BytesIO(), encoding="ascii", newline="\n")
+    tolerant(plain).write("caf\u00e9 \ufffd\n")
+    plain.flush()
+    ascii_out, real_stdout = io.TextIOWrapper(io.BytesIO(), encoding="ascii", newline="\n"), sys.stdout
+    rc_list = None
+    try:
+        globals()["discover"] = lambda: [(ROOT / "tools" / "caf\u00e9.py", ["--selftest"])]
+        sys.stdout = ascii_out
+        try:
+            rc_list = main(["--list"])
+        except UnicodeEncodeError:
+            rc_list = "raised"
+        ascii_out.flush()
+    finally:
+        sys.stdout, globals()["discover"] = real_stdout, real_discover
+    check("a character the sweep's stdout encoding does not hold is written as a backslash escape: "
+          "tolerant() sets that on a text stream and leaves a stream it cannot set as it is, and main "
+          "sets it on stdout before it prints",
+          plain.buffer.getvalue() == b"caf\\xe9 \\ufffd\n"
+          and tolerant(io.StringIO()).getvalue() == "" and tolerant(None) is None
+          and rc_list == 0
+          and ascii_out.buffer.getvalue() == (str(Path("tools") / "caf") + "\\xe9.py --selftest\n").encode("ascii"))
     caps = {j: _tool_timeout("tools/file_hash.py", jobs=j) for j in (1, 2, 3, 4, 8)}
     check("file_hash's cap is 3000 s with four or more workers and grows in proportion with fewer",
           caps == {1: 12000, 2: 6000, 3: 4000, 4: 3000, 8: 3000})
@@ -518,6 +566,7 @@ def main(argv):
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args(argv)
+    tolerant(sys.stdout)
     if a.selftest:
         return selftest()
     if a.list:

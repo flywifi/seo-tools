@@ -1,6 +1,6 @@
 {
   "suite": "surface-workflows",
-  "_comment": "P100. Ten cross-surface workflows: each vendor's web chat (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus one round trip. Surface steps (kind sim) write only what the surface's drive_write allows, cross-checked against shared/cross-modality/transitions.json; computer steps (kind real) run the repo's own functions in a sandbox. All data is fictional. Run: python3 tools/surface_workflow_check.py. Guide: docs/SURFACE-WORKFLOWS.md.",
+  "_comment": "P100. Ten cross-surface workflows: each vendor's web chat (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus one round trip. Surface steps (kind sim) write only what the surface's drive_write allows, cross-checked against shared/cross-modality/transitions.json; computer steps (kind real) run the repo's own functions in a sandbox. All data is fictional. Each surface that writes through a vendor's Drive connector also records hub_text_read: what the vendor's page says about the connector reading the hub's text formats (gap SW-G13). Run: python3 tools/surface_workflow_check.py. Guide: docs/SURFACE-WORKFLOWS.md.",
   "schema_version": "0.1.0",
   "pinned_today": "2026-10-01",
   "surfaces": {
@@ -137,7 +137,7 @@
     {
       "id": "SW-G13",
       "probe": "hub_formats_unread",
-      "summary": "The vendors' pages do not say a web Drive connector reads the hub's text formats (JSON, Markdown, .ics): Anthropic's table of readable file types and OpenAI's page do not list them, and Google's page says Gemini does not read Drive content outside documents, spreadsheets, presentations and PDFs. The probe reads what this contract records for each connector surface (hub_text_read, pages read 2026-11-23); it does not read the pages, and what a connector does on an account is not tested here.",
+      "summary": "The vendors' pages do not say a Drive connector reads the hub's text formats (JSON, Markdown, .ics). Anthropic's page lists the file types Claude can read from Drive and they are not among them; OpenAI's Google Drive page lists no formats; Google's page says Gemini Apps do not access Drive content that is not in a document, spreadsheet, presentation or PDF, read here as leaving the hub's text files out (pages read 2026-11-23). The probe reads the hub_text_read value this contract records for each surface that writes through a connector; it does not read the pages. No step simulates a web chat reading a hub file: a read on a real account is live check C2 (ChatGPT), C5 (claude.ai) or C6 (Gemini) in docs/MAC-VALIDATION.md.",
       "evidence": "surfaces.*.hub_text_read in this contract; docs/SURFACE-WORKFLOWS.md sources"
     }
   ],
@@ -1272,7 +1272,8 @@
       ],
       "gaps": [
         "SW-G1",
-        "SW-G6"
+        "SW-G6",
+        "SW-G13"
       ],
       "live_steps": [
         "In ChatGPT on the web, ask for your task list as a NEW dated file in Creator OS/Store.",

@@ -29,7 +29,9 @@ that skill's package; its data is fictional.
 The web chats and desktop apps cannot be driven from here, so each step an app takes is
 **simulated**: the step writes only what that app is declared able to write. The declaration is
 its `drive_write` mode in the contract (create; create and update; create, move and trash; and so
-on), taken from the vendor help pages listed at the end. The app's row in
+on), taken from the vendor help pages listed at the end. The contract also records what each
+vendor's page says about its connector reading the hub's text files (`hub_text_read`, gap SW-G13);
+no step simulates a web chat reading a hub file. The app's row in
 `shared/cross-modality/transitions.json` bounds it: the runner refuses a contract that gives a
 write mode to an app whose row reaches no store, and refuses a write into a hub area or a local
 folder the row cannot reach, judged by where the file actually is (or, for a new file, would land)
@@ -168,7 +170,7 @@ updated together, so closing a gap is always a deliberate change.
 | SW-G10 | Some Drive connectors can now move and trash files; a queued ticket trashed before the computer runs leaves no result and no record that it existed |
 | SW-G11 | Doc exports skip the offline injection screen and wait for a Claude session: a Word file, and a Google Docs shortcut on a Drive for desktop mirror, which is held unread with a note to download it; only text files are screened offline |
 | SW-G12 | An in-session escalation that refuses a route (QUARANTINE or BLOCK) writes no ledger row |
-| SW-G13 | The vendors' pages do not say a web Drive connector reads the hub's text formats (JSON, Markdown, .ics). Anthropic's table of file types Claude can read and OpenAI's Google Drive page do not list them; Google's page says Gemini does not read Drive content outside documents, spreadsheets, presentations and PDFs (pages read 2026-11-23). The probe reads the `hub_text_read` value the contract records for each connector surface; it does not read the pages, and what a connector does on an account is checked by the live steps in `docs/MAC-VALIDATION.md` |
+| SW-G13 | The vendors' pages do not say a Drive connector reads the hub's text formats (JSON, Markdown, .ics). Anthropic's page lists the file types Claude can read from Drive and they are not among them; OpenAI's Google Drive page lists no formats; Google's page says Gemini Apps do not access Drive content that is not in a document, spreadsheet, presentation or PDF, read here as leaving the hub's text files out (pages read 2026-11-23). The probe reads the `hub_text_read` value the contract records for each surface that writes through a connector; it does not read the pages. No step simulates a web chat reading a hub file: a read on a real account is live check C2 (ChatGPT), C5 (claude.ai) or C6 (Gemini) in `docs/MAC-VALIDATION.md` |
 
 Closed in this change: **SW-G9**, the task register merge. When the same task had been edited on
 both sides, every later read of the unchanged web copy added another copy of the same event,

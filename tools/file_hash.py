@@ -315,8 +315,9 @@ def note_stall(stream, report) -> None:
     """Write the first line of a stall report to stream and flush it, at the moment the child is
     stopped: stall_report puts the row the child was running first, so a run that is itself
     stopped before its closing report (the selftest sweep's cap for this tool) has named that row
-    on its stderr. A stream that cannot be written (closed, a broken pipe) is passed over; the
-    report goes back to the caller either way."""
+    on its stderr. For a child stopped before it named a row, the first line is the chunk's first
+    row with the short reason. A stream that cannot be written (closed, a broken pipe) is passed
+    over; the report goes back to the caller either way."""
     if stream is None or not report:
         return
     try:
@@ -7982,6 +7983,21 @@ _MUTANTS = (
     ('SWT-9 a stopped tool is not counted as failed', 'selftest_sweep.py',
      '                print(f"         {line}")\n            failed.append(str(rel))\n            continue',
      '                print(f"         {line}")\n            continue'),
+    ('SWT-10 a tool is run with its output decoded strictly', 'selftest_sweep.py',
+     'cwd=str(ROOT), env=env, errors="replace",',
+     'cwd=str(ROOT), env=env,'),
+    ('SWT-11 main leaves its stdout strict', 'selftest_sweep.py',
+     '    tolerant(sys.stdout)\n    if a.selftest:',
+     '    if a.selftest:'),
+    ('SWT-12 a character stdout does not hold is written as a question mark', 'selftest_sweep.py',
+     'stream.reconfigure(errors="backslashreplace")',
+     'stream.reconfigure(errors="replace")'),
+    ('SWT-13 a stream that cannot be set ends the sweep', 'selftest_sweep.py',
+     '    except (AttributeError, ValueError, OSError):\n        pass\n    return stream',
+     '    except ZeroDivisionError:\n        pass\n    return stream'),
+    ("SWT-14 a failing tool's tail joins stdout to stderr directly", 'selftest_sweep.py',
+     '            for line in output_tail(out.stdout, out.stderr):',
+     '            for line in (out.stdout + out.stderr).strip().splitlines()[-8:]:'),
     ('G5-SW23 a failing tool is read from its tail', 'selftest_sweep.py', 'notes = did_not_run_lines(out.stdout)', 'notes = did_not_run_lines(out.stdout if ok else "\\n".join((out.stdout + out.stderr).strip().splitlines()[-8:]))'),
 )
 
@@ -8210,7 +8226,8 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, p
 # row it was running and where the child's stack dump shows its thread (run_chunk, stall_report),
 # and that row is written to the selftest's stderr when the child is stopped (note_stall), which
 # the sweep prints when it stops this tool at its cap. A child still inside its own limit when
-# the sweep's cap is reached has written no such line.
+# the sweep's cap is reached has written no such line, and a run with one worker (mutant_jobs()
+# of 1) starts no child, so it has no child limit and writes none.
 _CHUNK_ROWS = 12
 _CHILD_TIMEOUT = 1500
 
@@ -8531,6 +8548,16 @@ def _stall_controls() -> list:
                 and run_chunk(chunk, {"nonce": "n2"}, 8, stalls, ["C:\\py\\Lib"], _Shut(OSError("pipe"))) == want
                 and run_chunk(chunk, {"nonce": "n2"}, 8, stalls, ["C:\\py\\Lib"],
                               _Shut(ValueError("closed"))) == want))
+
+    def stalls_before_rows(text, timeout):
+        raise subprocess.TimeoutExpired(["child"], timeout, output=b"", stderr=b"")
+    early = _Rec()
+    out.append(("a child stopped before it named a row is written to the notice stream as the chunk's "
+                "first row with the short reason",
+                run_chunk(chunk[:2], {"nonce": "n2"}, 8, stalls_before_rows, (), early)
+                == ["WZ01 (worker failed: TimeoutExpired)", "WZ02 (worker failed: TimeoutExpired)"]
+                and early.getvalue() == "file_hash: child stopped at its limit: WZ01 (worker failed: "
+                                        "TimeoutExpired)\n"))
 
     def finished(code, result):
         return lambda text, timeout: subprocess.CompletedProcess(["child"], code, stdout="noise\n" + json.dumps(result) + "\n")
