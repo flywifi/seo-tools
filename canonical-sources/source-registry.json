@@ -1,7 +1,7 @@
 {
   "_comment": "Source and dependency currency registry. Web-content sources are checked via source_currency.py (report/check[/--detect-changes] -> web-intel -> mark-checked). P33 added two dependency categories: software-dependency (pip packages, system binaries) and mcp-server (third-party MCP servers), checked token-free by tools/dependency_currency.py against PyPI/GitHub via the optional fields upstream_api (pypi|github_releases|binary|manual), check_url, package, pinned_constraint, validated_version, latest_seen, latest_seen_date. Written only through tools/registry_io.py (source_currency.py + traversal_engine.py accept). Do not hand-edit.",
   "version": "0.2.0",
-  "last_registry_update": "2026-11-23",
+  "last_registry_update": "2026-11-24",
   "sources": [
     {
       "id": "google-search-central-blog",
@@ -7844,7 +7844,8 @@
       "extraction_hint": "File types Claude reads from Drive: Google Docs, Sheets, Slides, PDF, Word/Excel/PowerPoint, OpenDocument, PNG and JPEG.",
       "used_by": [
         "docs/TASK-TRACKER.md",
-        "docs/DRIVE-HUB.md"
+        "docs/DRIVE-HUB.md",
+        "docs/SURFACE-WORKFLOWS.md"
       ],
       "depth": 0,
       "parent_source_id": null,
@@ -8021,7 +8022,26 @@
       "parent_source_id": null,
       "traversal_status": "pending",
       "child_source_ids": []
+    },
+    {
+      "id": "gemini-google-workspace-app",
+      "name": "Connect the Google Workspace app to Gemini Apps (Gemini Apps Help)",
+      "url": "https://support.google.com/gemini/answer/15229592",
+      "category": "ai-surface-spec",
+      "tier": "T1",
+      "check_interval_days": 30,
+      "staleness_threshold_days": 30,
+      "last_checked": "2026-11-23",
+      "last_changed_detected": null,
+      "extraction_hint": "What Gemini Apps can and cannot do with Google Workspace connected: it does not access Drive content outside documents, spreadsheets, presentations and PDFs.",
+      "used_by": [
+        "docs/SURFACE-WORKFLOWS.md"
+      ],
+      "depth": 0,
+      "parent_source_id": null,
+      "traversal_status": "pending",
+      "child_source_ids": []
     }
   ],
-  "_content_digest": "c2ae470366cae572f359ee0ad582d88f4b90e040b2aceb74a5da0817e493ddb8"
+  "_content_digest": "49c2c6ee66a047a71ff97dd5456834a95ae06495c613834c63c4973379296cda"
 }

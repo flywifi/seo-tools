@@ -57,8 +57,9 @@ requests, not a sequence of surfaces.
 
 ## Decision 2: gaps are pinned, not fixed, with one exception
 
-The suite pins eleven open gaps (SW-G1 to SW-G8 and SW-G10 to SW-G12 in
-`docs/SURFACE-WORKFLOWS.md`), each with a probe that fails the suite once the gap closes, so a fix
+The suite pinned eleven open gaps when it landed (SW-G1 to SW-G8 and SW-G10 to SW-G12 in
+`docs/SURFACE-WORKFLOWS.md`; SW-G13, what the vendors' pages say about a Drive connector reading
+the hub's text formats, was added in P103), each with a probe that fails the suite once the gap closes, so a fix
 is a deliberate change to the contract and the guide. SW-G9 is fixed here: `tools/tasks.py`
 `merge_tasks` matched events by a sequence number that the merge renumbers, so a register edited on
 both sides gained a duplicate event on every later read. Events are now matched by every field

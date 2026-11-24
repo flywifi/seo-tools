@@ -168,6 +168,7 @@ updated together, so closing a gap is always a deliberate change.
 | SW-G10 | Some Drive connectors can now move and trash files; a queued ticket trashed before the computer runs leaves no result and no record that it existed |
 | SW-G11 | Doc exports skip the offline injection screen and wait for a Claude session: a Word file, and a Google Docs shortcut on a Drive for desktop mirror, which is held unread with a note to download it; only text files are screened offline |
 | SW-G12 | An in-session escalation that refuses a route (QUARANTINE or BLOCK) writes no ledger row |
+| SW-G13 | The vendors' pages do not say a web Drive connector reads the hub's text formats (JSON, Markdown, .ics). Anthropic's table of file types Claude can read and OpenAI's Google Drive page do not list them; Google's page says Gemini does not read Drive content outside documents, spreadsheets, presentations and PDFs (pages read 2026-11-23). The probe reads the `hub_text_read` value the contract records for each connector surface; it does not read the pages, and what a connector does on an account is checked by the live steps in `docs/MAC-VALIDATION.md` |
 
 Closed in this change: **SW-G9**, the task register merge. When the same task had been edited on
 both sides, every later read of the unchanged web copy added another copy of the same event,
@@ -215,6 +216,8 @@ on 2026-10-01 and are registered in the source registry, so the currency checks 
   {"id": "openai-chatgpt-desktop-move", "url": "https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app"},
   {"id": "openai-chatgpt-developer-mode-help", "url": "https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt"},
   {"id": "gemini-export-responses", "url": "https://support.google.com/gemini/answer/14184041"},
+  {"id": "gemini-google-workspace-app", "name": "Connect the Google Workspace app to Gemini Apps (Gemini Apps Help)", "url": "https://support.google.com/gemini/answer/15229592", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "What Gemini Apps can and cannot do with Google Workspace connected: it does not access Drive content outside documents, spreadsheets, presentations and PDFs."},
+  {"id": "claude-google-drive-connector-docs", "url": "https://claude.com/docs/connectors/google/drive"},
   {"id": "gemini-spark-mac", "url": "https://support.google.com/gemini/answer/17208717"},
   {"id": "gemini-custom-mcp-apps", "url": "https://support.google.com/gemini/answer/17209137"},
   {"id": "gemini-mac-app", "url": "https://support.google.com/gemini/answer/17011627"}

@@ -13,6 +13,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- Gap ledger entry SW-G13 (P103): the surface-workflow contract records, for each surface that
+  reaches the hub through a vendor's Drive connector, what the vendor's page says about reading
+  the hub's text formats (`hub_text_read`: `documented_yes`, `documented_no` or `undocumented`;
+  pages read 2026-11-23). `tools/surface_workflow_check.py` refuses a value outside those three,
+  a connector surface without the record and a record on a local surface, and the probe
+  `hub_formats_unread` holds while the recorded values show none of the connector surfaces
+  documented as reading them. The probe reads the contract, not the pages. Seven workflows list
+  the gap; `docs/SURFACE-WORKFLOWS.md` carries the ledger row and declares Google's page.
 - Stall output in the selftest sweep (P103): a tool that `tools/selftest_sweep.py` stops at its
   cap has its last eight output lines printed under its `[FAIL]` line, stdout then stderr
   (`output_tail`; the bytes POSIX leaves on the timeout and the text Windows leaves are both

@@ -99,7 +99,13 @@ TOKEN = "sandbox" + "-bearer"  # built from parts: a stand-in, never a credentia
 # The contract's schema. Unknown keys and unknown ops are refused (fail closed).
 TOP_KEYS = {"suite", "_comment", "schema_version", "pinned_today", "surfaces", "gap_ledger",
             "_closed_gaps", "workflows"}
-SURFACE_KEYS = {"drive_write", "sources", "note"}
+SURFACE_KEYS = {"drive_write", "sources", "note", "hub_text_read"}
+# hub_text_read: what the vendor's page says about its Drive connector reading the hub's text
+# formats (JSON, Markdown, .ics), recorded for each surface that reaches the hub through a
+# connector. A surface with one of LOCAL_WRITE_MODES works on files on the computer and carries
+# no such record.
+HUB_TEXT_READ = {"documented_yes", "documented_no", "undocumented"}
+LOCAL_WRITE_MODES = {"none", "local_folder_edit"}
 GAP_KEYS = {"id", "probe", "summary", "evidence", "expected"}
 CLOSED_GAP_KEYS = {"id", "summary", "closed_by", "pinned_by"}
 WORKFLOW_KEYS = {"id", "path", "story", "steps", "gaps", "live_steps"}
@@ -908,6 +914,22 @@ def detect_no_preference_merge(descriptions) -> bool:
     return not any(files.search(d) and verbs.search(d) for d in descriptions)
 
 
+def connector_surfaces(surfaces) -> list:
+    """The declared surfaces that reach the hub through a vendor's Drive connector: each one whose
+    drive_write is not one of LOCAL_WRITE_MODES, read from the contract."""
+    return sorted(sid for sid, rec in surfaces.items() if rec.get("drive_write") not in LOCAL_WRITE_MODES)
+
+
+def detect_hub_formats_unread(surfaces) -> bool:
+    """SW-G13 holds while the contract declares a connector surface and records, for each of them,
+    that the vendor's page says the connector does not read the hub's text formats or does not
+    say (documented_no, undocumented). One documented_yes, a surface with no record, or a value
+    outside those ends it. It reads what the contract records; it does not read the pages."""
+    ids = connector_surfaces(surfaces)
+    return bool(ids) and all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")
+                             for sid in ids)
+
+
 def _python_sources():
     """tools/ and shared/ Python files: the tracked set from git, or, in a copy without git, every
     .py file under those folders outside __pycache__."""
@@ -1063,6 +1085,12 @@ def probe_refused_escalation_unrecorded(ctx):
         box.close()
 
 
+def probe_hub_formats_unread(ctx):
+    """The vendors' pages, as the contract records them, do not say a Drive connector reads the
+    hub's JSON, Markdown and .ics files."""
+    return detect_hub_formats_unread(ctx["contract"]["surfaces"])
+
+
 PROBES = {"vendor_origin": probe_vendor_origin, "result_origin": probe_result_origin,
           "handoff_runlog": probe_handoff_runlog, "minority_persistence": probe_minority_persistence,
           "workspace_flag_map": probe_workspace_flag_map, "declared_only_flags": probe_declared_only_flags,
@@ -1070,7 +1098,8 @@ PROBES = {"vendor_origin": probe_vendor_origin, "result_origin": probe_result_or
           "dated_preference_merge": probe_dated_preference_merge,
           "trashed_ticket_silent": probe_trashed_ticket_silent,
           "doc_exports_unscreened": probe_doc_exports_unscreened,
-          "refused_escalation_unrecorded": probe_refused_escalation_unrecorded}
+          "refused_escalation_unrecorded": probe_refused_escalation_unrecorded,
+          "hub_formats_unread": probe_hub_formats_unread}
 
 
 # --------------------------------------------------------------------------- contract validation
@@ -1209,6 +1238,16 @@ def validate_contract(contract, matrix) -> list:
                 surface_can_reach(matrix, sid, "local") or any(
                     surface_can_reach(matrix, sid, a) for a in HUB_AREAS)):
             p.append(f"surface {sid}: drive_write {s['drive_write']!r} but its matrix row reaches no store")
+        read = s.get("hub_text_read")
+        if "hub_text_read" in s and not (isinstance(read, str) and read in HUB_TEXT_READ):
+            p.append(f"surface {sid}: unknown hub_text_read {read!r}")
+        if s.get("drive_write") in WRITE_MODES:
+            if s["drive_write"] in LOCAL_WRITE_MODES and "hub_text_read" in s:
+                p.append(f"surface {sid}: hub_text_read is recorded but drive_write "
+                         f"{s['drive_write']!r} is not a connector mode")
+            elif s["drive_write"] not in LOCAL_WRITE_MODES and "hub_text_read" not in s:
+                p.append(f"surface {sid}: drive_write {s['drive_write']!r} is a connector mode but "
+                         f"hub_text_read is not recorded")
     gaps = set()
     for g in contract.get("gap_ledger", []):
         p += [f"gap {g.get('id')}: unknown key {k!r}" for k in set(g) - GAP_KEYS]
@@ -1529,6 +1568,19 @@ def _pins_contract(m):
             "of", "later")), "earlier step")),
         ("contract-merge-needs-passes", has(bad(lambda c: step(c, "W5", "merge")["with"].__setitem__("passes", 1)),
                                             "passes of 2 or more")),
+        ("contract-unknown-hub-read", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__(
+            "hub_text_read", "maybe")), "surface claude_web: unknown hub_text_read 'maybe'")),
+        ("contract-hub-read-not-text", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__(
+            "hub_text_read", ["undocumented"])), "surface claude_web: unknown hub_text_read")),
+        ("contract-hub-read-missing", has(bad(lambda c: c["surfaces"]["gemini_web"].pop("hub_text_read")),
+                                          "surface gemini_web: drive_write 'create' is a connector mode but "
+                                          "hub_text_read is not recorded")),
+        ("contract-hub-read-on-local", has(bad(lambda c: c["surfaces"]["claude_desktop"].__setitem__(
+            "hub_text_read", "undocumented")), "surface claude_desktop: hub_text_read is recorded but")),
+        ("contract-hub-read-each-value", m.HUB_TEXT_READ == {"documented_yes", "documented_no", "undocumented"}
+         and all(m.validate_contract(dict(contract, surfaces=dict(
+             contract["surfaces"], claude_web=dict(contract["surfaces"]["claude_web"], hub_text_read=v))),
+             matrix) == [] for v in ("documented_yes", "documented_no", "undocumented"))),
         ("contract-unknown-probe", has(bad(lambda c: c["gap_ledger"][0].__setitem__("probe", "nope")), "unknown probe")),
         ("contract-unknown-gap", has(bad(lambda c: c["workflows"][0]["gaps"].append("SW-G99")), "unknown gap")),
         ("contract-duplicate-workflow", has(bad(lambda c: c["workflows"].append(copy.deepcopy(c["workflows"][0]))),
@@ -1777,7 +1829,32 @@ def _pins_detect(m):
          and not m.detect_no_preference_merge(["proposes a merged voice-profile from dated exports"])
          and not m.detect_no_preference_merge(["imports a dated channel-context export"])),
         ("python-sources-fallback", bool(m._python_sources())),
+        ("detect-hub-formats", _hub_formats_cases(m)),
     ]
+
+
+def _hub_formats_cases(m) -> bool:
+    """SW-G13's detector on stand-in surface tables, and the connector surfaces of the live
+    contract, which the detector derives from drive_write."""
+    web = {"a_web": {"drive_write": "create", "hub_text_read": "undocumented"},
+           "b_web": {"drive_write": "create_update_move_trash", "hub_text_read": "documented_no"},
+           "desk": {"drive_write": "local_folder_edit"}, "off": {"drive_write": "none"}}
+
+    def with_read(value):
+        return dict(web, a_web=dict(web["a_web"], hub_text_read=value))
+    live = m.load_json(m.CONTRACT)["surfaces"]
+    return (m.detect_hub_formats_unread(web)
+            and m.connector_surfaces(web) == ["a_web", "b_web"]
+            and not m.detect_hub_formats_unread(with_read("documented_yes"))
+            and not m.detect_hub_formats_unread(with_read("documented-no"))
+            and not m.detect_hub_formats_unread(dict(web, a_web={"drive_write": "create"}))
+            and not m.detect_hub_formats_unread({"desk": web["desk"], "off": web["off"]})
+            and not m.detect_hub_formats_unread({})
+            and m.detect_hub_formats_unread({"a_web": web["a_web"]})
+            and m.connector_surfaces(live) == ["chatgpt_desktop", "chatgpt_web_plain", "claude_web", "gemini_web"]
+            and m.detect_hub_formats_unread(live)
+            and m.probe_hub_formats_unread({"contract": {"surfaces": web}}) is True
+            and m.probe_hub_formats_unread({"contract": {"surfaces": with_read("documented_yes")}}) is False)
 
 
 def _pins_verdict(m):
@@ -3642,6 +3719,46 @@ _MUTANTS = (
     ('E-P4 non-object list item passes', 'contract',
      'extra = sorted(set(item) - keys[k]) if isinstance(item, dict) else ["(not an object)"]',
      'extra = sorted(set(item) - keys[k]) if isinstance(item, dict) else []'),
+    ('G13-1 an unknown hub_text_read value passes', 'contract',
+     '        if "hub_text_read" in s and not (isinstance(read, str) and read in HUB_TEXT_READ):',
+     '        if False:'),
+    ('G13-2 a connector surface with no record passes', 'contract',
+     '            elif s["drive_write"] not in LOCAL_WRITE_MODES and "hub_text_read" not in s:',
+     '            elif False:'),
+    ('G13-3 a record on a local surface passes', 'contract',
+     '            if s["drive_write"] in LOCAL_WRITE_MODES and "hub_text_read" in s:',
+     '            if False:'),
+    ('G13-4 a fourth value is accepted', 'contract',
+     'HUB_TEXT_READ = {"documented_yes", "documented_no", "undocumented"}',
+     'HUB_TEXT_READ = {"documented_yes", "documented_no", "undocumented", "maybe"}'),
+    ('G13-5 documented_yes is refused', 'contract',
+     'HUB_TEXT_READ = {"documented_yes", "documented_no", "undocumented"}',
+     'HUB_TEXT_READ = {"documented_no", "undocumented"}'),
+    ('G13-6 the field is an unknown key', 'contract',
+     'SURFACE_KEYS = {"drive_write", "sources", "note", "hub_text_read"}',
+     'SURFACE_KEYS = {"drive_write", "sources", "note"}'),
+    ('G13-7 one unread surface is enough', 'detect',
+     '    return bool(ids) and all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
+     '    return bool(ids) and any(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")'),
+    ('G13-8 no connector surface reads as the gap', 'detect',
+     '    return bool(ids) and all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
+     '    return all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")'),
+    ('G13-9 a surface with no record counts as unread', 'detect',
+     'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
+     'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented", None)'),
+    ('G13-10 a local surface counts as a connector', 'detect',
+     'LOCAL_WRITE_MODES = {"none", "local_folder_edit"}',
+     'LOCAL_WRITE_MODES = {"none"}'),
+    ('G13-11 the probe always holds', 'detect',
+     '    return detect_hub_formats_unread(ctx["contract"]["surfaces"])',
+     '    return True'),
+    ('G13-12 the probe is not registered', 'workflows',
+     '          "refused_escalation_unrecorded": probe_refused_escalation_unrecorded,\n'
+     '          "hub_formats_unread": probe_hub_formats_unread}',
+     '          "refused_escalation_unrecorded": probe_refused_escalation_unrecorded}'),
+    ('G13-13 documented_yes still reads as the gap', 'detect',
+     'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
+     'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented", "documented_yes")'),
 )
 
 # Rows whose pin does not run on Windows, so only a POSIX run can catch them: T4's privacy check
