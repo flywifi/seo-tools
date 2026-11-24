@@ -13,6 +13,14 @@ tag is still pending; the `[Unreleased]` block above it holds P78 to P81.
 ## [Unreleased]
 
 ### Added
+- Stall output in the selftest sweep (P103): a tool that `tools/selftest_sweep.py` stops at its
+  cap has its last eight output lines printed under its `[FAIL]` line, stdout then stderr
+  (`output_tail`; the bytes POSIX leaves on the timeout and the text Windows leaves are both
+  read). `tools/file_hash.py` writes the row a stopped mutation-run child was running to its own
+  stderr when the child is stopped, as `file_hash: child stopped at its limit: <the stall
+  report's first line>` (`note_stall`, called by `run_chunk`), so a run the sweep stops before
+  file_hash's closing report has that line in the printed tail. A child still inside its own
+  limit when the sweep's cap is reached has written no such line.
 - Private terms in the secret scan (ADR 0089): `tools/secret_scan.py` reads the person's own
   list, `creator-os-private-terms.local.json` at the repo root (`{"terms": ["...", ...]}`,
   ignored by git, created empty by `tools/setup.py` for the account that runs it), and reports a

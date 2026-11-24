@@ -187,6 +187,27 @@ def enrolment_problems():
 
 
 DID_NOT_RUN = "DID NOT RUN: "
+# How many closing lines of a tool's output the sweep prints under a tool that failed or that it
+# stopped at its cap.
+TAIL_LINES = 8
+
+
+def _captured(data) -> str:
+    """A captured stream as text. subprocess.run leaves bytes on the TimeoutExpired it raises on
+    POSIX, text on Windows, and None for a stream with nothing read; bytes are read as UTF-8, a
+    byte outside it replaced."""
+    if data is None:
+        return ""
+    return data.decode("utf-8", "replace") if isinstance(data, (bytes, bytearray)) else str(data)
+
+
+def output_tail(stdout, stderr, count=TAIL_LINES) -> list:
+    """The last count lines of a tool's stdout followed by its stderr. A stdout cut inside a line
+    (a tool stopped while writing) ends that line before stderr starts."""
+    out = _captured(stdout)
+    if out and not out.endswith("\n"):
+        out += "\n"
+    return (out + _captured(stderr)).strip().splitlines()[-count:]
 
 
 def did_not_run_lines(text) -> list:
@@ -209,8 +230,12 @@ def run_sweep():
         try:
             out = subprocess.run([sys.executable] + argv, cwd=str(ROOT), env=env,
                                  capture_output=True, text=True, timeout=limit)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
+            # What the tool had written when it was stopped: file_hash names a stopped child's row
+            # on its stderr as it goes (file_hash.note_stall), and prints its checks at the end.
             print(f"  [FAIL] {rel} (timeout after {limit}s)")
+            for line in output_tail(exc.stdout, exc.stderr):
+                print(f"         {line}")
             failed.append(str(rel))
             continue
         ok = out.returncode == 0
@@ -220,8 +245,7 @@ def run_sweep():
             print(f"         {line}")
             not_run.append(f"{rel}: {line}")
         if not ok:
-            tail = (out.stdout + out.stderr).strip().splitlines()[-8:]
-            for line in tail:
+            for line in output_tail(out.stdout, out.stderr):
                 if line.strip() not in notes:
                     print(f"         {line}")
             failed.append(str(rel))
@@ -386,6 +410,48 @@ def selftest():
                    "pair": (0, ["         DID NOT RUN: a1", "         DID NOT RUN: b1",
                                 "         DID NOT RUN: b2",
                                 "selftest-sweep: PASS (2 of 2 selftests); 3 DID NOT RUN line(s) above"])})
+    stopped, real_enrol = {}, globals()["enrolment_problems"]
+    nine = "".join(f"row {i}\n" for i in range(9))
+    try:
+        globals()["enrolment_problems"] = lambda: []
+        PACKAGE_ENTRIES[:] = []
+        globals()["discover"] = lambda: [(ROOT / "tools" / "secret_scan.py", ["--selftest"])]
+        for name, held in (
+                ("bytes", (b"  [ok] a\n", b"file_hash: child stopped at its limit: WZ01 (worker failed)\n")),
+                ("text", ("  [ok] a\n", "stopped in caf\u00e9\n")),
+                ("nothing", (None, None)),
+                ("stderr alone", (None, b"only this\n")),
+                ("not UTF-8", (b"caf\xe9 line\n", None)),
+                ("cut line", (b"  [ok] a\npartial", b"from stderr\n")),
+                ("long", (nine.encode("utf-8"), b"last\n"))):
+            def stops(argv, _h=held, **kw):
+                raise subprocess.TimeoutExpired(argv, kw.get("timeout"), output=_h[0], stderr=_h[1])
+            subprocess.run = stops
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc_stop = run_sweep()
+            stopped[name] = (rc_stop, buf.getvalue().splitlines()[:-2])
+    finally:
+        subprocess.run, globals()["discover"] = real_run, real_discover
+        globals()["enrolment_problems"] = real_enrol
+        PACKAGE_ENTRIES[:] = real_pkgs
+    head = f"  [FAIL] tools/secret_scan.py (timeout after {PER_TOOL_TIMEOUT}s)"
+    check("a tool the sweep stops at its cap fails the sweep and its last eight lines are printed under "
+          "it, stdout then stderr: bytes (as POSIX leaves them) and text (as Windows does), a stream "
+          "with nothing read, a byte outside UTF-8 replaced, a stdout cut inside a line ended before "
+          "stderr, and of ten lines the last eight",
+          stopped == {"bytes": (1, [head, "         [ok] a",
+                                    "         file_hash: child stopped at its limit: WZ01 (worker failed)"]),
+                      "text": (1, [head, "         [ok] a", "         stopped in caf\u00e9"]),
+                      "nothing": (1, [head]),
+                      "stderr alone": (1, [head, "         only this"]),
+                      "not UTF-8": (1, [head, "         caf\ufffd line"]),
+                      "cut line": (1, [head, "         [ok] a", "         partial", "         from stderr"]),
+                      "long": (1, [head] + [f"         row {i}" for i in range(2, 9)] + ["         last"])})
+    check("the tail of a tool's output is its last eight lines, stdout before stderr",
+          TAIL_LINES == 8 and output_tail("a\nb\n", "c\n") == ["a", "b", "c"]
+          and output_tail(nine, "") == [f"row {i}" for i in range(1, 9)]
+          and output_tail("", "") == [] and output_tail(None, None) == [])
     caps = {j: _tool_timeout("tools/file_hash.py", jobs=j) for j in (1, 2, 3, 4, 8)}
     check("file_hash's cap is 3000 s with four or more workers and grows in proportion with fewer",
           caps == {1: 12000, 2: 6000, 3: 4000, 4: 3000, 8: 3000})
