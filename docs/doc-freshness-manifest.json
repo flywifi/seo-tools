@@ -10,8 +10,8 @@
     },
     "docs/SURFACE-WORKFLOWS.md": {
       "sources": {
-        "tools/surface_workflow_check.py": "0338a2ec52c584d3d83668bf0f2df02c30eaf34b715d6dccca93cf7c7bf0ee93",
-        "skills/creator-core/evals/surface-workflows.json": "e85356eed300bef4f36ae7d7ca88850ee76f41e0b80020af6a4149c9ba11e961"
+        "tools/surface_workflow_check.py": "1f5d0abbe3d37d384f834c6032423151f2ff9299409dd215255209ba81df008c",
+        "skills/creator-core/evals/surface-workflows.json": "7abbc3c86302088a65059bd6ccde6275615e8d8e9cea65c63b8ef196fd10b32e"
       }
     },
     "docs/AUDIT-PROTOCOL.md": {

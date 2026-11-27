@@ -18,10 +18,10 @@ The suite fails in both directions, like tools/scenario_check.py: a real step's 
 or a pinned gap probe no longer observing its gap (a closed gap must be closed deliberately, by
 updating the contract and docs/SURFACE-WORKFLOWS.md together).
 
-The contract also records, for each surface that writes to the hub through a vendor's Drive
-connector, what the vendor's page says about that connector reading the hub's text formats
-(hub_text_read); gap SW-G13's probe reads that record. No step simulates a web chat reading a
-hub file.
+The contract also records, for each surface with a vendor-side Drive write (a Drive connector or
+app, or Gemini's Export to Docs), what the vendor's page says about its chat reading the hub's
+text formats from Drive (hub_text_read), citing at least one registered source; gap SW-G13's
+probe reads that record. No step simulates a web chat reading a hub file.
 
 SANDBOX. Each workflow gets its own temporary folder: a hub with the docs/DRIVE-HUB.md layout, a
 context folder, a log folder, a state file, an inbox ledger, and a Drive API stand-in. The module
@@ -87,6 +87,7 @@ import atomic_io  # noqa: E402
 import coverage_verify as cv  # noqa: E402
 import profile_mirror as pm  # noqa: E402
 import publishing_compliance as pc  # noqa: E402
+import registry_io  # noqa: E402
 import tasks as T  # noqa: E402
 import validate_agent_output as vao  # noqa: E402
 from handoff import inbox as ib  # noqa: E402
@@ -105,13 +106,16 @@ TOKEN = "sandbox" + "-bearer"  # built from parts: a stand-in, never a credentia
 TOP_KEYS = {"suite", "_comment", "schema_version", "pinned_today", "surfaces", "gap_ledger",
             "_closed_gaps", "workflows"}
 SURFACE_KEYS = {"drive_write", "sources", "note", "hub_text_read"}
-# hub_text_read: what the vendor's page says about its Drive connector reading the hub's text
-# formats (JSON, Markdown, .ics). It is recorded for each surface that writes to the hub through a
-# connector: each drive_write mode outside NO_CONNECTOR_MODES. With "none" the surface writes
-# nothing to Drive and with "local_folder_edit" it works on the computer's own files; neither
-# carries the record. A surface that reads Drive without writing to it is not modelled.
+# hub_text_read: what the vendor's page says about its chat reading the hub's text formats (JSON,
+# Markdown, .ics) from Drive: Claude's Drive connector, ChatGPT's Google Drive app, Gemini's Google
+# Workspace app. It is recorded, citing at least one registered source, for each surface with a
+# vendor-side Drive write: a drive_write mode outside NO_VENDOR_WRITE_MODES, in which the vendor's
+# service puts the file in Drive (a Drive connector or app, or Gemini's Export to Docs). With "none"
+# the surface writes nothing to Drive and with "local_folder_edit" it works on the computer's own
+# files, which Drive for desktop may then sync; neither carries the record. A surface that reads
+# Drive without writing to it is not modelled.
 HUB_TEXT_READ = {"documented_yes", "documented_no", "undocumented"}
-NO_CONNECTOR_MODES = {"none", "local_folder_edit"}
+NO_VENDOR_WRITE_MODES = {"none", "local_folder_edit"}
 GAP_KEYS = {"id", "probe", "summary", "evidence", "expected"}
 CLOSED_GAP_KEYS = {"id", "summary", "closed_by", "pinned_by"}
 WORKFLOW_KEYS = {"id", "path", "story", "steps", "gaps", "live_steps"}
@@ -136,6 +140,12 @@ HUMAN_SURFACES = {"human_at_home"}
 GENERIC_ORIGINS = {"web", "desktop", "mac", "windows", "linux", "other"}
 KNOWN_TICKET_KEYS = {"job_id", "created_at", "origin", "requested_by", "job_type", "params", "input_refs",
                      "priority", "consent_note", "schema_version"}
+
+
+def registry_ids() -> set:
+    """The source ids in canonical-sources/source-registry.json, read through registry_io."""
+    data = registry_io.load_registry()
+    return {s.get("id") for s in data.get("sources", []) if isinstance(s, dict)}
 
 
 def load_json(path):
@@ -920,18 +930,20 @@ def detect_no_preference_merge(descriptions) -> bool:
     return not any(files.search(d) and verbs.search(d) for d in descriptions)
 
 
-def connector_surfaces(surfaces) -> list:
-    """The declared surfaces that write to the hub through a vendor's Drive connector: each one
-    whose drive_write is not one of NO_CONNECTOR_MODES, read from the contract."""
-    return sorted(sid for sid, rec in surfaces.items() if rec.get("drive_write") not in NO_CONNECTOR_MODES)
+def vendor_write_surfaces(surfaces) -> list:
+    """The declared surfaces with a vendor-side Drive write (a Drive connector or app, or Gemini's
+    Export to Docs): each one whose drive_write is not one of NO_VENDOR_WRITE_MODES, read from the
+    contract."""
+    return sorted(sid for sid, rec in surfaces.items() if rec.get("drive_write") not in NO_VENDOR_WRITE_MODES)
 
 
 def detect_hub_formats_unread(surfaces) -> bool:
-    """SW-G13 holds while the contract declares a connector surface and records, for each of them,
-    that the vendor's page says the connector does not read the hub's text formats or does not
-    say (documented_no, undocumented). One documented_yes, a surface with no record, or a value
-    outside those ends it. It reads what the contract records; it does not read the pages."""
-    ids = connector_surfaces(surfaces)
+    """SW-G13 holds while the contract declares at least one surface with a vendor-side Drive write
+    and records, for each of them, that the vendor's page says its chat does not read the hub's
+    text formats from Drive or does not say (documented_no, undocumented). One documented_yes, a
+    surface with no record, a value outside those, or a contract with no such surface ends it. It
+    reads what the contract records; it does not read the pages."""
+    ids = vendor_write_surfaces(surfaces)
     return bool(ids) and all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")
                              for sid in ids)
 
@@ -1092,8 +1104,8 @@ def probe_refused_escalation_unrecorded(ctx):
 
 
 def probe_hub_formats_unread(ctx):
-    """The vendors' pages, as the contract records them, do not say a Drive connector reads the
-    hub's JSON, Markdown and .ics files."""
+    """The vendors' pages, as the contract records them, do not say their chat reads the hub's
+    JSON, Markdown and .ics files from Drive."""
     return detect_hub_formats_unread(ctx["contract"]["surfaces"])
 
 
@@ -1225,12 +1237,15 @@ def payload_template_problems(contract, folder=None, no_template=None, stale=Fal
     return p
 
 
-def validate_contract(contract, matrix) -> list:
+def validate_contract(contract, matrix, known_sources=None) -> list:
     """Every problem in the contract; empty means it may run. Unknown keys (top level, surface, gap,
     workflow, step, and a step's 'with' keys for its op), ops, surfaces, modes, areas, gaps and
     probes are refused, as are steps whose surface is not on the workflow's path and path surfaces
-    no step uses."""
+    no step uses. A surface's sources must be ids the source registry holds (known_sources, by
+    default read from canonical-sources/source-registry.json), and a surface that records
+    hub_text_read cites at least one."""
     p = []
+    known = registry_ids() if known_sources is None else set(known_sources)
     surfaces = matrix.get("surfaces", {})
     p += [f"unknown top-level key {k!r}" for k in set(contract) - TOP_KEYS]
     declared = contract.get("surfaces", {})
@@ -1248,12 +1263,20 @@ def validate_contract(contract, matrix) -> list:
         if "hub_text_read" in s and not (isinstance(read, str) and read in HUB_TEXT_READ):
             p.append(f"surface {sid}: unknown hub_text_read {read!r}")
         if s.get("drive_write") in WRITE_MODES:
-            if s["drive_write"] in NO_CONNECTOR_MODES and "hub_text_read" in s:
+            if s["drive_write"] in NO_VENDOR_WRITE_MODES and "hub_text_read" in s:
                 p.append(f"surface {sid}: hub_text_read is recorded but drive_write "
-                         f"{s['drive_write']!r} is not a connector mode")
-            elif s["drive_write"] not in NO_CONNECTOR_MODES and "hub_text_read" not in s:
-                p.append(f"surface {sid}: drive_write {s['drive_write']!r} is a connector mode but "
-                         f"hub_text_read is not recorded")
+                         f"{s['drive_write']!r} is not a vendor-side Drive write")
+            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES and "hub_text_read" not in s:
+                p.append(f"surface {sid}: drive_write {s['drive_write']!r} is a vendor-side Drive write "
+                         f"but hub_text_read is not recorded")
+        cited = s.get("sources", [])
+        if not (isinstance(cited, list) and all(isinstance(x, str) for x in cited)):
+            p.append(f"surface {sid}: sources must be a list of source registry ids")
+        else:
+            p += [f"surface {sid}: source {x!r} is not in the source registry"
+                  for x in cited if x not in known]
+            if "hub_text_read" in s and not cited:
+                p.append(f"surface {sid}: hub_text_read is recorded with no source")
     gaps = set()
     for g in contract.get("gap_ledger", []):
         p += [f"gap {g.get('id')}: unknown key {k!r}" for k in set(g) - GAP_KEYS]
@@ -1579,8 +1602,8 @@ def _pins_contract(m):
         ("contract-hub-read-not-text", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__(
             "hub_text_read", ["undocumented"])), "surface claude_web: unknown hub_text_read")),
         ("contract-hub-read-missing", has(bad(lambda c: c["surfaces"]["gemini_web"].pop("hub_text_read")),
-                                          "surface gemini_web: drive_write 'create' is a connector mode but "
-                                          "hub_text_read is not recorded")),
+                                          "surface gemini_web: drive_write 'create' is a vendor-side Drive write "
+                                          "but hub_text_read is not recorded")),
         ("contract-hub-read-on-local", has(bad(lambda c: c["surfaces"]["claude_desktop"].__setitem__(
             "hub_text_read", "undocumented")), "surface claude_desktop: hub_text_read is recorded but")),
         ("contract-hub-read-on-none", has(bad(lambda c: c["surfaces"].__setitem__(
@@ -1597,6 +1620,39 @@ def _pins_contract(m):
         ("contract-duplicate-step", has(bad(dup_step), "duplicate step id")),
         ("contract-mcp-needs-tools", has(bad(lambda c: (first_mcp(c).__setitem__("surface", "gemini_desktop"))),
                                          "MCP step")),
+        ("contract-hub-read-null", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__(
+            "hub_text_read", None)), "surface claude_web: unknown hub_text_read None")),
+        ("contract-hub-read-letter-case", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__(
+            "hub_text_read", "Undocumented")), "surface claude_web: unknown hub_text_read 'Undocumented'")),
+        ("contract-hub-read-padded", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__(
+            "hub_text_read", " undocumented")), "surface claude_web: unknown hub_text_read ' undocumented'")),
+        ("contract-hub-read-on-human", has(bad(lambda c: c["surfaces"]["human_at_home"].__setitem__(
+            "hub_text_read", "undocumented")), "surface human_at_home: hub_text_read is recorded but")),
+        ("contract-hub-read-missing-each-mode",
+         has(bad(lambda c: c["surfaces"]["claude_web"].pop("hub_text_read")),
+             "surface claude_web: drive_write 'create_move_trash' is a vendor-side Drive write but")
+         and has(bad(lambda c: c["surfaces"]["chatgpt_desktop"].pop("hub_text_read")),
+                 "surface chatgpt_desktop: drive_write 'create_update_move_trash' is a vendor-side Drive "
+                 "write but")),
+        ("contract-source-unknown", has(bad(lambda c: c["surfaces"]["claude_web"]["sources"].append(
+            "no-such-source")), "surface claude_web: source 'no-such-source' is not in the source registry")),
+        ("contract-sources-not-a-list", has(bad(lambda c: c["surfaces"]["claude_web"].__setitem__(
+            "sources", "claude-google-drive-connector-docs")), "surface claude_web: sources must be a list")),
+        ("contract-hub-read-no-source", has(bad(lambda c: c["surfaces"]["gemini_web"].__setitem__(
+            "sources", [])), "surface gemini_web: hub_text_read is recorded with no source")),
+        ("contract-sources-read-from-registry",
+         has(m.validate_contract(contract, matrix, known_sources=set()),
+             "surface claude_web: source 'claude-google-drive-connector-docs' is not in the source registry")
+         and "claude-google-drive-connector-docs" in m.registry_ids()),
+        ("contract-source-unknown-without-record", has(bad(lambda c: c["surfaces"]["gemini_desktop"]["sources"].append(
+            "no-such-source")), "surface gemini_desktop: source 'no-such-source' is not in the source registry")),
+        ("contract-source-letter-case", has(bad(lambda c: c["surfaces"]["claude_web"]["sources"].append(
+            "CLAUDE-GOOGLE-DRIVE-CONNECTOR-DOCS")),
+            "surface claude_web: source 'CLAUDE-GOOGLE-DRIVE-CONNECTOR-DOCS' is not in the source registry")),
+        ("contract-sources-each-shape", all(has(bad(lambda c, v=v: c["surfaces"]["claude_desktop"].__setitem__(
+            "sources", v)), "surface claude_desktop: sources must be a list") for v in ([1], [["x"]], None, {"a": 1}))),
+        ("contract-hub-read-sources-key-missing", has(bad(lambda c: c["surfaces"]["gemini_web"].pop("sources")),
+                                                      "surface gemini_web: hub_text_read is recorded with no source")),
     ]
 
 
@@ -1843,8 +1899,8 @@ def _pins_detect(m):
 
 
 def _hub_formats_cases(m) -> bool:
-    """SW-G13's detector on stand-in surface tables, and the connector surfaces of the live
-    contract, which the detector derives from drive_write."""
+    """SW-G13's detector on stand-in surface tables, and the vendor-side Drive write surfaces of the
+    live contract, which the detector derives from drive_write."""
     web = {"a_web": {"drive_write": "create", "hub_text_read": "undocumented"},
            "b_web": {"drive_write": "create_update_move_trash", "hub_text_read": "documented_no"},
            "desk": {"drive_write": "local_folder_edit"}, "off": {"drive_write": "none"}}
@@ -1853,22 +1909,22 @@ def _hub_formats_cases(m) -> bool:
         return dict(web, a_web=dict(web["a_web"], hub_text_read=value))
     contract = m.load_json(m.CONTRACT)
     live = contract["surfaces"]
-    conn = set(m.connector_surfaces(live))
-    # SW-G13 is listed on the workflows in which a connector surface writes into a hub area.
+    vendor = set(m.vendor_write_surfaces(live))
+    # SW-G13 is listed on the workflows in which a vendor-side surface writes into a hub area.
     writes = [w["id"] for w in contract["workflows"]
-              if any(st.get("op") == "surface.write" and st.get("surface") in conn
+              if any(st.get("op") == "surface.write" and st.get("surface") in vendor
                      and (st.get("with") or {}).get("area") in m.HUB_AREAS for st in w["steps"])]
     listed = [w["id"] for w in contract["workflows"] if "SW-G13" in w.get("gaps", [])]
     return (m.detect_hub_formats_unread(web)
             and bool(writes) and listed == writes
-            and m.connector_surfaces(web) == ["a_web", "b_web"]
+            and m.vendor_write_surfaces(web) == ["a_web", "b_web"]
             and not m.detect_hub_formats_unread(with_read("documented_yes"))
             and not m.detect_hub_formats_unread(with_read("documented-no"))
             and not m.detect_hub_formats_unread(dict(web, a_web={"drive_write": "create"}))
             and not m.detect_hub_formats_unread({"desk": web["desk"], "off": web["off"]})
             and not m.detect_hub_formats_unread({})
             and m.detect_hub_formats_unread({"a_web": web["a_web"]})
-            and m.connector_surfaces(live) == ["chatgpt_desktop", "chatgpt_web_plain", "claude_web", "gemini_web"]
+            and m.vendor_write_surfaces(live) == ["chatgpt_desktop", "chatgpt_web_plain", "claude_web", "gemini_web"]
             and m.detect_hub_formats_unread(live)
             and m.probe_hub_formats_unread({"contract": {"surfaces": web}}) is True
             and m.probe_hub_formats_unread({"contract": {"surfaces": with_read("documented_yes")}}) is False)
@@ -3739,11 +3795,11 @@ _MUTANTS = (
     ('G13-1 an unknown hub_text_read value passes', 'contract',
      '        if "hub_text_read" in s and not (isinstance(read, str) and read in HUB_TEXT_READ):',
      '        if False:'),
-    ('G13-2 a connector surface with no record passes', 'contract',
-     '            elif s["drive_write"] not in NO_CONNECTOR_MODES and "hub_text_read" not in s:',
+    ('G13-2 a vendor-side surface with no record passes', 'contract',
+     '            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES and "hub_text_read" not in s:',
      '            elif False:'),
     ('G13-3 a record on a local surface passes', 'contract',
-     '            if s["drive_write"] in NO_CONNECTOR_MODES and "hub_text_read" in s:',
+     '            if s["drive_write"] in NO_VENDOR_WRITE_MODES and "hub_text_read" in s:',
      '            if False:'),
     ('G13-4 a fourth value is accepted', 'contract',
      'HUB_TEXT_READ = {"documented_yes", "documented_no", "undocumented"}',
@@ -3757,15 +3813,15 @@ _MUTANTS = (
     ('G13-7 one unread surface is enough', 'detect',
      '    return bool(ids) and all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
      '    return bool(ids) and any(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")'),
-    ('G13-8 no connector surface reads as the gap', 'detect',
+    ('G13-8 no vendor-side surface reads as the gap', 'detect',
      '    return bool(ids) and all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
      '    return all(surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")'),
     ('G13-9 a surface with no record counts as unread', 'detect',
      'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
      'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented", None)'),
-    ('G13-10 a local surface counts as a connector', 'detect',
-     'NO_CONNECTOR_MODES = {"none", "local_folder_edit"}',
-     'NO_CONNECTOR_MODES = {"none"}'),
+    ('G13-10 a local surface counts as vendor-side', 'detect',
+     'NO_VENDOR_WRITE_MODES = {"none", "local_folder_edit"}',
+     'NO_VENDOR_WRITE_MODES = {"none"}'),
     ('G13-11 the probe always holds', 'detect',
      '    return detect_hub_formats_unread(ctx["contract"]["surfaces"])',
      '    return True'),
@@ -3776,9 +3832,132 @@ _MUTANTS = (
     ('G13-13 documented_yes still reads as the gap', 'detect',
      'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
      'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented", "documented_yes")'),
-    ('G13-14 a surface that writes nothing counts as a connector', 'contract',
-     'NO_CONNECTOR_MODES = {"none", "local_folder_edit"}',
-     'NO_CONNECTOR_MODES = {"local_folder_edit"}'),
+    ('G13-14 a surface that writes nothing counts as vendor-side', 'contract',
+     'NO_VENDOR_WRITE_MODES = {"none", "local_folder_edit"}',
+     'NO_VENDOR_WRITE_MODES = {"local_folder_edit"}'),
+    ('G13-15 a null hub_text_read passes', 'contract',
+     '        if "hub_text_read" in s and not (isinstance(read, str) and read in HUB_TEXT_READ):',
+     '        if read is not None and not (isinstance(read, str) and read in HUB_TEXT_READ):'),
+    ('G13-16 a value in another letter case passes', 'contract',
+     'isinstance(read, str) and read in HUB_TEXT_READ):',
+     'isinstance(read, str) and read.lower() in HUB_TEXT_READ):'),
+    ('G13-17 a padded value passes', 'contract',
+     'isinstance(read, str) and read in HUB_TEXT_READ):',
+     'isinstance(read, str) and read.strip() in HUB_TEXT_READ):'),
+    ('G13-18 the refusal leaves out the value', 'contract',
+     'p.append(f"surface {sid}: unknown hub_text_read {read!r}")',
+     'p.append(f"surface {sid}: unknown hub_text_read")'),
+    ('G13-19 a record on human_at_home passes', 'contract',
+     '        if s.get("drive_write") in WRITE_MODES:\n            if s["drive_write"] in NO_VENDOR_WRITE_MODES',
+     '        if s.get("drive_write") in WRITE_MODES and sid not in HUMAN_SURFACES:\n            if s["drive_write"] in NO_VENDOR_WRITE_MODES'),
+    ('G13-20 a record on a surface that writes nothing passes', 'contract',
+     '            if s["drive_write"] in NO_VENDOR_WRITE_MODES and "hub_text_read" in s:',
+     '            if s["drive_write"] == "local_folder_edit" and "hub_text_read" in s:'),
+    ('G13-21 a known value on a surface without a vendor-side write passes', 'contract',
+     '            if s["drive_write"] in NO_VENDOR_WRITE_MODES and "hub_text_read" in s:',
+     '            if s["drive_write"] in NO_VENDOR_WRITE_MODES and s.get("hub_text_read") not in HUB_TEXT_READ and "hub_text_read" in s:'),
+    ('G13-22 a create_move_trash surface with no record passes', 'contract',
+     '            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES and "hub_text_read" not in s:',
+     '            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES | {"create_move_trash"} and "hub_text_read" not in s:'),
+    ('G13-23 a create_update_move_trash surface with no record passes', 'contract',
+     '            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES and "hub_text_read" not in s:',
+     '            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES | {"create_update_move_trash"} and "hub_text_read" not in s:'),
+    ('G13-24 a create surface with no record passes', 'contract',
+     '            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES and "hub_text_read" not in s:',
+     '            elif s["drive_write"] not in NO_VENDOR_WRITE_MODES | {"create"} and "hub_text_read" not in s:'),
+    ('G13-25 the vendor-side surfaces are not sorted', 'detect',
+     '    return sorted(sid for sid, rec in surfaces.items() if rec.get("drive_write") not in NO_VENDOR_WRITE_MODES)',
+     '    return [sid for sid, rec in surfaces.items() if rec.get("drive_write") not in NO_VENDOR_WRITE_MODES]'),
+    ('G13-26 the vendor-side surfaces are the ones that carry a record', 'detect',
+     '    return sorted(sid for sid, rec in surfaces.items() if rec.get("drive_write") not in NO_VENDOR_WRITE_MODES)',
+     '    return sorted(sid for sid, rec in surfaces.items() if "hub_text_read" in rec)'),
+    ('G13-27 a create surface is not vendor-side', 'detect',
+     'if rec.get("drive_write") not in NO_VENDOR_WRITE_MODES)',
+     'if rec.get("drive_write") not in NO_VENDOR_WRITE_MODES | {"create"})'),
+    ('G13-28 a value other than documented_yes reads as the gap', 'detect',
+     'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
+     'surfaces[sid].get("hub_text_read") != "documented_yes"'),
+    ('G13-29 one vendor-side surface is not enough', 'detect',
+     '    return bool(ids) and all(',
+     '    return len(ids) > 1 and all('),
+    ('G13-30 a surface with no record reads as undocumented', 'detect',
+     'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
+     'surfaces[sid].get("hub_text_read", "undocumented") in ("documented_no", "undocumented")'),
+    ('G13-31 every declared surface counts as vendor-side', 'detect',
+     '    ids = vendor_write_surfaces(surfaces)\n',
+     '    ids = sorted(surfaces)\n'),
+    ('G13-32 documented_no ends the gap', 'detect',
+     'surfaces[sid].get("hub_text_read") in ("documented_no", "undocumented")',
+     'surfaces[sid].get("hub_text_read") in ("undocumented",)'),
+    ('G13-33 the probe reads the contract file, not its context', 'detect',
+     '    return detect_hub_formats_unread(ctx["contract"]["surfaces"])',
+     '    return detect_hub_formats_unread(load_json(CONTRACT)["surfaces"])'),
+    ('G13-34 an unknown source id passes', 'contract',
+     '                  for x in cited if x not in known]',
+     '                  for x in cited if False]'),
+    ('G13-35 a record with no source passes', 'contract',
+     '            if "hub_text_read" in s and not cited:',
+     '            if False:'),
+    ('G13-36 a sources value that is not a list is read as ids', 'contract',
+     '        if not (isinstance(cited, list) and all(isinstance(x, str) for x in cited)):',
+     '        if False:'),
+    ('G13-37 the registry is not read', 'contract',
+     '    known = registry_ids() if known_sources is None else set(known_sources)',
+     '    known = set(known_sources or ())'),
+    ('G13-38 the registry reads as empty', 'contract',
+     '    return {s.get("id") for s in data.get("sources", []) if isinstance(s, dict)}',
+     '    return set()'),
+    ('G13-39 only the first source id is checked', 'contract',
+     '                  for x in cited if x not in known]',
+     '                  for x in cited[:1] if x not in known]'),
+    ('G13-40 sources are checked only on surfaces with a record', 'contract',
+     '                  for x in cited if x not in known]',
+     '                  for x in cited if x not in known and "hub_text_read" in s]'),
+    ('G13-41 the refusal prints the id without quotes', 'contract',
+     'f"surface {sid}: source {x!r} is not in the source registry"',
+     'f"surface {sid}: source {x} is not in the source registry"'),
+    ('G13-42 source ids match in any letter case', 'contract',
+     '                  for x in cited if x not in known]',
+     '                  for x in cited if x.lower() not in {k.lower() for k in known if isinstance(k, str)}]'),
+    ('G13-43 a sources list may hold values that are not text', 'contract',
+     '        if not (isinstance(cited, list) and all(isinstance(x, str) for x in cited)):',
+     '        if not isinstance(cited, list):'),
+    ('G13-44 a string is accepted as sources', 'contract',
+     '        if not (isinstance(cited, list) and all(isinstance(x, str) for x in cited)):',
+     '        if not (isinstance(cited, (list, str)) and all(isinstance(x, str) for x in cited)):'),
+    ('G13-45 null sources read as none', 'contract',
+     '        cited = s.get("sources", [])\n',
+     '        cited = s.get("sources") or []\n'),
+    ('G13-46 an object is accepted as sources', 'contract',
+     '        if not (isinstance(cited, list) and all(isinstance(x, str) for x in cited)):',
+     '        if not (isinstance(cited, (list, dict)) and all(isinstance(x, str) for x in cited)):'),
+    ('G13-47 only an undocumented record needs a source', 'contract',
+     '            if "hub_text_read" in s and not cited:',
+     '            if s.get("hub_text_read") == "undocumented" and not cited:'),
+    ('G13-48 a record with no sources key passes', 'contract',
+     '            if "hub_text_read" in s and not cited:',
+     '            if "hub_text_read" in s and "sources" in s and not cited:'),
+    ("G13-49 a create surface's record needs no source", 'contract',
+     '            if "hub_text_read" in s and not cited:',
+     '            if "hub_text_read" in s and not cited and s.get("drive_write") != "create":'),
+    ('G13-50 the registry is read to its hundredth id', 'contract',
+     '    return {s.get("id") for s in data.get("sources", []) if isinstance(s, dict)}',
+     '    return {s.get("id") for s in data.get("sources", [])[:100] if isinstance(s, dict)}'),
+    ('G13-51 the registry is read by url', 'contract',
+     '    return {s.get("id") for s in data.get("sources", []) if isinstance(s, dict)}',
+     '    return {s.get("url") for s in data.get("sources", []) if isinstance(s, dict)}'),
+    ('G13-52 an empty known_sources reads the registry', 'contract',
+     '    known = registry_ids() if known_sources is None else set(known_sources)',
+     '    known = registry_ids() if not known_sources else set(known_sources)'),
+    ('G13-53 known_sources adds to the registry', 'contract',
+     '    known = registry_ids() if known_sources is None else set(known_sources)',
+     '    known = registry_ids() | set(known_sources or ())'),
+    ('G13-54 the registry also holds no-such-source', 'contract',
+     '    known = registry_ids() if known_sources is None else set(known_sources)',
+     '    known = (registry_ids() if known_sources is None else set(known_sources)) | {"no-such-source"}'),
+    ('G13-55 a registry id with no used_by is unknown', 'contract',
+     '    return {s.get("id") for s in data.get("sources", []) if isinstance(s, dict)}',
+     '    return {s.get("id") for s in data.get("sources", []) if isinstance(s, dict) and s.get("used_by")}'),
 )
 
 # Rows whose pin does not run on Windows, so only a POSIX run can catch them: T4's privacy check

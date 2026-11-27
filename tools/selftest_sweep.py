@@ -244,8 +244,9 @@ def run_sweep():
                                  capture_output=True, text=True, timeout=limit)
         except subprocess.TimeoutExpired as exc:
             # What the tool had written when it was stopped: file_hash names a stopped child's row
-            # on its stderr as it goes (file_hash.note_stall), and prints its checks at the end.
-            # A stopped tool's DID NOT RUN: lines are not repeated or counted: the tool has failed.
+            # on its stdout as it goes (file_hash.note_stall), ahead of the checks it prints at the
+            # end. A stopped tool's DID NOT RUN: lines are not repeated or counted: the tool has
+            # failed.
             print(f"  [FAIL] {rel} (timeout after {limit}s)")
             for line in output_tail(exc.stdout, exc.stderr):
                 print(f"         {line}")
@@ -500,6 +501,69 @@ def selftest():
           and tolerant(io.StringIO()).getvalue() == "" and tolerant(None) is None
           and rc_list == 0
           and ascii_out.buffer.getvalue() == (str(Path("tools") / "caf") + "\\xe9.py --selftest\n").encode("ascii"))
+    # A stopped tool's DID NOT RUN: line stays in its tail once and is not counted. A finished tool
+    # whose stdout holds nine stall notices and then its closing report (file_hash writes its
+    # notices to stdout, ahead of the checks it prints at the end) has that report at the end of its
+    # tail.
+    dnr_out, report_out = [], []
+    report = ["  [FAIL] each of 3 committed mutations is caught by the selftest it targets "
+              "(survivors: ['X1'])", "  [ok] every module carries at least 3 committed rows",
+              "file_hash selftest: FAIL (40 of 41 checks)"]
+    notices = "".join(f"file_hash: child stopped at its limit: R{i} (worker failed: TimeoutExpired)\n"
+                      for i in range(9))
+    try:
+        globals()["enrolment_problems"] = lambda: []
+        PACKAGE_ENTRIES[:] = []
+        globals()["discover"] = lambda: [(ROOT / "tools" / "secret_scan.py", ["--selftest"])]
+
+        def stops_noting(argv, **kw):
+            raise subprocess.TimeoutExpired(argv, kw.get("timeout"), output=b"  [ok] a\n  DID NOT RUN: part x\n",
+                                            stderr=None)
+        subprocess.run = stops_noting
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run_sweep()
+        dnr_out = buf.getvalue().splitlines()[:-1]
+        subprocess.run = lambda argv, **kw: subprocess.CompletedProcess(
+            argv, 1, notices + "\n".join(report) + "\n", "")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run_sweep()
+        report_out = buf.getvalue().splitlines()[:-2]
+    finally:
+        subprocess.run, globals()["discover"] = real_run, real_discover
+        globals()["enrolment_problems"] = real_enrol
+        PACKAGE_ENTRIES[:] = real_pkgs
+    check("a stopped tool's DID NOT RUN: line is printed once, in its tail, and not counted; a finished "
+          "failing tool whose stdout holds nine stall notices and then its closing report has that "
+          "report at the end of its tail",
+          dnr_out == [head, "         [ok] a", "           DID NOT RUN: part x",
+                      "selftest-sweep: FAIL (0 of 1 selftests)"]
+          and report_out == (["  [FAIL] tools/secret_scan.py (exit 1)"]
+                             + [f"         file_hash: child stopped at its limit: R{i} (worker failed: "
+                                f"TimeoutExpired)" for i in range(4, 9)]
+                             + [f"         {line}" for line in report]))
+    closed = io.TextIOWrapper(io.BytesIO(), encoding="ascii")
+    closed.close()
+    try:
+        closed_left = tolerant(closed) is closed
+    except ValueError:
+        closed_left = False
+    sweep_out, rc_sweep_path, real_sweep = (io.TextIOWrapper(io.BytesIO(), encoding="ascii", newline="\n"),
+                                            None, globals()["run_sweep"])
+    try:
+        globals()["run_sweep"] = lambda: print("caf\u00e9 sweep") or 0
+        sys.stdout = sweep_out
+        try:
+            rc_sweep_path = main([])
+        except UnicodeEncodeError:
+            rc_sweep_path = "raised"
+        sweep_out.flush()
+    finally:
+        sys.stdout, globals()["run_sweep"] = real_stdout, real_sweep
+    check("tolerant() leaves a closed stream as it is, and main sets stdout before the sweep's own run, "
+          "not only before --list",
+          closed_left and rc_sweep_path == 0 and sweep_out.buffer.getvalue() == b"caf\\xe9 sweep\n")
     caps = {j: _tool_timeout("tools/file_hash.py", jobs=j) for j in (1, 2, 3, 4, 8)}
     check("file_hash's cap is 3000 s with four or more workers and grows in proportion with fewer",
           caps == {1: 12000, 2: 6000, 3: 4000, 4: 3000, 8: 3000})

@@ -30,8 +30,9 @@ The web chats and desktop apps cannot be driven from here, so each step an app t
 **simulated**: the step writes only what that app is declared able to write. The declaration is
 its `drive_write` mode in the contract (create; create and update; create, move and trash; and so
 on), taken from the vendor help pages listed at the end. The contract also records what each
-vendor's page says about its connector reading the hub's text files (`hub_text_read`, gap SW-G13);
-no step simulates a web chat reading a hub file. The app's row in
+vendor's page says about its chat reading the hub's text files from Drive (`hub_text_read`, gap
+SW-G13), citing at least one registered page; no step simulates a web chat reading a hub
+file. The app's row in
 `shared/cross-modality/transitions.json` bounds it: the runner refuses a contract that gives a
 write mode to an app whose row reaches no store, and refuses a write into a hub area or a local
 folder the row cannot reach, judged by where the file actually is (or, for a new file, would land)
@@ -170,7 +171,7 @@ updated together, so closing a gap is always a deliberate change.
 | SW-G10 | Some Drive connectors can now move and trash files; a queued ticket trashed before the computer runs leaves no result and no record that it existed |
 | SW-G11 | Doc exports skip the offline injection screen and wait for a Claude session: a Word file, and a Google Docs shortcut on a Drive for desktop mirror, which is held unread with a note to download it; only text files are screened offline |
 | SW-G12 | An in-session escalation that refuses a route (QUARANTINE or BLOCK) writes no ledger row |
-| SW-G13 | The vendors' pages do not say a Drive connector reads the hub's text formats (JSON, Markdown, .ics). Anthropic's page lists the file types Claude can read from Drive and they are not among them; OpenAI's Google Drive page lists no formats; Google's page says Gemini Apps do not access Drive content that is not in a document, spreadsheet, presentation or PDF, read here as leaving the hub's text files out (pages read 2026-11-23). The probe reads the `hub_text_read` value the contract records for each surface that writes through a connector; it does not read the pages. No step simulates a web chat reading a hub file: a read on a real account is live check C2 (ChatGPT), C5 (claude.ai) or C6 (Gemini) in `docs/MAC-VALIDATION.md` |
+| SW-G13 | The vendors' pages do not say their chat reads the hub's text formats (JSON, Markdown, .ics) from Drive. Anthropic's Drive connector page lists the file types Claude can read and they are not among them. OpenAI's Google Drive page names Google Docs, Sheets and Slides, lists no other format, and points to its troubleshooting article for supported-format checks; that article lists no formats either. Google's page says Gemini Apps do not access Drive content that is not in a document, spreadsheet, presentation or PDF, read here as leaving the hub's text files out. Pages read 2026-11-27. The probe reads the `hub_text_read` value the contract records for each surface with a vendor-side Drive write (a Drive connector or app, or Gemini's Export to Docs) and needs at least one such surface; it does not read the pages. No step simulates a web chat reading a hub file: a read on a real account is live check C2 (ChatGPT), C5 (claude.ai) or C6 (Gemini) in `docs/MAC-VALIDATION.md` |
 
 Closed in this change: **SW-G9**, the task register merge. When the same task had been edited on
 both sides, every later read of the unchanged web copy added another copy of the same event,
@@ -208,12 +209,17 @@ the gate and control checks read the copy's own text (`mutant-runner-judges-muta
 ## Where the facts come from
 
 The app capabilities the simulated steps rely on were checked against the vendors' own help pages
-on 2026-10-01 and are registered in the source registry, so the currency checks re-read them.
+on 2026-10-01 and are registered in the source registry, so the currency checks re-read them. The
+pages behind `hub_text_read` (gap SW-G13) were read on 2026-11-27: Anthropic's Drive connector
+page, OpenAI's Google Drive page and the troubleshooting article it points to, and Google's page on
+the Google Workspace app. The suite refuses a surface that cites a source the registry does not
+hold, and a `hub_text_read` record that cites none.
 
 ```sources
 [
   {"id": "claude-google-workspace-connectors", "url": "https://support.claude.com/en/articles/10166901-use-google-workspace-connectors"},
   {"id": "openai-google-drive-app", "url": "https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt"},
+  {"id": "openai-plugins-apps-troubleshooting", "name": "Troubleshooting plugins and apps in ChatGPT (help center)", "url": "https://help.openai.com/en/articles/20001497-troubleshooting-plugins-and-apps-in-chatgpt", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "The article OpenAI's Google Drive page points to for supported-format checks; it lists no file formats and tells the reader to check the app's supported file types."},
   {"id": "openai-work-google-files", "name": "Creating and editing documents, spreadsheets, and presentations with ChatGPT Work (help center)", "url": "https://help.openai.com/en/articles/20001278-creating-and-editing-documents-spreadsheets-and-presentations-with-chatgpt-work", "category": "ai-surface-spec", "tier": "T1", "extraction_hint": "ChatGPT Work creates or edits native Google Docs, Sheets and Slides where the plan and workspace allow it."},
   {"id": "openai-chatgpt-desktop-move", "url": "https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app"},
   {"id": "openai-chatgpt-developer-mode-help", "url": "https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt"},
