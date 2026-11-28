@@ -1,67 +1,67 @@
 {
   "_boundary": "Owner dev-time projection. Local working tree only; never auto-published, never GitHub.",
-  "as_of": "2026-11-23",
-  "canonical_digest": "715eaf9aaafbf8e0366b514542bc1feda5cfe3323b4de42bb02abb38d5003ed7",
+  "as_of": "2026-11-27",
+  "canonical_digest": "552f41262280eb1c65f79774d6c091b554f1335e6e8f6bd3739748d488f57f40",
   "managed_files": [
     {
       "file": "implementation/claude/project/knowledge/01-creator-core.md",
-      "sha256": "d121ce229f3c4974119ed6b35e068f918e5c4cad017d7fda4ffcb08fcb8cd4bb"
+      "sha256": "a0641a78601004a9e302be43ccf8ed8ee841aab057a0fa4ba4f3b67cdc5d8a99"
     },
     {
       "file": "implementation/claude/project/knowledge/02-brand-voice.md",
-      "sha256": "9c107c060a2e2c33bf5274286092428b36eec93c3df1a0d2c88e3adbcbe32e41"
+      "sha256": "9493a81b4a3f7e6c5d1363d610386557ec83443d1821b4526df367096050ccf4"
     },
     {
       "file": "implementation/claude/project/knowledge/03-platform-seo.md",
-      "sha256": "d9dd7a0dae16646b03cac91d701cf71ef89a8e1d75c1ae58089b901fbb362808"
+      "sha256": "61101ff8994d9c9b72c9a1759ea7f5318b737327b8c4e32fdc77e4cbed4d4c09"
     },
     {
       "file": "implementation/claude/project/knowledge/04-protocols.md",
-      "sha256": "224af3a346017248cdbcfd2a41e760fc6aa613e1b86919a214c65efcadb3cd86"
+      "sha256": "51cc09b30a59c2f84c782dc2f139aca7729e990129c712f7f7bad0af7daaf2f3"
     },
     {
       "file": "implementation/claude/project/knowledge/05-content-spokes.md",
-      "sha256": "2b5784c1f4032ddce04d96a7380a2bf32fd8ee7698f2c6fc3b2fdb11012e07bf"
+      "sha256": "912643a9283fdd38d3f699f8c869395155c5519987e7c487a4e311e03b710b0a"
     },
     {
       "file": "implementation/claude/project/knowledge/06-document-spoke.md",
-      "sha256": "2b33bc4605b0d0e4b2259214f20404e68d2d8ed76b36aad61fa0c22675fd2204"
+      "sha256": "509c9d0b2264fc8f7170a191717ff6848a9aecaba76be3ebabd7c7c867a068e4"
     },
     {
       "file": "implementation/claude/project/knowledge/07-pipeline-spokes.md",
-      "sha256": "a33c532d8846e9c08442159abcef1483e593dfc5277cef206af8593e5c1fd460"
+      "sha256": "8fee278c56e7f40952b79f1e59147d9b89156bc5eeb51234669307bfc0666dbd"
     },
     {
       "file": "implementation/claude/project/knowledge/08-key-atoms.md",
-      "sha256": "4c737a7f148640627ca2c263019f8cbe4aaa4406acd2ca8edbdd9fcc22813469"
+      "sha256": "2cfa86c290ca5123f446a16ced056b5bf44974babeb5c783b60ba2455034dd99"
     },
     {
       "file": "implementation/claude/project/knowledge/09-setup-and-surfaces.md",
-      "sha256": "2e7bb9a1f89ccf2b84e30bddad81cf0f5138c9434cd6425721af5ac420881afa"
+      "sha256": "3ecbb412620dab3ee9104813ecd49c2300e809e46498c61e3255edf179661e42"
     },
     {
       "file": "implementation/claude/project/system-prompt.md",
-      "sha256": "086b4a2fed74a65cf86ad4fbae47f8fc802abcceefc521cbde55e7c0537fa499"
+      "sha256": "276ac9727faf11915d7a4131df94bddbb2a2b22b250a2f2f994cda6dfe6a0ebd"
     },
     {
       "file": "implementation/claude/project/creator-os-combined.md",
-      "sha256": "16559a4ef0cc7298a609d1a1c9e2779d3609e50c3de1f171153d4209f2b82cd1"
+      "sha256": "9dbe0d4cc1b0e8e418d83fddd6e4cdfd352fff15cb3ac17242fcf51e15583578"
     },
     {
       "file": "implementation/gpt/web/custom-instructions.md",
-      "sha256": "9f854bd18d28b4be4416a119f0c694ff17fac1d303991d95f273086098a00e50"
+      "sha256": "023d50596b028a920034c8ae87549c3e32f97a4ba2a690bfb7043faf7350a16e"
     },
     {
       "file": "implementation/gpt/web/custom-instructions-compact.md",
-      "sha256": "83966a04d5fa43dc6382f276fe5059c5d17544be19f543943b7cb488827eb42b"
+      "sha256": "c633770991a96ca20090791b342889e5c0fd3ebebec5a6920a6740e27773f542"
     },
     {
       "file": "implementation/gpt/project/project-instructions.md",
-      "sha256": "23ba4ddc4b59d060dff7bd6961564229ae2e788c6a4ac9ae53a28f610b8da13a"
+      "sha256": "faa5667674ef6a3970da3bdc0d2237c4db04e973e706b7b8a8ea31ee975fb73e"
     },
     {
       "file": "implementation/gemini/system-instruction.md",
-      "sha256": "f1626adf60990f4f7fc6f522cd8228d905173323c9d33b64877a3b97c3c5ffb7"
+      "sha256": "8cc4ff4769bf5f068fffb02af41ade8d667d7d2691eb54f68d82216c2a43cddc"
     }
   ],
   "generated_by": "tools/build_freshness_bundle.py"

@@ -150,6 +150,7 @@ _ROW_STARTED = "file_hash: row started: "
 _ROWS_DONE = "file_hash: rows done"
 _BASELINE_STARTED = "file_hash: baseline started"
 _BASELINE_DONE = "file_hash: baseline done"
+_CHILD_STOPPED = "file_hash: child stopped at its limit: "
 
 
 def stall_dump_delay(limit) -> float:
@@ -310,17 +311,44 @@ def stall_report(labels, stderr, stdlib=()) -> list:
     return [head] + [s for name, s in zip(labels, short) if name != label]
 
 
-def run_chunk(chunk, spec, timeout, run, stdlib=()) -> list:
+def note_stall(stream, report) -> None:
+    """Write the first line of a stall report to stream and flush it, at the moment the child is
+    stopped: stall_report puts the row the child was running first, so a run that is itself
+    stopped before its closing report (the selftest sweep's cap for this tool) has named that row
+    on the stream; the selftest gives its stdout, so the line comes ahead of the checks it prints
+    at the end. For a child stopped before it named a row, the first line is the chunk's first
+    row with the short reason. A character the stream's encoding cannot hold is written as a
+    backslash escape. A stream that cannot be written (closed, a broken pipe) is passed over; the
+    report goes back to the caller either way."""
+    if stream is None or not report:
+        return
+    try:
+        stream.write(f"{_CHILD_STOPPED}{report[0]}\n")
+        stream.flush()
+    except UnicodeEncodeError:
+        try:
+            stream.write(f"{_CHILD_STOPPED}{report[0]}\n".encode("ascii", "backslashreplace").decode("ascii"))
+            stream.flush()
+        except (OSError, ValueError):
+            pass
+    except (OSError, ValueError):
+        pass
+
+
+def run_chunk(chunk, spec, timeout, run, stdlib=(), notice=None) -> list:
     """One child's rows: run(input text, timeout) starts `file_hash.py --run-rows` with the spec,
     the rows and the limit as JSON and returns its CompletedProcess. A child past the limit is
-    reported through stall_report; one that cannot start, or exits without this run's result,
-    reports each row as a survivor with the reason; else the child's survivors."""
+    reported through stall_report, and the report's first line is written to notice at once
+    (note_stall; no line with notice None); one that cannot start, or exits without this run's
+    result, reports each row as a survivor with the reason; else the child's survivors."""
     import json
     import subprocess
     try:
         done = run(json.dumps(dict(spec, timeout=timeout, rows=chunk)), timeout)
     except subprocess.TimeoutExpired as exc:
-        return stall_report([r[0] for r in chunk], exc.stderr, stdlib)
+        report = stall_report([r[0] for r in chunk], exc.stderr, stdlib)
+        note_stall(notice, report)
+        return report
     except (OSError, subprocess.SubprocessError) as exc:
         return [f"{r[0]} (worker failed: {type(exc).__name__})" for r in chunk]
     try:
@@ -7814,8 +7842,8 @@ _MUTANTS = (
      'dict(spec, timeout=timeout, rows=chunk)',
      'dict(spec, timeout=_CHILD_TIMEOUT, rows=chunk)'),
     ('ST-32 the stall report is skipped', 'file_hash.py',
-     'return stall_report([r[0] for r in chunk], exc.stderr, stdlib)',
-     'return [f"{r[0]} (worker failed: TimeoutExpired)" for r in chunk]'),
+     'report = stall_report([r[0] for r in chunk], exc.stderr, stdlib)',
+     'report = [f"{r[0]} (worker failed: TimeoutExpired)" for r in chunk]'),
     ('ST-33 stdout is read for the dump', 'file_hash.py',
      'exc.stderr, stdlib)',
      'exc.output, stdlib)'),
@@ -7823,8 +7851,8 @@ _MUTANTS = (
      'exc.stderr, stdlib)',
      'exc.stderr)'),
     ('ST-35 a stalled child passes', 'file_hash.py',
-     'return stall_report([r[0] for r in chunk], exc.stderr, stdlib)',
-     'return []'),
+     'report = stall_report([r[0] for r in chunk], exc.stderr, stdlib)',
+     'report = []'),
     ('ST-36 the timeout falls to the generic handler', 'file_hash.py',
      'except subprocess.TimeoutExpired as exc:',
      'except subprocess.CalledProcessError as exc:'),
@@ -7920,7 +7948,200 @@ _MUTANTS = (
     ('G5-SW20 a repeated DID NOT RUN line shown once', 'selftest_sweep.py', 'notes = did_not_run_lines(out.stdout)', 'notes = sorted(set(did_not_run_lines(out.stdout)))'),
     ('G5-SW21 an indented DID NOT RUN line shown again in the tail', 'selftest_sweep.py', '                if line.strip() not in notes:', '                if line not in notes:'),
     ('G5-SW22 the count is of the last tool alone', 'selftest_sweep.py', '{len(not_run)} DID NOT RUN line(s) above', '{len(notes)} DID NOT RUN line(s) above'),
+    ('ST-N1 the stopped child is not named at once', 'file_hash.py',
+     '        note_stall(notice, report)\n',
+     '        pass\n'),
+    ('ST-N2 the line names the last row of the report', 'file_hash.py',
+     'stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")',
+     'stream.write(f"{_CHILD_STOPPED}{report[-1]}\\n")'),
+    ('ST-N3 the line is not flushed', 'file_hash.py',
+     '        stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")\n        stream.flush()\n',
+     '        stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")\n'),
+    ('ST-N4 a stream that cannot be written ends the run', 'file_hash.py',
+     '    except (OSError, ValueError):\n        pass\n\n\ndef run_chunk(',
+     '    except ZeroDivisionError:\n        pass\n\n\ndef run_chunk('),
+    ('ST-N5 the line has no marker', 'file_hash.py',
+     '_CHILD_STOPPED = "file_hash: child stopped at its limit: "\n',
+     '_CHILD_STOPPED = ""\n'),
+    ('ST-N6 an empty report writes a line', 'file_hash.py',
+     '    if stream is None or not report:\n        return\n    try:\n        stream.write(f"{_CHILD_STOPPED}',
+     '    if stream is None:\n        return\n    try:\n        stream.write(f"{_CHILD_STOPPED}'),
+    ('SWT-1 a stopped tool prints no output', 'selftest_sweep.py',
+     '            for line in output_tail(exc.stdout, exc.stderr):',
+     '            for line in []:'),
+    ('SWT-2 a stopped tool prints its stdout alone', 'selftest_sweep.py',
+     '            for line in output_tail(exc.stdout, exc.stderr):',
+     '            for line in output_tail(exc.stdout, None):'),
+    ('SWT-3 captured bytes are printed as their repr', 'selftest_sweep.py',
+     '    return data.decode("utf-8", "replace") if isinstance(data, (bytes, bytearray)) else str(data)',
+     '    return str(data)'),
+    ('SWT-4 bytes outside UTF-8 end the sweep', 'selftest_sweep.py',
+     '    return data.decode("utf-8", "replace") if isinstance(data, (bytes, bytearray)) else str(data)',
+     '    return data.decode("utf-8") if isinstance(data, (bytes, bytearray)) else str(data)'),
+    ('SWT-5 a stream that was not captured prints the word None', 'selftest_sweep.py',
+     '    if data is None:\n        return ""\n    return data.decode(',
+     '    return data.decode('),
+    ('SWT-6 the tail is nine lines', 'selftest_sweep.py', 'TAIL_LINES = 8\n', 'TAIL_LINES = 9\n'),
+    ('SWT-7 the first lines are printed', 'selftest_sweep.py',
+     '    return (out + _captured(stderr)).strip().splitlines()[-count:]',
+     '    return (out + _captured(stderr)).strip().splitlines()[:count]'),
+    ('SWT-8 a stdout cut inside a line runs into stderr', 'selftest_sweep.py',
+     '    if out and not out.endswith("\\n"):\n        out += "\\n"\n',
+     ''),
+    ('SWT-9 a stopped tool is not counted as failed', 'selftest_sweep.py',
+     '                print(f"         {line}")\n            failed.append(str(rel))\n            continue',
+     '                print(f"         {line}")\n            continue'),
+    ('SWT-10 a tool is run with its output decoded strictly', 'selftest_sweep.py',
+     'cwd=str(ROOT), env=env, errors="replace",',
+     'cwd=str(ROOT), env=env,'),
+    ('SWT-11 main leaves its stdout strict', 'selftest_sweep.py',
+     '    tolerant(sys.stdout)\n    if a.selftest:',
+     '    if a.selftest:'),
+    ('SWT-12 a character stdout does not hold is written as a question mark', 'selftest_sweep.py',
+     'stream.reconfigure(errors="backslashreplace")',
+     'stream.reconfigure(errors="replace")'),
+    ('SWT-13 a stream that cannot be set ends the sweep', 'selftest_sweep.py',
+     '    except (AttributeError, ValueError, OSError):\n        pass\n    return stream',
+     '    except ZeroDivisionError:\n        pass\n    return stream'),
+    ("SWT-14 a failing tool's tail joins stdout to stderr directly", 'selftest_sweep.py',
+     '            for line in output_tail(out.stdout, out.stderr):',
+     '            for line in (out.stdout + out.stderr).strip().splitlines()[-8:]:'),
     ('G5-SW23 a failing tool is read from its tail', 'selftest_sweep.py', 'notes = did_not_run_lines(out.stdout)', 'notes = did_not_run_lines(out.stdout if ok else "\\n".join((out.stdout + out.stderr).strip().splitlines()[-8:]))'),
+    ('ST-N7 a one-row report writes no line', 'file_hash.py',
+     '    if stream is None or not report:\n        return\n    try:\n        stream.write(f"{_CHILD_STOPPED}',
+     '    if stream is None or len(report) < 2:\n        return\n    try:\n        stream.write(f"{_CHILD_STOPPED}'),
+    ('ST-N8 the line has no line end', 'file_hash.py',
+     'stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")',
+     'stream.write(f"{_CHILD_STOPPED}{report[0]}")'),
+    ('ST-N9 a closed stream ends the run', 'file_hash.py',
+     '    except (OSError, ValueError):\n        pass\n\n\ndef run_chunk(',
+     '    except OSError:\n        pass\n\n\ndef run_chunk('),
+    ('ST-N10 the line is flushed before it is written', 'file_hash.py',
+     '        stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")\n        stream.flush()\n',
+     '        stream.flush()\n        stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")\n'),
+    ('ST-N11 the line leaves out the reason', 'file_hash.py',
+     'stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")',
+     'stream.write(f"{_CHILD_STOPPED}{report[0].split(\' (\', 1)[0]}\\n")'),
+    ('ST-N12 the line skips the stalled row', 'file_hash.py',
+     '        note_stall(notice, report)\n',
+     '        note_stall(notice, report[1:])\n'),
+    ("ST-N13 the line is built without the child's stderr", 'file_hash.py',
+     '        note_stall(notice, report)\n',
+     "        note_stall(notice, stall_report([r[0] for r in chunk], b'', stdlib))\n"),
+    ('ST-N14 a child that cannot start writes a line', 'file_hash.py',
+     '        return [f"{r[0]} (worker failed: {type(exc).__name__})" for r in chunk]\n    try:\n        result',
+     '        note_stall(notice, [f"{chunk[0][0]} (worker failed)"])\n        return [f"{r[0]} (worker failed: {type(exc).__name__})" for r in chunk]\n    try:\n        result'),
+    ("SWT-15 a stopped tool's bytes are read as Latin-1", 'selftest_sweep.py',
+     'data.decode("utf-8", "replace") if isinstance',
+     'data.decode("latin-1", "replace") if isinstance'),
+    ('SWT-16 bytes that are not a bytearray are printed as their repr', 'selftest_sweep.py',
+     'isinstance(data, (bytes, bytearray)) else str(data)',
+     'isinstance(data, bytearray) else str(data)'),
+    ("SWT-17 a stopped tool's undecodable byte is dropped", 'selftest_sweep.py',
+     'data.decode("utf-8", "replace") if isinstance',
+     'data.decode("utf-8", "ignore") if isinstance'),
+    ('SWT-18 captured text is dropped', 'selftest_sweep.py',
+     'isinstance(data, (bytes, bytearray)) else str(data)',
+     'isinstance(data, (bytes, bytearray)) else ""'),
+    ('SWT-19 the tail keeps its blank edges', 'selftest_sweep.py',
+     '    return (out + _captured(stderr)).strip().splitlines()[-count:]',
+     '    return (out + _captured(stderr)).splitlines()[-count:]'),
+    ('SWT-20 stderr comes before stdout in the tail', 'selftest_sweep.py',
+     '    return (out + _captured(stderr)).strip()',
+     '    return (_captured(stderr) + out).strip()'),
+    ('SWT-21 a stdout cut inside a line runs into stderr after a space', 'selftest_sweep.py',
+     '    if out and not out.endswith("\\n"):\n        out += "\\n"\n',
+     '    if out and not out.endswith("\\n"):\n        out += " "\n'),
+    ('SWT-22 the tail is seven lines', 'selftest_sweep.py',
+     '.strip().splitlines()[-count:]',
+     '.strip().splitlines()[-count + 1:]'),
+    ("SWT-23 a stopped tool's DID NOT RUN lines are counted", 'selftest_sweep.py',
+     '                print(f"         {line}")\n            failed.append(str(rel))\n            continue',
+     '                print(f"         {line}")\n            not_run.extend(f"{rel}: {ln}" for ln in did_not_run_lines(_captured(exc.stdout)))\n            failed.append(str(rel))\n            continue'),
+    ("SWT-24 a stopped tool's DID NOT RUN lines are repeated", 'selftest_sweep.py',
+     '            for line in output_tail(exc.stdout, exc.stderr):',
+     '            for line in did_not_run_lines(_captured(exc.stdout)) + output_tail(exc.stdout, exc.stderr):'),
+    ("SWT-25 a stopped tool's stderr comes first", 'selftest_sweep.py',
+     'output_tail(exc.stdout, exc.stderr)',
+     'output_tail(exc.stderr, exc.stdout)'),
+    ("SWT-26 a stopped tool's line leaves out its cap", 'selftest_sweep.py',
+     'print(f"  [FAIL] {rel} (timeout after {limit}s)")',
+     'print(f"  [FAIL] {rel} (timeout)")'),
+    ('SWT-27 tolerant also changes the encoding', 'selftest_sweep.py',
+     'stream.reconfigure(errors="backslashreplace")',
+     'stream.reconfigure(encoding="utf-8", errors="backslashreplace")'),
+    ('SWT-28 a closed stream ends the sweep', 'selftest_sweep.py',
+     '    except (AttributeError, ValueError, OSError):\n        pass\n    return stream',
+     '    except (AttributeError, OSError):\n        pass\n    return stream'),
+    ('SWT-29 tolerant returns nothing', 'selftest_sweep.py',
+     '        pass\n    return stream',
+     '        pass\n    return None'),
+    ('SWT-30 main sets stderr, not stdout', 'selftest_sweep.py',
+     '    tolerant(sys.stdout)\n    if a.selftest:',
+     '    tolerant(sys.stderr)\n    if a.selftest:'),
+    ("SWT-31 the sweep's own run is not tolerant", 'selftest_sweep.py',
+     '    tolerant(sys.stdout)\n    if a.selftest:\n        return selftest()\n    if a.list:\n',
+     '    if a.selftest:\n        return selftest()\n    if a.list:\n        tolerant(sys.stdout)\n'),
+    ("SWT-32 a finished tool's undecodable bytes are dropped", 'selftest_sweep.py',
+     'cwd=str(ROOT), env=env, errors="replace",',
+     'cwd=str(ROOT), env=env, errors="ignore",'),
+    ('ST-N15 the line is flushed before and after it is written', 'file_hash.py',
+     '        stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")\n        stream.flush()\n',
+     '        stream.flush()\n        stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")\n        stream.flush()\n'),
+    ('ST-N16 the line end is written after the flush', 'file_hash.py',
+     '        stream.write(f"{_CHILD_STOPPED}{report[0]}\\n")\n        stream.flush()\n',
+     '        stream.write(f"{_CHILD_STOPPED}{report[0]}")\n        stream.flush()\n        stream.write("\\n")\n'),
+    ('ST-N17 a one-row chunk writes no line', 'file_hash.py',
+     '        note_stall(notice, report)\n',
+     '        if len(chunk) > 1:\n            note_stall(notice, report)\n'),
+    ('ST-N18 a child stopped before it named a row writes no line', 'file_hash.py',
+     '        note_stall(notice, report)\n',
+     '        note_stall(notice, [s for s in report if "TimeoutExpired " in s])\n'),
+    ("ST-N19 run_chunk hands over the report's last line", 'file_hash.py',
+     '        note_stall(notice, report)\n',
+     '        note_stall(notice, report[-1:])\n'),
+    ("SWT-33 a stopped tool's DID NOT RUN lines are dropped from its tail", 'selftest_sweep.py',
+     '            for line in output_tail(exc.stdout, exc.stderr):',
+     '            for line in [x for x in output_tail(exc.stdout, exc.stderr) if not x.strip().startswith(DID_NOT_RUN)]:'),
+    ('SWT-34 a stopped tool is counted as a DID NOT RUN line', 'selftest_sweep.py',
+     '            print(f"  [FAIL] {rel} (timeout after {limit}s)")',
+     '            print(f"  [FAIL] {rel} (timeout after {limit}s)")\n            not_run.append(str(rel))'),
+    ("SWT-35 a stopped tool's tail lines lose their indentation", 'selftest_sweep.py',
+     '            for line in output_tail(exc.stdout, exc.stderr):\n                print(f"         {line}")',
+     '            for line in output_tail(exc.stdout, exc.stderr):\n                print(f"         {line.strip()}")'),
+    ('SWT-36 tolerant returns nothing for a stream it cannot set', 'selftest_sweep.py',
+     '    except (AttributeError, ValueError, OSError):\n        pass\n    return stream',
+     '    except (AttributeError, ValueError, OSError):\n        return None\n    return stream'),
+    ('SWT-37 tolerant raises on a closed stream', 'selftest_sweep.py',
+     '    try:\n        stream.reconfigure(errors="backslashreplace")',
+     '    if getattr(stream, "closed", False):\n        raise ValueError("closed")\n    try:\n        stream.reconfigure(errors="backslashreplace")'),
+    ('SWT-38 tolerant passes over TypeError in place of ValueError', 'selftest_sweep.py',
+     '    except (AttributeError, ValueError, OSError):\n        pass\n    return stream',
+     '    except (AttributeError, TypeError, OSError):\n        pass\n    return stream'),
+    ('SWT-39 main sets the original stdout, not the current one', 'selftest_sweep.py',
+     '    tolerant(sys.stdout)\n    if a.selftest:',
+     '    tolerant(sys.__stdout__)\n    if a.selftest:'),
+    ('SWT-40 main sets stdout for --selftest and --list and after the sweep', 'selftest_sweep.py',
+     '    tolerant(sys.stdout)\n    if a.selftest:\n        return selftest()\n    if a.list:\n        for p, args in discover():\n            print(f"{p.relative_to(ROOT)} {\' \'.join(args)}")\n        return 0\n    return run_sweep()\n',
+     '    if a.selftest:\n        tolerant(sys.stdout)\n        return selftest()\n    if a.list:\n        tolerant(sys.stdout)\n        for p, args in discover():\n            print(f"{p.relative_to(ROOT)} {\' \'.join(args)}")\n        return 0\n    rc = run_sweep()\n    tolerant(sys.stdout)\n    return rc\n'),
+    ('SWT-41 main sets stdout for --selftest alone', 'selftest_sweep.py',
+     '    tolerant(sys.stdout)\n    if a.selftest:\n        return selftest()\n',
+     '    if a.selftest:\n        tolerant(sys.stdout)\n        return selftest()\n'),
+    ("SWT-42 a failing tool's tail puts stderr first", 'selftest_sweep.py',
+     '            for line in output_tail(out.stdout, out.stderr):',
+     '            for line in output_tail(out.stderr, out.stdout):'),
+    ('ST-N20 an unencodable notice is passed over', 'file_hash.py',
+     '        stream.flush()\n    except UnicodeEncodeError:\n',
+     '        stream.flush()\n    except ZeroDivisionError:\n'),
+    ('ST-N21 the escaped notice turns its letters into question marks', 'file_hash.py',
+     '".encode("ascii", "backslashreplace").decode("ascii"))\n',
+     '".encode("ascii", "replace").decode("ascii"))\n'),
+    ('ST-N22 the escaped notice has no marker', 'file_hash.py',
+     '            stream.write(f"{_CHILD_STOPPED}{report[0]}\\n".encode(',
+     '            stream.write(f"{report[0]}\\n".encode('),
+    ('ST-N23 the escaped notice is not flushed', 'file_hash.py',
+     '.decode("ascii"))\n            stream.flush()\n',
+     '.decode("ascii"))\n'),
 )
 
 # Rows whose mutant behaves exactly like the original on Windows, so only a POSIX run can catch
@@ -8070,7 +8291,7 @@ _MISSING = object()
 
 
 def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, progress=None,
-                 child_timeout=None) -> list:
+                 child_timeout=None, notice=None) -> list:
     """The labels of rows no selftest caught, each with the reason when the row is invalid: an anchor
     not found exactly once, an anchor inside the entry function itself (the test that scores the
     row; other test helpers are not detected), a mutant that does not compile or load, a module with
@@ -8081,12 +8302,14 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, p
     each given child_timeout seconds (_CHILD_TIMEOUT unless given). With a stream as progress, a
     line naming each row is written to it before the row runs (note_row), and a line before and
     after each module's unmutated baseline run (note_baseline); a --run-rows child gives its
-    stderr."""
+    stderr. With a stream as notice and jobs above 1, the row a stopped child was running is
+    written to it when the child is stopped (note_stall); the selftest gives its own stdout, so the
+    line comes ahead of the checks it prints at the end."""
     import threading
     if jobs > 1:
         return _run_mutants_parallel(list(_MUTANTS if table is None else table), base, entries,
                                      posix_only, jobs,
-                                     _CHILD_TIMEOUT if child_timeout is None else child_timeout)
+                                     _CHILD_TIMEOUT if child_timeout is None else child_timeout, notice)
     here = Path(base) if base is not None else Path(__file__).resolve().parent
     me = Path(__file__).resolve()
     entries = _ENTRIES if entries is None else entries
@@ -8144,7 +8367,12 @@ def _run_mutants(table=None, base=None, entries=None, posix_only=None, jobs=1, p
 # hosted Windows runner, where a child of 12 wizard rows went past 600 s in one CI run (P103). The
 # limit bounds one child; the selftest sweep's cap for this tool (selftest_sweep._tool_timeout)
 # bounds the whole run. A child past the limit is stopped and fails the run; its report names the
-# row it was running and where the child's stack dump shows its thread (run_chunk, stall_report).
+# row it was running and where the child's stack dump shows its thread (run_chunk, stall_report),
+# and that row is written to the selftest's stdout when the child is stopped (note_stall), ahead
+# of the checks it prints at the end: the sweep prints it when it stops this tool at its cap, and
+# a finished run's tail still ends with those checks. A child still inside its own limit when
+# the sweep's cap is reached has written no such line, and a run with one worker (mutant_jobs()
+# of 1) starts no child, so it has no child limit and writes none.
 _CHUNK_ROWS = 12
 _CHILD_TIMEOUT = 1500
 
@@ -8156,7 +8384,8 @@ def _parallel_spec(base, entries, posix_only) -> dict:
             "posix_only": sorted(_POSIX_ONLY if posix_only is None else posix_only)}
 
 
-def _run_mutants_parallel(rows, base, entries, posix_only, jobs, child_timeout=_CHILD_TIMEOUT) -> list:
+def _run_mutants_parallel(rows, base, entries, posix_only, jobs, child_timeout=_CHILD_TIMEOUT,
+                          notice=None) -> list:
     """_run_mutants for rows in child processes (`file_hash.py --run-rows`: rows and settings as JSON
     on stdin), at most jobs at a time. A child gets rows of one module only, at most _CHUNK_ROWS of
     them, in table order, so a module's baseline and the state restored between its rows behave as
@@ -8165,7 +8394,7 @@ def _run_mutants_parallel(rows, base, entries, posix_only, jobs, child_timeout=_
     this run's nonce and the number of rows it was sent; otherwise each of its rows is reported as
     a survivor with the reason (run_chunk). A child gets child_timeout seconds, sent to it in the
     spec so it arms its stack dump against that limit (stall_dump_delay); one past it is stopped,
-    with no retry."""
+    with no retry, and its row is written to notice at once (run_chunk)."""
     import concurrent.futures
     import secrets
     import subprocess
@@ -8191,7 +8420,8 @@ def _run_mutants_parallel(rows, base, entries, posix_only, jobs, child_timeout=_
                               capture_output=True, timeout=timeout, env=env)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
-        found = [s for got in pool.map(lambda c: run_chunk(c, spec, child_timeout, start, stdlib), chunks)
+        found = [s for got in pool.map(lambda c: run_chunk(c, spec, child_timeout, start, stdlib, notice),
+                                       chunks)
                  for s in got]
     return stalled_first(found, {row[0]: i for i, row in enumerate(rows)})
 
@@ -8438,6 +8668,69 @@ def _stall_controls() -> list:
                 and sent == [(8, 8, chunk)]
                 and run_chunk(chunk[:1], {"nonce": "n2"}, 8, cannot_start)
                 == ["WZ01 (worker failed: OSError)"]))
+
+    class _Shut(io.StringIO):
+        def __init__(self, error):
+            super().__init__()
+            self.error = error
+
+        def write(self, text):
+            raise self.error
+    told, quiet_notice, empty_notice = _Rec(), _Rec(), _Rec()
+    noted = run_chunk(chunk, {"nonce": "n2"}, 8, stalls, ["C:\\py\\Lib"], told)
+    run_chunk(chunk[:1], {"nonce": "n2"}, 8, cannot_start, (), quiet_notice)
+    run_chunk(chunk[:2], {"nonce": "n2"}, 8,
+              lambda text, timeout: subprocess.CompletedProcess(["child"], 1, stdout=""), (), quiet_notice)
+    note_stall(empty_notice, [])
+    note_stall(None, want)
+    out.append(("the row a stopped child was running is written to the notice stream when the child is "
+                "stopped, as one flushed line that starts with the marker; a child that cannot start or "
+                "ends with no result, and an empty report, write no line; a stream that raises OSError "
+                "or ValueError on write leaves the report as it is",
+                noted == want and told.getvalue() == "file_hash: child stopped at its limit: " + want[0] + "\n"
+                and told.flushes == 1 and _CHILD_STOPPED == "file_hash: child stopped at its limit: "
+                and quiet_notice.getvalue() == "" and empty_notice.getvalue() == ""
+                and run_chunk(chunk, {"nonce": "n2"}, 8, stalls, ["C:\\py\\Lib"], _Shut(OSError("pipe"))) == want
+                and run_chunk(chunk, {"nonce": "n2"}, 8, stalls, ["C:\\py\\Lib"],
+                              _Shut(ValueError("closed"))) == want))
+
+    def stalls_before_rows(text, timeout):
+        raise subprocess.TimeoutExpired(["child"], timeout, output=b"", stderr=b"")
+    early = _Rec()
+    out.append(("a child stopped before it named a row is written to the notice stream as the chunk's "
+                "first row with the short reason",
+                run_chunk(chunk[:2], {"nonce": "n2"}, 8, stalls_before_rows, (), early)
+                == ["WZ01 (worker failed: TimeoutExpired)", "WZ02 (worker failed: TimeoutExpired)"]
+                and early.getvalue() == "file_hash: child stopped at its limit: WZ01 (worker failed: "
+                                        "TimeoutExpired)\n"))
+
+    class _Order(io.StringIO):
+        def __init__(self):
+            super().__init__()
+            self.done = []
+
+        def write(self, text):
+            self.done.append("write")
+            return super().write(text)
+
+        def flush(self):
+            self.done.append("flush")
+            super().flush()
+    ordered, one_row = _Order(), _Rec()
+    note_stall(ordered, want)
+    out.append(("the notice is written and then flushed, and a one-row chunk stopped before it named "
+                "its row writes that row's line",
+                ordered.done == ["write", "flush"]
+                and run_chunk(chunk[:1], {"nonce": "n2"}, 8, stalls_before_rows, (), one_row)
+                == ["WZ01 (worker failed: TimeoutExpired)"]
+                and one_row.getvalue() == "file_hash: child stopped at its limit: WZ01 (worker failed: "
+                                          "TimeoutExpired)\n"))
+    narrow = io.TextIOWrapper(io.BytesIO(), encoding="ascii", newline="\n")
+    note_stall(narrow, ["caf\u00e9 row (worker failed: TimeoutExpired)", "B (worker failed: TimeoutExpired)"])
+    out.append(("a notice holding a character the stream's encoding cannot hold is written with "
+                "backslash escapes and flushed",
+                narrow.buffer.getvalue() == b"file_hash: child stopped at its limit: caf\\xe9 row (worker failed: "
+                                            b"TimeoutExpired)\n"))
 
     def finished(code, result):
         return lambda text, timeout: subprocess.CompletedProcess(["child"], code, stdout="noise\n" + json.dumps(result) + "\n")
@@ -8703,12 +8996,15 @@ def _runner_controls() -> list:
                                       "        threading.Thread(target=spin).start()\n"
                                       "    return 0 if x == 1 else 1\n", encoding="utf-8")
         began = _time.monotonic()
+        import io as _io
+        stall_notice = _io.StringIO()
         stalled = _run_mutants([("stall-before", "stall.py", "x = 1\n", "x = 1  # same\n"),
                                 ("stall-row", "stall.py", "x = 1\n", "x = 2\n"),
                                 ("stall-after", "stall.py", "x = 1\n", "x = 1  # again\n"),
                                 ("linger-row", "linger.py", "x = 1\n", "x = 2\n")],
-                               base=d3, jobs=2, child_timeout=12)
+                               base=d3, jobs=2, child_timeout=12, notice=stall_notice)
         stall_took = _time.monotonic() - began
+        stall_noted = sorted(stall_notice.getvalue().splitlines())
     out.append(("with jobs above 1 a child past its limit (12 s here) is stopped and fails its rows: the "
                 "row it was running first, with where its thread stood, the rows after it with the short "
                 f"reason, a child held at exit after its rows named so ({stall_took:.1f} s; {stalled})",
@@ -8720,6 +9016,9 @@ def _runner_controls() -> list:
                 and stalled[1].endswith(" in _shutdown; 2 threads, others at linger.py:5 in spin)")
                 and stalled[2:] == ["stall-before (worker failed: TimeoutExpired)",
                                     "stall-after (worker failed: TimeoutExpired)"]))
+    out.append(("with jobs above 1 each stopped child's row is written to the notice stream, one line a "
+                "child, the same text as the report's line for that row",
+                stall_noted == sorted("file_hash: child stopped at its limit: " + s for s in stalled[:2])))
     out.append(("with jobs above 1 the survivors match a serial run, in table order",
                 parallel_mixed == serial_mixed
                 == ["p-equivalent", "p-redbase (unmutated selftest: fail)", "p-equivalent-2"]))
@@ -8741,6 +9040,27 @@ def _runner_controls() -> list:
                 _parallel_spec(None, None, {"x-row"})["posix_only"] == ["x-row"]
                 and _parallel_spec(None, None, None)["posix_only"] == sorted(_POSIX_ONLY)))
     return out
+
+
+def _notice_call_ok(text) -> bool:
+    """Whether selftest() in this source text runs the committed table with notice=sys.__stdout__:
+    each _run_mutants call in it that names no table passes it, read by ast (a comment or a string
+    holding the call's text does not count), and there is at least one such call."""
+    import ast
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return False
+    fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "selftest"), None)
+    calls = [] if fn is None else [
+        n for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+        and n.func.id == "_run_mutants" and not n.args and all(k.arg != "table" for k in n.keywords)]
+
+    def to_stdout(call):
+        v = next((k.value for k in call.keywords if k.arg == "notice"), None)
+        return (isinstance(v, ast.Attribute) and v.attr == "__stdout__" and isinstance(v.value, ast.Name)
+                and v.value.id == "sys")
+    return bool(calls) and all(to_stdout(c) for c in calls)
 
 
 def selftest() -> int:
@@ -8853,9 +9173,18 @@ def selftest() -> int:
     for name, cond in _stall_controls():
         ok(f"stall report: {name}", cond)
     if not _IN_MUTANT:
+        me, live, dead = (Path(__file__).read_text(encoding="utf-8"), "notice=sys." + "__stdout__)",
+                          "notice=sys." + "__stderr__)")
+        ok("the selftest's own mutation run gives its stdout as the notice stream, read by ast: the "
+           "stderr form, that form with the call's text left in a comment, and the call with no notice "
+           "are refused",
+           _notice_call_ok(me) and not _notice_call_ok(me.replace(live, dead))
+           and not _notice_call_ok(me.replace(live, dead) + "\n# survivors = _run_mutants(jobs=mutant_jobs(), "
+                                   + live + "\n")
+           and not _notice_call_ok(me.replace(", " + live, ")")))
         for name, cond in _runner_controls():
             ok(f"runner control: {name}", cond)
-        survivors = _run_mutants(jobs=mutant_jobs())
+        survivors = _run_mutants(jobs=mutant_jobs(), notice=sys.__stdout__)
         skipped = len(_POSIX_ONLY & {r[0] for r in _MUTANTS}) if os.name == "nt" else 0
         ok(f"each of {len(_MUTANTS) - skipped} committed mutations is caught by the selftest it targets"
            + (f" ({skipped} POSIX-only not run on Windows)" if skipped else "")

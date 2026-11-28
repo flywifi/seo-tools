@@ -1,13 +1,15 @@
 {
   "suite": "surface-workflows",
-  "_comment": "P100. Ten cross-surface workflows: each vendor's web chat (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus one round trip. Surface steps (kind sim) write only what the surface's drive_write allows, cross-checked against shared/cross-modality/transitions.json; computer steps (kind real) run the repo's own functions in a sandbox. All data is fictional. Run: python3 tools/surface_workflow_check.py. Guide: docs/SURFACE-WORKFLOWS.md.",
+  "_comment": "P100. Ten cross-surface workflows: each vendor's web chat (claude.ai, ChatGPT, Gemini) into each vendor's desktop app, plus one round trip. Surface steps (kind sim) write only what the surface's drive_write allows, cross-checked against shared/cross-modality/transitions.json; computer steps (kind real) run the repo's own functions in a sandbox. All data is fictional. Each surface with a vendor-side Drive write (a Drive connector or app, or Gemini's Export to Docs) also records hub_text_read, citing at least one registered source: what the vendor's page says about its chat reading the hub's text formats from Drive (gap SW-G13). Run: python3 tools/surface_workflow_check.py. Guide: docs/SURFACE-WORKFLOWS.md.",
   "schema_version": "0.1.0",
   "pinned_today": "2026-10-01",
   "surfaces": {
     "claude_web": {
       "drive_write": "create_move_trash",
+      "hub_text_read": "undocumented",
       "sources": [
-        "claude-google-workspace-connectors"
+        "claude-google-workspace-connectors",
+        "claude-google-drive-connector-docs"
       ],
       "note": "The Google Drive connector creates files and can share, move and trash them with approval; Creator OS policy is create-only."
     },
@@ -18,25 +20,31 @@
     },
     "chatgpt_web_plain": {
       "drive_write": "create_update_move_trash",
+      "hub_text_read": "undocumented",
       "sources": [
-        "openai-google-drive-app"
+        "openai-google-drive-app",
+        "openai-plugins-apps-troubleshooting"
       ],
       "note": "The Google Drive app, where the plan, workspace and Google permissions allow it."
     },
     "chatgpt_desktop": {
       "drive_write": "create_update_move_trash",
+      "hub_text_read": "undocumented",
       "sources": [
         "openai-google-drive-app",
+        "openai-plugins-apps-troubleshooting",
         "openai-chatgpt-desktop-move"
       ],
       "note": "Chat and Work use the same Google Drive app; Codex works on local files."
     },
     "gemini_web": {
       "drive_write": "create",
+      "hub_text_read": "documented_no",
       "sources": [
-        "gemini-export-responses"
+        "gemini-export-responses",
+        "gemini-google-workspace-app"
       ],
-      "note": "Export to Docs saves a new Doc in My Drive; the person moves it into the hub."
+      "note": "Export to Docs saves a new Doc in My Drive; the person moves it into the hub. Its hub_text_read is what Google's page says about the Google Workspace app reading Drive, not about the export."
     },
     "gemini_desktop": {
       "drive_write": "local_folder_edit",
@@ -127,6 +135,12 @@
       "probe": "refused_escalation_unrecorded",
       "summary": "An in-session escalation that refuses a route (QUARANTINE or BLOCK) writes no ledger row.",
       "evidence": "tools/handoff/inbox.py approve"
+    },
+    {
+      "id": "SW-G13",
+      "probe": "hub_formats_unread",
+      "summary": "The vendors' pages do not say their chat reads the hub's text formats (JSON, Markdown, .ics) from Drive. Anthropic's Drive connector page lists the file types Claude can read and they are not among them. OpenAI's Google Drive page names Google Docs, Sheets and Slides, lists no other format, and points to its troubleshooting article for supported-format checks; that article lists no formats either. Google's page says Gemini Apps do not access Drive content that is not in a document, spreadsheet, presentation or PDF, read here as leaving the hub's text files out. Pages read 2026-11-27. The probe reads the hub_text_read value this contract records for each surface with a vendor-side Drive write (a Drive connector or app, or Gemini's Export to Docs) and needs at least one such surface; it does not read the pages. No step simulates a web chat reading a hub file: a read on a real account is live check C2 (ChatGPT), C5 (claude.ai) or C6 (Gemini) in docs/MAC-VALIDATION.md.",
+      "evidence": "surfaces.*.hub_text_read in this contract; docs/SURFACE-WORKFLOWS.md sources"
     }
   ],
   "_closed_gaps": [
@@ -403,7 +417,8 @@
         }
       ],
       "gaps": [
-        "SW-G8"
+        "SW-G8",
+        "SW-G13"
       ],
       "live_steps": [
         "In claude.ai, with the Google Drive connector on, ask Claude to save your voice change as a NEW dated file in Creator OS/Profile (never to edit an existing file).",
@@ -649,7 +664,8 @@
       "gaps": [
         "SW-G2",
         "SW-G3",
-        "SW-G10"
+        "SW-G10",
+        "SW-G13"
       ],
       "live_steps": [
         "In claude.ai, with the Drive connector, ask Claude to create a library_analyze job ticket in Creator OS/Jobs/queue (docs/DRIVE-HUB.md shows the ticket shape).",
@@ -888,7 +904,8 @@
       ],
       "gaps": [
         "SW-G1",
-        "SW-G4"
+        "SW-G4",
+        "SW-G13"
       ],
       "live_steps": [
         "In claude.ai, ask for the research as a dated JSON export saved into Creator OS/Store.",
@@ -1047,7 +1064,8 @@
         }
       ],
       "gaps": [
-        "SW-G7"
+        "SW-G7",
+        "SW-G13"
       ],
       "live_steps": [
         "In ChatGPT on the web, run implementation/gpt/profile-import/PROMPT.md, copy the JSON reply into a file named profile-export-<context>.json, and save it into your synced Creator OS/Profile folder.",
@@ -1256,7 +1274,8 @@
       ],
       "gaps": [
         "SW-G1",
-        "SW-G6"
+        "SW-G6",
+        "SW-G13"
       ],
       "live_steps": [
         "In ChatGPT on the web, ask for your task list as a NEW dated file in Creator OS/Store.",
@@ -1425,7 +1444,9 @@
           ]
         }
       ],
-      "gaps": [],
+      "gaps": [
+        "SW-G13"
+      ],
       "live_steps": [
         "In ChatGPT on the web, ask for a posting package: it is text only.",
         "In the Gemini desktop app, say \"post it now\": Gemini has no Creator OS tools, so nothing is posted.",
@@ -1896,7 +1917,8 @@
       "gaps": [
         "SW-G1",
         "SW-G11",
-        "SW-G12"
+        "SW-G12",
+        "SW-G13"
       ],
       "live_steps": [
         "In the Gemini web app, use Export to Docs on a chat; it saves a new Doc in My Drive. Move it into Creator OS/Inbox.",
@@ -2492,7 +2514,8 @@
         "SW-G8",
         "SW-G10",
         "SW-G11",
-        "SW-G12"
+        "SW-G12",
+        "SW-G13"
       ],
       "live_steps": [
         "On one day: in the Gemini web app export notes to a Doc and move it into the Inbox; in ChatGPT on the web save a task list into Store; in claude.ai create a job ticket; at home change your voice profile.",

@@ -1,4 +1,4 @@
-_Data freshness: as of 2026-11-23 (Creator OS baseline 715eaf9a). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
+_Data freshness: as of 2026-11-27 (Creator OS baseline 552f4126). Live updates come from your own store; see docs/FRESHNESS.md. Source and updates: github.com/flywifi/seo-tools._
 
 # Creator OS -- setup help and what works where
 

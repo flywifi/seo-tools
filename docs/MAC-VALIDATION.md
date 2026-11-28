@@ -125,17 +125,20 @@ files in `implementation/claude/project/knowledge/` (see `docs/SETUP_MAC.md`).
 
 ## Connector checks on real accounts (any browser; not part of Phase 1)
 
-Four short checks that only a signed-in account can settle. The vendors' pages leave them open
+Six short checks that only a signed-in account can settle. The vendors' pages leave them open
 or disagree: OpenAI's Drive article says the app can create and update Drive files and does not
 say whether it saves into a chosen folder or reads a JSON file there; Anthropic's connector
 reference describes Gmail as read-only while its Help Center article describes drafts with
-approval (`docs/TRANSITIONS.md` and `docs/TASK-TRACKER.md` cite the pages). The docs describe
+approval (`docs/TRANSITIONS.md` and `docs/TASK-TRACKER.md` cite the pages); Anthropic's Drive
+connector page lists the file types Claude can read and a JSON file is not among them, and
+Google's page says Gemini Apps do not access Drive content that is not in a document,
+spreadsheet, presentation or PDF (`docs/SURFACE-WORKFLOWS.md` cites both; gap SW-G13). The docs describe
 these paths as not tested until a run records them. They touch real accounts, so they sit
 outside the local-only tier; run them when convenient and record each outcome in the results log.
 
 Before you start: a hub set up through the wizard's `/drive-hub` screen, so `Creator OS/Profile`
 and `Creator OS/Store` exist in your Drive, and one test message in Gmail that is safe to
-answer. For C2, pick one `.json` file in `Creator OS/Store` (any `.json` file in the hub if
+answer. For C2, C5 and C6, pick one `.json` file in `Creator OS/Store` (any `.json` file in the hub if
 `Store` has none yet), open it in Drive's preview and note its first key: the first word in
 quotes before a colon. For C3 and C4, if the app shows a setting that makes it ask before it
 acts, turn that on first. Each check leaves at most one test file or one draft; delete it
@@ -158,6 +161,14 @@ this account" and the plan.
   to the same test message, not sent.
   - Record: a draft appeared in Gmail / it asked for approval, then a draft appeared / the text
     stayed in the chat / it sent the message (stop and record that).
+- **C5. claude.ai's Drive connector reads a hub file.** In claude.ai with the Google Drive
+  connector on, ask it to open the `.json` file you picked and name its first key.
+  - Record: it named the key you noted / it named another key / it found the name only / it
+    could not.
+- **C6. Gemini reads a hub file.** In Gemini on the web with Google Workspace connected, ask it
+  to find the `.json` file you picked in your Drive and name its first key.
+  - Record: it named the key you noted / it named another key / it found the name only / it
+    could not.
 
 ## Safety
 
@@ -185,6 +196,8 @@ C1 ChatGPT Drive save   : NOT-RUN / outcome: ____
 C2 ChatGPT Drive read   : NOT-RUN / outcome: ____
 C3 ChatGPT Gmail draft  : NOT-RUN / outcome: ____
 C4 claude.ai Gmail draft: NOT-RUN / outcome: ____
+C5 claude.ai Drive read : NOT-RUN / outcome: ____
+C6 Gemini Drive read    : NOT-RUN / outcome: ____
 
 Not exercised (deferred, real-account tiers): OAuth/publishing, Drive hub, remote-MCP connector.
 Not exercised (needs real Mac hardware; verified only against vendor documentation, never
